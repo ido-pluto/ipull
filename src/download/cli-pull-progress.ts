@@ -15,18 +15,18 @@ export default class CLIPullProgress {
 
     public constructor(private _progress: IStreamProgress, private _name: string) {
         this._progressBar = new cliProgress.SingleBar({
-            format: this.getProgressBarFormat(),
+            format: this._getProgressBarFormat(),
             barCompleteChar: "\u2588",
             barIncompleteChar: "\u2591",
             hideCursor: false
         });
     }
 
-    private static formatSpeed(speed: number): string {
+    private static _formatSpeed(speed: number): string {
         return prettyBytes(Math.min(speed, 9999999999) || 0, CLIPullProgress._PRETTY_BYTES_OPTIONS) + "/s";
     }
 
-    private calculateSpeed(currentTransferred: number): number {
+    private _calculateSpeed(currentTransferred: number): number {
         const dateInSeconds = Math.floor(Date.now() / 1000);
         this._speeds[dateInSeconds] ??= 0;
         this._speeds[dateInSeconds] += currentTransferred - this._lastTransferred;
@@ -46,15 +46,15 @@ export default class CLIPullProgress {
         return averageSecondsAverageSpeed / CLIPullProgress._AVERAGE_SPEED_LAST_SECONDS;
     }
 
-    private handleProgress(transferred: number, total: number) {
+    private _handleProgress(transferred: number, total: number) {
         this._progressBar.setTotal(total);
 
-        const speed = this.calculateSpeed(transferred);
+        const speed = this._calculateSpeed(transferred);
         const timeLeft = (total - transferred) / speed;
         const percentage = ((transferred / total) * 100).toFixed(2);
 
         this._progressBar.update(transferred, {
-            speed: CLIPullProgress.formatSpeed(speed),
+            speed: CLIPullProgress._formatSpeed(speed),
             percentage: percentage,
             timeLeft: prettyMs((timeLeft || 0) * 1000, CLIPullProgress._PRETTY_MS_OPTIONS),
             transferredBytes: `${prettyBytes(transferred, CLIPullProgress._PRETTY_BYTES_OPTIONS)}/${prettyBytes(total, CLIPullProgress._PRETTY_BYTES_OPTIONS)}`
@@ -66,7 +66,7 @@ export default class CLIPullProgress {
         }
     }
 
-    public async startPull(): Promise<any> {
+    public async startPull(): Promise<void> {
         this._progressBar.start(Infinity, 0, {
             speed: "N/A",
             percentage: 0,
@@ -74,11 +74,11 @@ export default class CLIPullProgress {
             transferredBytes: `0 bytes/0 bytes`
         });
 
-        await this._progress.progress(this.handleProgress.bind(this));
+        await this._progress.progress(this._handleProgress.bind(this));
         console.log();
     }
 
-    private getProgressBarFormat(): string {
+    private _getProgressBarFormat(): string {
         return `Pulling ${this._name} | ${chalk.cyan("{bar}")} | {percentage}% | {transferredBytes} | Speed: {speed} | Time: {timeLeft}`;
     }
 }
