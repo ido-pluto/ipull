@@ -1,0 +1,86 @@
+{
+  "name": "pull",
+  "version": "3.0.0",
+  "description": "Super fast file downloader CLI",
+  "main": "dist/index.js",
+  "type": "module",
+  "bin": {
+    "pull": "./dist/cli.js"
+  },
+  "files": [
+    "dist/",
+    "package.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "generate-docs": "typedoc --plugin typedoc-plugin-missing-exports",
+    "build": "tsc --build tsconfig.json --force",
+    "cli": "npm run build && node -r dotenv/config ./dist/cli.js",
+    "format": "npm run lint:eslint -- --fix",
+    "prepack": "npm run build && cp ../README.md ./README.md",
+    "test": "npm run test:typescript && npm run lint:eslint",
+    "test:typescript": "tsc --build tsconfig.json --dry --force",
+    "lint": "npm run lint:eslint",
+    "lint:eslint": "eslint --ext .js --ext .ts ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ido-pluto/pull.git"
+  },
+  "keywords": [
+    "fast-download",
+    "partial-download",
+    "resume-download",
+    "file-downloader",
+    "cli",
+    "turbo-downloader",
+    "file-copy",
+    "downloader",
+    "download",
+    "file",
+    "pull"
+  ],
+  "author": "Ido S.",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/ido-pluto/pull/issues"
+  },
+  "homepage": "https://github.com/ido-pluto/pull#readme",
+  "devDependencies": {
+    "@types/cli-progress": "^3.11.0",
+    "@types/fs-extra": "^11.0.1",
+    "@types/node": "^20.4.9",
+    "@types/progress-stream": "^2.0.2",
+    "@typescript-eslint/eslint-plugin": "^6.3.0",
+    "@typescript-eslint/parser": "^6.3.0",
+    "dotenv": "^16.3.1",
+    "eslint": "^8.46.0",
+    "eslint-plugin-import": "^2.28.0",
+    "eslint-plugin-node": "github:giladgd/eslint-plugin-node#dev/giladgd/fixImportExtentionFixingInTypeScript",
+    "husky": "^8.0.3",
+    "semantic-release": "^21.0.7",
+    "tslib": "^2.6.1",
+    "typedoc": "^0.24.8",
+    "typedoc-plugin-missing-exports": "^2.0.1",
+    "typescript": "^5.1.6"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "cli-progress": "^3.12.0",
+    "commander": "^10.0.0",
+    "execa": "^7.2.0",
+    "fs-extra": "^11.1.1",
+    "pretty-bytes": "^6.1.0",
+    "pretty-ms": "^8.0.0",
+    "progress-stream": "^2.0.0",
+    "turbo-downloader": "^1.3.1",
+    "wretch": "^2.6.0"
+  }
+}
