@@ -5,7 +5,7 @@
   "main": "dist/index.js",
   "type": "module",
   "bin": {
-    "pull": "./dist/cli.js"
+    "pull": "./dist/cli/cli.js"
   },
   "files": [
     "dist/",
@@ -22,7 +22,7 @@
   "scripts": {
     "generate-docs": "typedoc --plugin typedoc-plugin-missing-exports",
     "build": "tsc --build tsconfig.json --force",
-    "cli": "npm run build && node -r dotenv/config ./dist/cli.js",
+    "cli": "npm run build && node -r dotenv/config ./dist/cli/cli.js",
     "format": "npm run lint:eslint -- --fix",
     "prepack": "npm run build && cp ../README.md ./README.md",
     "test": "npm run test:typescript && npm run lint:eslint",
@@ -77,6 +77,7 @@
     "commander": "^10.0.0",
     "execa": "^7.2.0",
     "fs-extra": "^11.1.1",
+    "level": "^8.0.0",
     "pretty-bytes": "^6.1.0",
     "pretty-ms": "^8.0.0",
     "progress-stream": "^2.0.0",

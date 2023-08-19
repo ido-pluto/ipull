@@ -1,4 +1,4 @@
-import TurboDownloader from "turbo-downloader";
+import TurboDownloader, {TurboDownloaderOptions} from "turbo-downloader";
 import wretch from "wretch";
 import fs from "fs-extra";
 import {IStreamProgress} from "./istream-progress.js";
@@ -8,7 +8,7 @@ export default class FastDownload implements IStreamProgress {
     public _downloader?: typeof TurboDownloader;
     private _redirectedURL?: string;
 
-    constructor(private _url: string, private _savePath: string) {
+    constructor(private _url: string, private _savePath: string, private _options?: Partial<TurboDownloaderOptions>) {
     }
 
     public async init() {
@@ -16,9 +16,10 @@ export default class FastDownload implements IStreamProgress {
         this._downloader = new (TurboDownloader.default as any)({
             url: await this._getRedirectedURL(),
             destFile: this._savePath,
-            chunkSize: 50 * 1024 * 1024, // Size of chunk (default 16MB)
+            chunkSize: 50 * 1024 * 1024,
             concurrency: 8,
-            canBeResumed: true
+            canBeResumed: true,
+            ...this._options
         });
     }
 

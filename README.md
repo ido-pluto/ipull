@@ -31,15 +31,27 @@ Usage: pull [options] [files...]
 Pull/copy files from remote server/local directory
 
 Arguments:
-  files             Files to pull/copy
+  files                         Files to pull/copy
 
 Options:
-  -V, --version     output the version number
-  -s --save [path]  Save directory
-  -f --full-name    Show full name of the file while downloading, even if it long
-  -h, --help        display help for command
+  -V, --version                 output the version number
+  -s --save [path]              Save directory
+  -f --full-name                Show full name of the file while downloading, even if it long
+  -h, --help                    display help for command
 
+Commands:
+  set [options] [path] <value>  Set download locations
 ```
+
+### Set custom save directory
+
+You can set a custom save directory by using the `set` command.
+
+```bash
+pull set .zip ~/Downloads/zips
+```
+
+(use `default` to set the default save directory)
 
 ### NodeJS API
 
@@ -60,7 +72,7 @@ interface IStreamProgress {
 
 
 class FastDownload implements IStreamProgress {
-    constructor(url: string, savePath: string) {
+    constructor(url: string, savePath: string, options?: TurboDownloaderOptions) {
     }
 }
 

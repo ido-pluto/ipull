@@ -1,0 +1,6 @@
+{
+    "downloadPathByExtension": {
+        //"mp3": "C:\\Users\\user\\Music\\",
+        //default: "C:\\Users\\user\\Downloads\\"
+    }
+}
