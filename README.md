@@ -4,9 +4,9 @@
 
 <div align="center">
 
-[![npm version](https://badge.fury.io/js/pull.svg)](https://badge.fury.io/js/catai)
-[![npm downloads](https://img.shields.io/npm/dt/pull.svg)](https://www.npmjs.com/package/catai)
-[![GitHub license](https://img.shields.io/github/license/ido-pluto/pull)](./LICENSE)
+[![npm version](https://badge.fury.io/js/ipull.svg)](https://badge.fury.io/js/ipull)
+[![npm downloads](https://img.shields.io/npm/dt/ipull.svg)](https://www.npmjs.com/package/ipull)
+[![GitHub license](https://img.shields.io/github/license/ido-pluto/ipull)](./LICENSE)
 
 </div>
 <br />
