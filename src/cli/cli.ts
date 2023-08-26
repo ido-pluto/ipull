@@ -29,6 +29,7 @@ pullCommand
 
         console.log();
         console.log(pullLogs.join("\n"));
+        process.exit(0);
     });
 
 pullCommand.addCommand(setCommand);
