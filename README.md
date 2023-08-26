@@ -1,5 +1,5 @@
 <div align="center">
-    <h1>PULL</h1>
+    <h1>IPULL</h1>
 </div>
 
 <div align="center">
@@ -14,7 +14,7 @@
 > Simple CLI to pull files from the internet **super fast**!
 
 ```bash
-npx pull http://example.com/file.txt
+npx ipull http://example.com/file.txt
 ```
 
 ## Features
@@ -26,7 +26,7 @@ npx pull http://example.com/file.txt
 ## CLI
 
 ```
-Usage: pull [options] [files...]
+Usage: ipull [options] [files...]
 
 Pull/copy files from remote server/local directory
 

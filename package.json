@@ -1,7 +1,7 @@
 {
-  "name": "pull",
-  "version": "3.0.0",
-  "description": "Super fast file downloader CLI",
+  "name": "ipull",
+  "version": "1.0.0",
+  "description": "Super fast cli file downloader",
   "main": "dist/index.js",
   "type": "module",
   "bin": {
