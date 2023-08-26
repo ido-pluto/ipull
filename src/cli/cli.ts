@@ -17,6 +17,11 @@ pullCommand
     .option("-s --save [path]", "Save directory")
     .option("-f --full-name", "Show full name of the file while downloading, even if it long")
     .action(async (files = [], {save, fullName}: { save?: string, fullName?: boolean }) => {
+        if (files.length === 0) {
+            pullCommand.outputHelp();
+            process.exit(0);
+        }
+
         const pullLogs: string[] = [];
         for (const file of files) {
             const fileName = path.basename(file);
