@@ -17,6 +17,8 @@
 npx ipull http://example.com/file.txt
 ```
 
+![pull-example](./demo/pull-file.gif)
+
 ## Features
 
 - Download using multiple connections
