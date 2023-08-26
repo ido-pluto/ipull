@@ -6,7 +6,7 @@
     "out": "../docs",
     "tsconfig": "../tsconfig.json",
     "customCss": "./typedoc.css",
-    "readme": "../../README.md",
+    "readme": "../README.md",
     "excludeExternals": true,
     "excludeInternal": true,
     "excludePrivate": true,
