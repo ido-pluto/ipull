@@ -17,7 +17,7 @@
 npx ipull http://example.com/file.txt
 ```
 
-![pull-example](./demo/pull-file.gif)
+![pull-example](https://github.com/withcatai/catai/blob/main/demo/pull-file.gif)
 
 ## Features
 
