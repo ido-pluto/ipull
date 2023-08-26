@@ -48,7 +48,7 @@ Commands:
 You can set a custom save directory by using the `set` command.
 
 ```bash
-pull set .zip ~/Downloads/zips
+ipull set .zip ~/Downloads/zips
 ```
 
 (use `default` to set the default save directory)
