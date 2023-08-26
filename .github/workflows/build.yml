@@ -61,11 +61,12 @@ jobs:
           mv artifacts/build dist/
           mv artifacts/docs docs/
 
-            - name: Release
-              env:
-                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-              run: npx semantic-release
+      - name: Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npx semantic-release
+
       - name: Set npm package url to GITHUB_OUTPUT
         id: set-npm-url
         run: |
