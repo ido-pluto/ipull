@@ -1,8 +1,8 @@
+import {fileURLToPath} from "url";
 import FastDownload from "./stream-progress/fast-download.js";
 import CLIPullProgress from "./cli-pull-progress.js";
 import {IStreamProgress} from "./stream-progress/istream-progress.js";
 import CopyProgress from "./stream-progress/copy-progress.js";
-import {fileURLToPath} from "url";
 
 export default async function pullFileCLI(url: string, savePath: string, name: string) {
     let progressStream: IStreamProgress;

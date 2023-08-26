@@ -71,7 +71,7 @@ export default class CLIPullProgress {
             speed: "N/A",
             percentage: 0,
             timeLeft: "N/A",
-            transferredBytes: `0 bytes/0 bytes`
+            transferredBytes: "0 bytes/0 bytes"
         });
 
         await this._progress.progress(this._handleProgress.bind(this));

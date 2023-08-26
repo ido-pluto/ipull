@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 
+import path from "path";
+import {pathToFileURL} from "url";
 import {Command} from "commander";
 import {packageJson} from "../const.js";
 import pullFileCLI from "../download/index.js";
-import path from "path";
 import {truncateText} from "../utils/truncate-text.js";
 import findDownloadDir from "./utils/find-download-dir.js";
-import {pathToFileURL} from "url";
 import {setCommand} from "./commands/set.js";
 
 const pullCommand = new Command();

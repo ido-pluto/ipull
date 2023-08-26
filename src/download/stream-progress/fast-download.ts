@@ -27,7 +27,7 @@ export default class FastDownload implements IStreamProgress {
         const {url} = await wretch(this._url)
             .head()
             .notFound(() => {
-                throw new Error(`Model URL is broken, try to install directly from URL: catai install https://...`);
+                throw new Error("Model URL is broken, try to install directly from URL: catai install https://...");
             })
             .res()
             .catch(error => {

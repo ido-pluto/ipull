@@ -1,5 +1,5 @@
-import {getWithDefault} from "../../settings/settings.js";
 import path from "path";
+import {getWithDefault} from "../../settings/settings.js";
 
 const DEFAULT_DOWNLOAD_DIR = process.cwd();
 

@@ -54,6 +54,7 @@
   },
   "homepage": "https://github.com/ido-pluto/ipull#readme",
   "devDependencies": {
+    "@commitlint/config-conventional": "^17.7.0",
     "@types/cli-progress": "^3.11.0",
     "@types/fs-extra": "^11.0.1",
     "@types/node": "^20.4.9",
