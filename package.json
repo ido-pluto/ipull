@@ -24,7 +24,7 @@
     "build": "tsc --build tsconfig.json --force",
     "cli": "npm run build && node -r dotenv/config ./dist/cli/cli.js",
     "format": "npm run lint:eslint -- --fix",
-    "prepack": "npm run build && cp ../README.md ./README.md",
+    "prepack": "npm run build",
     "test": "npm run test:typescript && npm run lint:eslint",
     "test:typescript": "tsc --build tsconfig.json --dry --force",
     "lint": "npm run lint:eslint",
