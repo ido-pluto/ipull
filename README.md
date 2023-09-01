@@ -84,6 +84,18 @@ class CopyProgress implements IStreamProgress {
 }
 ```
 
+Example:
+
+```ts
+import {FastDownload} from 'ipull';
+
+const download = new FastDownload('http://example.com/file.txt', './file.txt');
+await download.init();
+
+const progress = new CLIPullProgress(download, 'file.txt');
+await progress.startPull();
+```
+
 ## Credits
 
 [Turbo-Downloader](https://www.npmjs.com/package/turbo-downloader) - The download engine used in this package
