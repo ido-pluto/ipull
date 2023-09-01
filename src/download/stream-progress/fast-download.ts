@@ -5,7 +5,7 @@ import {IStreamProgress} from "./istream-progress.js";
 
 
 export default class FastDownload implements IStreamProgress {
-    public _downloader?: typeof TurboDownloader;
+    private _downloader?: typeof TurboDownloader;
     private _redirectedURL?: string;
 
     constructor(private _url: string, private _savePath: string, private _options?: Partial<TurboDownloaderOptions>) {
@@ -26,9 +26,6 @@ export default class FastDownload implements IStreamProgress {
     private async _getRedirectedURL() {
         const {url} = await wretch(this._url)
             .head()
-            .notFound(() => {
-                throw new Error("Model URL is broken, try to install directly from URL: catai install https://...");
-            })
             .res()
             .catch(error => {
                 throw new Error(`Error while getting file head: ${error.status}`);
