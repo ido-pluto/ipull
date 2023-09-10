@@ -5,7 +5,7 @@ import {IStreamProgress} from "./istream-progress.js";
 
 
 export default class FastDownload implements IStreamProgress {
-    private _downloader?: typeof TurboDownloader;
+    private _downloader?: TurboDownloader.default;
     private _redirectedURL?: string;
 
     constructor(private _url: string, private _savePath: string, private _options?: Partial<TurboDownloaderOptions>) {
@@ -13,7 +13,7 @@ export default class FastDownload implements IStreamProgress {
 
     public async init() {
         await fs.ensureFile(this._savePath);
-        this._downloader = new (TurboDownloader.default as any)({
+        this._downloader = new FastDownload._TurboDownloaderClass({
             url: await this._getRedirectedURL(),
             destFile: this._savePath,
             chunkSize: 50 * 1024 * 1024,
@@ -37,5 +37,10 @@ export default class FastDownload implements IStreamProgress {
         if (!this._downloader)
             throw new Error("Downloader is not initialized");
         await (this._downloader as any).download(callback);
+    }
+
+    private static get _TurboDownloaderClass(): typeof TurboDownloader.default {
+        if (TurboDownloader && "default" in TurboDownloader) return TurboDownloader.default;
+        return TurboDownloader;
     }
 }
