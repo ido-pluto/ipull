@@ -1,7 +1,7 @@
-import cliProgress from 'cli-progress';
-import chalk from 'chalk';
-import {IStreamProgress} from './stream-progress/istream-progress.js';
-import PullProgress, {TransferProgressInfo} from './pull-progress.js';
+import cliProgress from "cli-progress";
+import chalk from "chalk";
+import {IStreamProgress} from "./stream-progress/istream-progress.js";
+import PullProgress, {TransferProgressInfo} from "./pull-progress.js";
 
 export default class CLIPullProgress extends PullProgress {
     private _progressBar: cliProgress.SingleBar;

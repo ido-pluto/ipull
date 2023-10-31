@@ -1,6 +1,6 @@
-import prettyBytes, {Options as PrettyBytesOptions} from 'pretty-bytes';
-import prettyMs, {Options as PrettyMsOptions} from 'pretty-ms';
-import {IStreamProgress} from './stream-progress/istream-progress.js';
+import prettyBytes, {Options as PrettyBytesOptions} from "pretty-bytes";
+import prettyMs, {Options as PrettyMsOptions} from "pretty-ms";
+import {IStreamProgress} from "./stream-progress/istream-progress.js";
 export {IStreamProgress};
 
 export type TransferProgressInfo = {
@@ -11,7 +11,7 @@ export type TransferProgressInfo = {
     timeLeft: string,
     transferredBytes: string,
     ended: boolean
-}
+};
 
 export type PullProgressCallback = (info: TransferProgressInfo) => void;
 
