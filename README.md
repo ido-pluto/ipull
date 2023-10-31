@@ -58,6 +58,14 @@ ipull set .zip ~/Downloads/zips
 ### NodeJS API
 
 ```ts
+class PullProgress {
+    constructor(progress: IStreamProgress, onProgress: PullProgressCallback) {
+    }
+
+    startPull(): Promise<void> {
+    }
+}
+
 class CLIPullProgress {
     constructor(progress: IStreamProgress, name: string) {
     }
@@ -87,7 +95,7 @@ class CopyProgress implements IStreamProgress {
 Example:
 
 ```ts
-import {FastDownload} from 'ipull';
+import {FastDownload, CLIPullProgress} from 'ipull';
 
 const download = new FastDownload('http://example.com/file.txt', './file.txt');
 await download.init();
@@ -95,6 +103,20 @@ await download.init();
 const progress = new CLIPullProgress(download, 'file.txt');
 await progress.startPull();
 ```
+
+## Browser support
+You can also use IPull without the CLI, just for download metadata
+
+```ts
+import PullProgress from 'ipull/pull-progress.js';
+
+const pull = new PullProgress(download, (info) => {
+    console.log(info.speed);
+});
+
+pull.startPull();
+```
+- Make sure you import the exact file when using, so Node.js only modules will not be imported
 
 ## Credits
 

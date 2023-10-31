@@ -14,7 +14,9 @@
     "LICENSE"
   ],
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./pull-progress": "./dist/download/pull-progress.js",
+    "./pull-progress.js": "./dist/download/pull-progress.js"
   },
   "engines": {
     "node": ">=18.0.0"
