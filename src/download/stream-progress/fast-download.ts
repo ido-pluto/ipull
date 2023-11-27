@@ -1,8 +1,8 @@
-import TurboDownloader, {TurboDownloaderOptions} from 'turbo-downloader';
-import wretch from 'wretch';
-import fs from 'fs-extra';
-import contentDisposition from 'content-disposition';
-import {IStreamProgress} from './istream-progress.js';
+import TurboDownloader, {TurboDownloaderOptions} from "turbo-downloader";
+import wretch from "wretch";
+import fs from "fs-extra";
+import contentDisposition from "content-disposition";
+import {IStreamProgress} from "./istream-progress.js";
 
 const DEFAULT_FILE_NAME = "file";
 
