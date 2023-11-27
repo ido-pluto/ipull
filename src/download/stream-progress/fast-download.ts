@@ -1,8 +1,8 @@
-import TurboDownloader, {TurboDownloaderOptions} from "turbo-downloader";
-import wretch from "wretch";
-import fs from "fs-extra";
-import contentDisposition from "content-disposition";
-import {IStreamProgress} from "./istream-progress.js";
+import TurboDownloader, {TurboDownloaderOptions} from 'turbo-downloader';
+import wretch from 'wretch';
+import fs from 'fs-extra';
+import contentDisposition from 'content-disposition';
+import {IStreamProgress} from './istream-progress.js';
 
 const DEFAULT_FILE_NAME = "file";
 
@@ -50,7 +50,11 @@ export default class FastDownload implements IStreamProgress {
         return TurboDownloader;
     }
 
-    public static async fetchFilename(url: string, _default?: string) {
+    /**
+     * Fetches filename from `content-disposition` header. If it's not present, extract it from the `pathname` of the url
+     * @param {string} url
+     */
+    public static async fetchFilename(url: string) {
         const contentDispositionHeader = await wretch(url)
             .head()
             .res(response => response.headers.get("content-disposition"))
@@ -59,12 +63,12 @@ export default class FastDownload implements IStreamProgress {
             });
 
         const parsed = new URL(url);
-        _default ??= decodeURIComponent(parsed.pathname.split("/").pop() ?? DEFAULT_FILE_NAME);
+        const defaultFilename = decodeURIComponent(parsed.pathname.split("/").pop() ?? DEFAULT_FILE_NAME);
 
         if (!contentDispositionHeader)
-            return _default;
+            return defaultFilename;
 
         const {parameters} = contentDisposition.parse(contentDispositionHeader);
-        return parameters.filename ?? _default;
+        return parameters.filename ?? defaultFilename;
     }
 }
