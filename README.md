@@ -37,7 +37,7 @@ Arguments:
 
 Options:
   -V, --version                 output the version number
-  -s --save [path]              Save directory
+  -s --save [path]              Save location (directory/file)
   -f --full-name                Show full name of the file while downloading, even if it long
   -h, --help                    display help for command
 
@@ -82,13 +82,13 @@ interface IStreamProgress {
 
 
 class FastDownload implements IStreamProgress {
-    constructor(url: string, savePath: string, options?: TurboDownloaderOptions) {
-    }
+    constructor(url: string, savePath: string, options?: TurboDownloaderOptions);
+
+    static async fetchFilename(url: string);
 }
 
 class CopyProgress implements IStreamProgress {
-    constructor(fromPath: string, toPath: string) {
-    }
+    constructor(fromPath: string, toPath: string);
 }
 ```
 
