@@ -59,19 +59,15 @@ ipull set .zip ~/Downloads/zips
 
 ```ts
 class PullProgress {
-    constructor(progress: IStreamProgress, onProgress: PullProgressCallback) {
-    }
+    constructor(progress: IStreamProgress, onProgress: PullProgressCallback);
 
-    startPull(): Promise<void> {
-    }
+    startPull(): Promise<void>;
 }
 
 class CLIPullProgress {
-    constructor(progress: IStreamProgress, name: string) {
-    }
+    constructor(progress: IStreamProgress, name: string);
 
-    startPull(): Promise<void> {
-    }
+    startPull(): Promise<void>;
 }
 
 interface IStreamProgress {
