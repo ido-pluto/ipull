@@ -67,11 +67,9 @@ class PullProgress {
 }
 
 class CLIPullProgress {
-    constructor(progress: IStreamProgress, name: string) {
-    }
+    constructor(progress: IStreamProgress, name: string);
 
-    startPull(): Promise<void> {
-    }
+    startPull(): Promise<void>;
 }
 
 interface IStreamProgress {
