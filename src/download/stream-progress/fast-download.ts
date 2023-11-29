@@ -68,7 +68,11 @@ export default class FastDownload implements IStreamProgress {
         if (!contentDispositionHeader)
             return defaultFilename;
 
-        const {parameters} = contentDisposition.parse(contentDispositionHeader);
-        return parameters.filename ?? defaultFilename;
+        try {
+            const {parameters} = contentDisposition.parse(contentDispositionHeader);
+            return parameters.filename ?? defaultFilename;
+        } catch {
+            return defaultFilename;
+        }
     }
 }
