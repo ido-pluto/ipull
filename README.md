@@ -5,6 +5,7 @@
 
 <div align="center">
 
+[![Build](https://github.com/ido-pluto/ipull/actions/workflows/build.yml/badge.svg)](https://github.com/ido-pluto/ipull/actions/workflows/build.yml)
 [![License](https://badgen.net/badge/color/MIT/green?label=license)](https://www.npmjs.com/package/ipull)
 [![Types](https://badgen.net/badge/color/TypeScript/blue?label=types)](https://www.npmjs.com/package/ipull)
 [![npm downloads](https://img.shields.io/npm/dt/ipull.svg)](https://www.npmjs.com/package/ipull)
