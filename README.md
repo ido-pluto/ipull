@@ -23,10 +23,10 @@ npx ipull http://example.com/file.large
 
 ## Features
 
-- Download using multiple connections
-- Smart retry on fail
-- Resuming and pausing downloads
+- Download using parallels connections
+- Pausing and resuming downloads
 - Node.js and browser support
+- Smart retry on fail
 - CLI Progress bar
 - Download statistics (speed, time left, etc.)
 
