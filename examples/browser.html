@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Download Big Image</title>
+</head>
+
+<body>
+<span id="imageSize"></span><br/>
+<progress id="progress" value="0" max="100"></progress>
+<br/>
+<img id="view" alt="Big Image" height="400px">
+
+<script type="module">
+    const BIG_IMAGE = "https://upload.wikimedia.org/wikipedia/commons/9/9e/1_dubrovnik_pano_-_edit1.jpg"; // 40mb
+    const imageSize = document.getElementById("imageSize");
+    const progressBar = document.getElementById("progress");
+    const view = document.getElementById("view");
+
+    import {downloadFileBrowserMemory} from "ipull/dist/browser.js";
+    import prettyBytes from "pretty-bytes";
+
+    const {downloader, memory} = await downloadFileBrowserMemory(BIG_IMAGE, {
+        onProgress: (progress) => {
+            progressBar.value = progress.percentage;
+        },
+        acceptRangeAlwaysTrue: true // cors origin request will not return the range header, but we can force it to be true (multipart download)
+    });
+
+    imageSize.innerText = `Image Size: ${prettyBytes(downloader.file.totalSize)} bytes`;
+    await downloader.download();
+
+    view.src = memory.createBlobURL();
+</script>
+</body>
+
+</html>

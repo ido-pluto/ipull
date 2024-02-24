@@ -1,11 +1,15 @@
 {
     "$schema": "https://typedoc.org/schema.json",
     "entryPoints": [
+        "../src/browser.ts",
         "../src/index.ts"
     ],
     "out": "../docs",
     "tsconfig": "../tsconfig.json",
-    "customCss": "./typedoc.css",
+    "plugin": [
+        "typedoc-material-theme",
+        "typedoc-plugin-missing-exports"
+    ],
     "readme": "../README.md",
     "excludeExternals": true,
     "excludeInternal": true,
