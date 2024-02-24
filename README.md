@@ -13,7 +13,6 @@
 [![Version](https://badgen.net/npm/v/ipull)](https://www.npmjs.com/package/ipull)
 
 </div>
-<br />
 
 > Super fast file downloader with multiple connections
 
