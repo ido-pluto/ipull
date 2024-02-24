@@ -1,4 +1,4 @@
-import {describe, expect, test} from "vitest";
+import {describe, test} from "vitest";
 import {downloadFileBrowser, downloadFileBrowserMemory} from "../src/browser.js";
 import {hashBuffer} from "./utils/hash.js";
 import {BIG_IMAGE} from "./utils/files.js";
@@ -7,17 +7,17 @@ import {BIG_IMAGE} from "./utils/files.js";
 globalThis.XMLHttpRequest = await import("xmlhttprequest-ssl").then(m => m.XMLHttpRequest);
 
 describe("Browser", () => {
-    test("Download file browser - memory", async () => {
+    test.concurrent("Download file browser - memory", async (context) => {
         const {downloader, memory} = await downloadFileBrowserMemory(BIG_IMAGE);
 
         await downloader.download();
 
         const hash = hashBuffer(memory.buffer);
-        expect(hash)
+        context.expect(hash)
             .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
     });
 
-    test("Download file browser - memory (xhr)", async () => {
+    test.concurrent("Download file browser - memory (xhr)", async (context) => {
 
         const {downloader, memory} = await downloadFileBrowserMemory(BIG_IMAGE, {
             fetchStrategy: "xhr"
@@ -26,11 +26,11 @@ describe("Browser", () => {
         await downloader.download();
 
         const hash = hashBuffer(memory.buffer);
-        expect(hash)
+        context.expect(hash)
             .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
     });
 
-    test("Download file browser", async () => {
+    test.concurrent("Download file browser", async (context) => {
         let buffer = Buffer.alloc(0);
         let lastWrite = 0;
         const downloader = await downloadFileBrowser(BIG_IMAGE, {
@@ -45,9 +45,9 @@ describe("Browser", () => {
         buffer = Buffer.alloc(downloader.file.totalSize);
 
         await downloader.download();
-        expect(hashBuffer(buffer))
+        context.expect(hashBuffer(buffer))
             .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
-        expect(lastWrite)
+        context.expect(lastWrite)
             .toMatchInlineSnapshot(downloader.file.totalSize);
     });
 });

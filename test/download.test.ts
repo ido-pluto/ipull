@@ -1,4 +1,4 @@
-import {describe, expect, test} from "vitest";
+import {describe, test} from "vitest";
 import {DownloadEngineFetchStreamFetch, DownloadEngineFile} from "../src/index.js";
 import {ChunkStatus} from "../src/download/download-engine/types.js";
 import DownloadEngineWriteStreamBrowser
@@ -7,7 +7,7 @@ import {BIG_IMAGE} from "./utils/files.js";
 import {createDownloadFile} from "./utils/download.js";
 
 describe("File Download", () => {
-    test("Parallel connection download", async () => {
+    test.concurrent("Parallel connection download", async (context) => {
         const MIN_PARALLEL_CONNECTIONS = 4;
         const randomNumber = Math.max(MIN_PARALLEL_CONNECTIONS, Math.floor(Math.random() * 30));
         const fetchStream = new DownloadEngineFetchStreamFetch({
@@ -34,14 +34,14 @@ describe("File Download", () => {
         });
 
         await downloader.download();
-        expect(saveProgressCalledLength)
+        context.expect(saveProgressCalledLength)
             .toBeGreaterThan(randomNumber);
-        expect(maxInParallelConnections)
+        context.expect(maxInParallelConnections)
             .toBe(randomNumber);
     });
 
 
-    test("Total bytes written", async () => {
+    test.concurrent("Total bytes written", async (context) => {
         let totalBytesWritten = 0;
         const fetchStream = new DownloadEngineFetchStreamFetch();
         const writeStream = new DownloadEngineWriteStreamBrowser((cursor, data) => {
@@ -56,7 +56,7 @@ describe("File Download", () => {
         });
 
         await downloader.download();
-        expect(totalBytesWritten)
+        context.expect(totalBytesWritten)
             .toBe(file.totalSize);
     });
 });

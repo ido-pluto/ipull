@@ -24,7 +24,7 @@ export type DownloadEngineOptionsNodejsCustomFetch =
     onProgress?: (status: ProgressStatusFile, downloader: DownloadEngineNodejs) => void | Promise<void>;
     onStart?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
     onInit?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
-    onFdClosed?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
+    onClosed?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
 };
 
 export type DownloadEngineOptionsNodejs = Omit<DownloadEngineOptionsNodejsCustomFetch, "fetchStream">;
@@ -75,9 +75,11 @@ export default class DownloadEngineNodejs extends BaseDownloadEngine {
                 await writeStream.ftruncate();
                 await options.onFinished?.(nodejsDownloadEngine);
             },
-            async onFdClosed() {
-                await fs.rename(downloadLocation + PROGRESS_FILE_EXTENSION, downloadLocation);
-                await options.onFdClosed?.(nodejsDownloadEngine);
+            async onClosed() {
+                try {
+                    await fs.rename(downloadLocation + PROGRESS_FILE_EXTENSION, downloadLocation);
+                } catch {}
+                await options.onClosed?.(nodejsDownloadEngine);
             },
             async onStart() {
                 await options.onStart?.(nodejsDownloadEngine);

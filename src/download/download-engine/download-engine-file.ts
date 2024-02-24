@@ -157,7 +157,7 @@ export default class DownloadEngineFile {
         this.pause();
         await this._options.writeStream.close();
         await this._options.fetchStream.close();
-        await this._options.onFdClosed?.();
+        await this._options.onClosed?.();
     }
 
     [Symbol.dispose]() {

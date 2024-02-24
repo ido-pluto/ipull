@@ -247,7 +247,7 @@ const downloadsPromise = filesToDownload.map((url, index) => {
                 objectType: `${index}/${filesToDownload.length}`
             });
         },
-        onFinished(engine) {
+        onClosed(engine) {
             bytesDownloaded += engine.file.totalSize
         }
     });

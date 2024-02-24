@@ -21,7 +21,7 @@ export type DownloadEngineOptionsBrowser =
     onProgress?: (status: ProgressStatusFile, downloader: DownloadEngineBrowser) => void | Promise<void>
     onStart?: (downloader: DownloadEngineBrowser) => void | Promise<void>
     onInit?: (downloader: DownloadEngineBrowser) => void | Promise<void>;
-    onFdClosed?: (downloader: DownloadEngineBrowser) => void | Promise<void>;
+    onClosed?: (downloader: DownloadEngineBrowser) => void | Promise<void>;
 };
 
 export default class DownloadEngineBrowser extends BaseDownloadEngine {
@@ -54,8 +54,8 @@ export default class DownloadEngineBrowser extends BaseDownloadEngine {
             async onStart() {
                 await options.onStart?.(browserDownloadEngine);
             },
-            async onFdClosed() {
-                await options.onFdClosed?.(browserDownloadEngine);
+            async onClosed() {
+                await options.onClosed?.(browserDownloadEngine);
             }
         });
         const browserDownloadEngine = new DownloadEngineBrowser(engine);

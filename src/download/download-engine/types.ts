@@ -33,7 +33,7 @@ export type DownloadEngineFileOptions = {
     parallelStreams: number;
     onProgress?: (status: ProgressStatusFile) => void | Promise<void>;
     onFinished?: () => void | Promise<void>;
-    onFdClosed?: () => void | Promise<void>;
+    onClosed?: () => void | Promise<void>;
     onStart?: () => void | Promise<void>;
     saveProgress?: (progress: DownloadProgressInfo) => void | Promise<void>;
     retry?: retry.Options
