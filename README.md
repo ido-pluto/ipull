@@ -1,6 +1,6 @@
 <div align="center">
     <h1>iPull</h1>
-    <img src="https://github.com/ido-pluto/ipull/blob/main/assets/ipull-logo-rounded.png" height="200px" />
+    <img src="assets/ipull-logo-rounded.png" height="200px" />
 </div>
 
 <div align="center">
@@ -260,12 +260,12 @@ for (const downloader of await Promise.all(downloadsPromise)) {
 }
 ```
 
-![custom-progress-bar](https://github.com/ido-pluto/ipull/blob/main/assets/custom-progress.png)
+![custom-progress-bar](assets/custom-progress.png)
 
 <br />
 
 <div align="center" width="360">
-    <img alt="Star please" src="https://github.com/ido-pluto/ipull/blob/main/assets/star-please.png" width="360" margin="auto" />
+    <img alt="Star please" src="assets/star-please.png" width="360" margin="auto" />
     <br/>
     <p align="right">
         <i>If you like this repo, star it ✨</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
