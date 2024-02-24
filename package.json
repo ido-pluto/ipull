@@ -23,7 +23,7 @@
   },
   "scripts": {
     "generate-docs": "typedoc",
-    "build": "tsc --build tsconfig.json --force",
+    "build": "tsc --build tsconfig.json",
     "cli": "npm run build && node -r dotenv/config ./dist/cli/cli.js",
     "format": "npm run lint:eslint -- --fix",
     "prepack": "npm run build",
