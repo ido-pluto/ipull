@@ -2,14 +2,16 @@
     "root": true,
     "env": {
         "node": true,
-        "browser": false,
+        "browser": true,
         "es6": true
     },
     "ignorePatterns": [
-        "/dist"
+        "/dist",
+        "/docs"
     ],
     "extends": [
-        "eslint:recommended"
+        "eslint:recommended",
+        "plugin:jsdoc/recommended"
     ],
     "globals": {
         "Atomics": "readonly",
@@ -29,13 +31,15 @@
             ],
             "extends": [
                 "eslint:recommended",
-                "plugin:@typescript-eslint/recommended"
+                "plugin:@typescript-eslint/recommended",
+                "plugin:jsdoc/recommended-typescript"
             ],
             "parser": "@typescript-eslint/parser",
             "plugins": [
                 "@typescript-eslint",
                 "import",
-                "node"
+                "jsdoc",
+                "n"
             ],
             "rules": {
                 "@typescript-eslint/explicit-module-boundary-types": [
@@ -56,20 +60,58 @@
                 ],
                 "@typescript-eslint/no-inferrable-types": [
                     "off"
+                ],
+                "jsdoc/require-param": [
+                    "off"
+                ],
+                "jsdoc/check-param-names": [
+                    "warn",
+                    {
+                        "checkDestructured": false
+                    }
+                ],
+                "jsdoc/require-returns": [
+                    "off"
+                ],
+                "jsdoc/require-jsdoc": [
+                    "off"
+                ],
+                "jsdoc/require-yields": [
+                    "off"
+                ],
+                "jsdoc/require-param-description": [
+                    "off"
                 ]
             }
+        },
+        {
+            "files": [
+                "test/**/**.ts"
+            ],
+            "rules": {
+                "max-len": [
+                    "off"
+                ]
+        }
         }
     ],
     "plugins": [
         "@typescript-eslint",
         "import",
-        "node"
+        "jsdoc",
+        "n"
     ],
     "settings": {
         "import/parsers": {
             "@typescript-eslint/parser": [
                 ".ts"
             ]
+        },
+        "jsdoc": {
+            "exemptDestructuredRootsFromChecks": true,
+            "tagNamePreference": {
+                "hidden": "hidden"
+            }
         }
     },
     "rules": {
@@ -162,15 +204,9 @@
                 "warnOnUnassignedImports": true
             }
         ],
-        "node/file-extension-in-import": [
+        "n/file-extension-in-import": [
             "error",
-            "always",
-            {
-                "tryExtensions": [
-                    ".js",
-                    ".json"
-                ]
-            }
+            "always"
         ],
         "newline-per-chained-call": [
             "error",
@@ -208,16 +244,6 @@
         ],
         "array-callback-return": [
             "error"
-        ],
-        "valid-jsdoc": [
-            "error",
-            {
-                "requireParamType": true,
-                "requireReturnType": true,
-                "requireReturn": false,
-                "requireParamDescription": false,
-                "requireReturnDescription": false
-            }
         ],
         "no-empty": [
             "error",

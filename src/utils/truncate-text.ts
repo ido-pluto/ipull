@@ -1,4 +1,4 @@
-import {TRUNCATE_TEXT_MAX_LENGTH} from "../const.js";
+export const TRUNCATE_TEXT_MAX_LENGTH = 30;
 
 export function truncateText(text: string, maxLength = TRUNCATE_TEXT_MAX_LENGTH) {
     if (text.length <= maxLength) {

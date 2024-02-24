@@ -1,14 +1,9 @@
-#!/usr/bin/env node
-
 import path from "path";
-import {pathToFileURL} from "url";
 import {Command} from "commander";
 import {packageJson} from "../const.js";
-import pullFileCLI from "../download/index.js";
-import {truncateText} from "../utils/truncate-text.js";
-import {FastDownload} from "../index.js";
-import findDownloadDir, {downloadToDirectory} from "./utils/find-download-dir.js";
+import {copyFile, downloadFile} from "../download/node-download.js";
 import {setCommand} from "./commands/set.js";
+import findDownloadDir, {downloadToDirectory, findFileName} from "./utils/find-download-dir.js";
 
 
 const pullCommand = new Command();
@@ -17,40 +12,33 @@ pullCommand
     .description("Pull/copy files from remote server/local directory")
     .argument("[files...]", "Files to pull/copy")
     .option("-s --save [path]", "Save location (directory/file)")
+    .option("-c --connections [number]", "Number of parallel connections", "4")
     .option("-f --full-name", "Show full name of the file while downloading, even if it long")
-    .action(async (files: string[] = [], {save, fullName}: { save?: string, fullName?: boolean }) => {
-        let specificFileName: null | string = null;
-
+    .action(async (files: string[] = [], {save: saveLocation, fullName, number}: { save?: string, fullName?: boolean, number: string }) => {
         if (files.length === 0) {
             pullCommand.outputHelp();
             process.exit(0);
         }
 
-        if (save && !await downloadToDirectory(save)) {
-            specificFileName = path.basename(save);
-            save = path.dirname(save);
+        let counter = 1;
+        for (const file of files) {
+            const isDirectory = saveLocation && await downloadToDirectory(saveLocation);
+            const directory = isDirectory ? saveLocation : await findDownloadDir(findFileName(file));
+            const fileName = isDirectory || !saveLocation ? "" : path.basename(saveLocation);
+            const objectType = files.length > 1 ? `${counter++}/${files.length}` : "";
+
+            const options = {
+                directory,
+                fileName,
+                truncateName: !fullName,
+                objectType,
+                parallelStreams: Number(number) || 4
+            };
+
+            const downloadStrategy = file.startsWith("http") ? downloadFile : copyFile;
+            const downloader = await downloadStrategy(file, options);
+            await downloader.download();
         }
-
-        const pullLogs: string[] = [];
-        for (const [index, file ] of Object.entries(files)) {
-            let fileName = path.basename(file);
-
-            if (specificFileName) {
-                fileName = files.length > 1 ? specificFileName + index : specificFileName;
-            } else if (file.startsWith("http")) {
-                fileName = await FastDownload.fetchFilename(file);
-            }
-
-            const downloadTag = fullName ? fileName : truncateText(fileName);
-            const downloadPath = path.join(save || await findDownloadDir(fileName), fileName);
-            const fileFullPath = new URL(file, pathToFileURL(process.cwd()));
-            await pullFileCLI(fileFullPath.href, downloadPath, downloadTag);
-            pullLogs.push(`${fileFullPath.href} -> ${downloadPath}`);
-        }
-
-        console.log();
-        console.log(pullLogs.join("\n"));
-        process.exit(0);
     });
 
 pullCommand.addCommand(setCommand);
