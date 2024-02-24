@@ -31,17 +31,38 @@ npx ipull http://example.com/file.large
 - CLI Progress bar
 - Download statistics (speed, time left, etc.)
 
-### NodeJS API
+## NodeJS API
 
 ```ts
 import {downloadFile} from 'ipull';
 
 const downloader = downloadFile('https://example.com/file.large', {
     directory: './this/path',
+    fileName: 'file.large', // optional
     cliProgress: true // Show progress bar in the CLI (default: true)
 });
 
 await downloader.download();
+```
+
+### Events
+
+```ts
+import {downloadFile} from 'ipull';
+
+const downloader = downloadFile('https://example.com/file.large', {
+    onInit(engine) {
+    }, // retrive the file size and other details
+    onStart(engine) {
+    }, // download has started
+    onProgress(engine) {
+        console.log(`Time left: ${engine.timeLeft}, download speed: ${engine.speed}`)
+    },
+    onFinished(engine) {
+    }, // download has finished (file is still open)
+    onClosed(engine) {
+    } // download has finished and the file is closed
+});
 ```
 
 ## Browser support
@@ -210,7 +231,10 @@ with [async-retry](https://www.npmjs.com/package/async-retry)
 import {downloadFile} from 'ipull';
 
 const downloader = downloadFile('https://example.com/file.large', {
-    directory: './this/path'
+    directory: './this/path',
+    retry: {
+        retries: 20 // default: 10
+    }
 });
 
 try {
@@ -220,8 +244,11 @@ try {
 }
 ```
 
-### Custom Downloader
-
+<details>
+<summary>
+<h3>Custom Downloader (click to expand)
+</h3>
+</summary>
 In this example, there will be one progress bar for all the files
 
 ```ts
@@ -260,6 +287,8 @@ for (const downloader of await Promise.all(downloadsPromise)) {
 ```
 
 ![custom-progress-bar](assets/custom-progress.png)
+
+</details>
 
 <br />
 
