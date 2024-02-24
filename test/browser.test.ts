@@ -48,6 +48,6 @@ describe("Browser", () => {
         context.expect(hashBuffer(buffer))
             .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
         context.expect(lastWrite)
-            .toMatchInlineSnapshot(downloader.file.totalSize);
+            .toBe(downloader.file.totalSize);
     });
 });
