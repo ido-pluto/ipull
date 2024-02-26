@@ -67,6 +67,15 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
             file: downloadFile
         });
 
+        if (options.acceptRangeIsKnown == null) {
+            const doesNotAcceptRange = downloadFile.parts.find(p => !p.acceptRange);
+            if (doesNotAcceptRange) {
+                console.warn(`Server does not accept range requests for "${doesNotAcceptRange.downloadURL}". Meaning fast-downloads/pausing/resuming will not work.
+This may be related to cors origin policy (range header is ignored in the browser). 
+If you know the server accepts range requests, you can set "acceptRangeIsKnown" to true. To dismiss this warning, set "acceptRangeIsKnown" to false.`);
+            }
+        }
+
         const allOptions: DownloadEngineOptionsBrowserConstructor = {...options, writeStream};
         const engine = new DownloadEngineFile(downloadFile, allOptions);
         return new DownloadEngineBrowser(engine, allOptions);
