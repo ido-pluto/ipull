@@ -187,23 +187,6 @@
         "no-var": [
             "error"
         ],
-        "import/order": [
-            "error",
-            {
-                "groups": [
-                    "builtin",
-                    "external",
-                    "internal",
-                    "parent",
-                    "sibling",
-                    "index",
-                    "type",
-                    "object",
-                    "unknown"
-                ],
-                "warnOnUnassignedImports": true
-            }
-        ],
         "n/file-extension-in-import": [
             "error",
             "always"

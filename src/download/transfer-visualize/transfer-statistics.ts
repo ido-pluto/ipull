@@ -1,22 +1,27 @@
-import prettyBytes, {Options as PrettyBytesOptions} from "pretty-bytes";
-import prettyMs, {Options as PrettyMsOptions} from "pretty-ms";
 import {clamp} from "../../utils/numbers.js";
 
 export type TransferProgressInfo = {
     transferred: number,
     total: number,
-    speed: string,
+    speed: number,
     percentage: number,
-    timeLeft: string,
-    transferredBytes: string,
+    timeLeft: number,
     ended: boolean
 };
 
 const MAX_TIME_LEFT = 35 * 24 * 60 * 60 * 1000; // 35 days
 
+/**
+ * Class to calculate transfer statistics, such as speed, percentage, time left, etc.
+ * @example
+ * You need to call `updateProgress` on every progress update to get the latest statistics.
+ * ```ts
+ * const statistics = new TransferStatistics();
+ * const progress = statistics.updateProgress(100, 1000); // { speed: 100, percentage: 10, timeLeft: 900 ...}
+ * console.log(progress);
+ * ```
+ */
 export default class TransferStatistics {
-    protected static readonly _PRETTY_MS_OPTIONS: PrettyMsOptions = {millisecondsDecimalDigits: 1, keepDecimalsOnWholeSeconds: true};
-    protected static readonly _PRETTY_BYTES_OPTIONS: PrettyBytesOptions = {maximumFractionDigits: 2, minimumFractionDigits: 2};
     protected static readonly _AVERAGE_SPEED_LAST_SECONDS = 10;
 
     private _speeds: { [dateInSeconds: number]: number } = [];
@@ -25,10 +30,6 @@ export default class TransferStatistics {
 
     get latestProgress() {
         return this._latestProgress;
-    }
-
-    private static _formatSpeed(speed: number): string {
-        return prettyBytes(Math.min(speed, 9999999999) || 0, TransferStatistics._PRETTY_BYTES_OPTIONS) + "/s";
     }
 
     private _calculateSpeed(currentTransferred: number): number {
@@ -58,21 +59,13 @@ export default class TransferStatistics {
         const percentage = Number(clamp(((transferred / total) * 100), 0, 100)
             .toFixed(2));
 
-        const timeLeftPretty = prettyMs(timeLeftFinalNumber, TransferStatistics._PRETTY_MS_OPTIONS);
-
-        const formattedTransferred = prettyBytes(clamp(transferred), TransferStatistics._PRETTY_BYTES_OPTIONS);
-        const formattedTotal = prettyBytes(clamp(total), TransferStatistics._PRETTY_BYTES_OPTIONS);
-        const transferredBytes = `${formattedTransferred}/${formattedTotal}`;
-
         return this._latestProgress = {
-            transferred,
-            total,
-            speed: TransferStatistics._formatSpeed(speed),
+            transferred: clamp(transferred),
+            total: clamp(total),
+            speed,
             percentage,
-            timeLeft: timeLeftPretty,
-            transferredBytes,
+            timeLeft: timeLeftFinalNumber,
             ended: percentage == 100
         };
     }
-
 }

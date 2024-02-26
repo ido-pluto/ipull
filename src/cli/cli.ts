@@ -1,7 +1,7 @@
 import path from "path";
 import {Command} from "commander";
 import {packageJson} from "../const.js";
-import {copyFile, downloadFile} from "../download/node-download.js";
+import {downloadFile} from "../download/node-download.js";
 import {setCommand} from "./commands/set.js";
 import findDownloadDir, {downloadToDirectory, findFileName} from "./utils/find-download-dir.js";
 
@@ -25,18 +25,16 @@ pullCommand
             const isDirectory = saveLocation && await downloadToDirectory(saveLocation);
             const directory = isDirectory ? saveLocation : await findDownloadDir(findFileName(file));
             const fileName = isDirectory || !saveLocation ? "" : path.basename(saveLocation);
-            const objectType = files.length > 1 ? `${counter++}/${files.length}` : "";
+            const comment = files.length > 1 ? `${counter++}/${files.length}` : "";
 
-            const options = {
+            const downloader = await downloadFile({
+                url: file,
                 directory,
                 fileName,
                 truncateName: !fullName,
-                objectType,
+                comment,
                 parallelStreams: Number(number) || 4
-            };
-
-            const downloadStrategy = file.startsWith("http") ? downloadFile : copyFile;
-            const downloader = await downloadStrategy(file, options);
+            });
             await downloader.download();
         }
     });

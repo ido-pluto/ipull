@@ -3,7 +3,7 @@ import TransferStatistics, {TransferProgressInfo} from "./download/transfer-visu
 import TransferCli, {TransferCliOptions, TransferCliStatus} from "./download/transfer-visualize/transfer-cli.js";
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download/download-engine/engine/download-engine-nodejs.js";
 import DownloadEngineFile, {DownloadEngineFileOptionsWithDefaults} from "./download/download-engine/download-engine-file.js";
-import {copyFile, downloadFile} from "./download/node-download.js";
+import {downloadFile, downloadSequence} from "./download/node-download.js";
 import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
 import BaseDownloadEngineFetchStream, {
     DownloadEngineFetchStreamOptions
@@ -16,16 +16,18 @@ import BaseDownloadEngineWriteStream
     from "./download/download-engine/streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import DownloadEngineWriteStreamNodejs
     from "./download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
+import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "./download/transfer-visualize/progress-statistics-builder.js";
 
 export {
     TransferStatistics,
     TransferCli,
+    ProgressStatisticsBuilder,
     DownloadEngineNodejs,
     BaseDownloadEngine,
     DownloadEngineFile,
     truncateText,
     downloadFile,
-    copyFile,
+    downloadSequence,
     BaseDownloadEngineFetchStream,
     DownloadEngineFetchStreamFetch,
     DownloadEngineFetchStreamLocalFile,
@@ -39,6 +41,7 @@ export type {
     TransferCliStatus,
     DownloadEngineOptionsNodejs,
     DownloadEngineFileOptionsWithDefaults as DownloadEngineFileOptions,
-    DownloadEngineFetchStreamOptions
+    DownloadEngineFetchStreamOptions,
+    TransferProgressWithStatus
 };
 

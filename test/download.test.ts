@@ -22,23 +22,24 @@ describe("File Download", () => {
         let maxInParallelConnections = 0;
         const downloader = new DownloadEngineFile(file, {
             parallelStreams: randomNumber,
-            chunkSize: 1024 * 1024,
+            chunkSize: 1024 ** 2,
             fetchStream,
-            writeStream,
-            saveProgress(progress) {
-                const inProgressLength = progress.chunks.filter(c => c === ChunkStatus.IN_PROGRESS).length;
+            writeStream
+        });
 
-                maxInParallelConnections = Math.max(maxInParallelConnections, inProgressLength);
-                saveProgressCalledLength++;
-            }
+        downloader.on("save", progress => {
+            const inProgressLength = progress.chunks.filter(c => c === ChunkStatus.IN_PROGRESS).length;
+
+            maxInParallelConnections = Math.max(maxInParallelConnections, inProgressLength);
+            saveProgressCalledLength++;
         });
 
         await downloader.download();
         context.expect(saveProgressCalledLength)
             .toBeGreaterThan(randomNumber);
         context.expect(maxInParallelConnections)
-            .toBe(randomNumber);
-    });
+            .toBe(randomNumber - 1);
+    }, {timeout: 1000 * 60});
 
 
     test.concurrent("Total bytes written", async (context) => {

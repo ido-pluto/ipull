@@ -1,6 +1,6 @@
-import {afterAll, describe, test} from "vitest";
+import {describe, test} from "vitest";
 import fs from "fs-extra";
-import {copyFile, DownloadEngineFetchStreamLocalFile, DownloadEngineFile} from "../src/index.js";
+import {DownloadEngineFetchStreamLocalFile, DownloadEngineFile, downloadFile} from "../src/index.js";
 import DownloadEngineWriteStreamBrowser
     from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import {createDownloadFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
@@ -8,10 +8,13 @@ import {fileHash} from "./utils/hash.js";
 import {copyFileTest} from "./utils/copy.js";
 
 describe("File Copy", async () => {
-    const {originalFileHash, fileToCopy, copyFileToName} = await copyFileTest(TEXT_FILE_EXAMPLE);
 
     test.concurrent("copy text file", async (context) => {
-        const engine = await copyFile(fileToCopy, {
+        const {originalFileHash, fileToCopy, copyFileToName} = await copyFileTest(TEXT_FILE_EXAMPLE);
+
+        const engine = await downloadFile({
+            url: fileToCopy,
+            directory: ".",
             fileName: copyFileToName,
             chunkSize: 4,
             parallelStreams: 8,
@@ -20,18 +23,26 @@ describe("File Copy", async () => {
         await engine.download();
 
         const copiedFileHash = await fileHash(copyFileToName);
+        await fs.remove(copyFileToName);
+
         context.expect(copiedFileHash)
             .toBe(originalFileHash);
     });
 
     test.concurrent("copy image", async (context) => {
-        const engine = await copyFile(fileToCopy, {
+        const {originalFileHash, fileToCopy, copyFileToName} = await copyFileTest(TEXT_FILE_EXAMPLE, 1);
+
+        const engine = await downloadFile({
+            url: fileToCopy,
+            directory: ".",
             fileName: copyFileToName,
             cliProgress: false
         });
         await engine.download();
 
         const copiedFileHash = await fileHash(copyFileToName);
+        await fs.remove(copyFileToName);
+
         context.expect(copiedFileHash)
             .toBe(originalFileHash);
     });
@@ -55,9 +66,5 @@ describe("File Copy", async () => {
         await downloader.download();
         context.expect(totalBytesWritten)
             .toBe(file.totalSize);
-    });
-
-    afterAll(async () => {
-        await fs.remove(copyFileToName);
     });
 });

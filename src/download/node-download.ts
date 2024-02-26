@@ -1,58 +1,78 @@
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download-engine/engine/download-engine-nodejs.js";
 import TransferCli from "./transfer-visualize/transfer-cli.js";
-import TransferStatistics, {TransferProgressInfo} from "./transfer-visualize/transfer-statistics.js";
-import ProgressStatusFile from "./download-engine/progress-status-file.js";
+import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js";
+import DownloadEngineMultiDownload from "./download-engine/engine/download-engine-multi-download.js";
 
-export type DownloadFileCLIOnProgress = TransferProgressInfo & Omit<ProgressStatusFile, "createStatus">;
-export type DownloadEngineOptionsCLI = Omit<Partial<DownloadEngineOptionsNodejs>, "onProgress"> & {
-    onProgress?: (info: DownloadFileCLIOnProgress) => any;
+export type DownloadEngineOptionsCLI = DownloadEngineOptionsNodejs & {
     truncateName?: boolean | number;
-    cliProgress?: boolean;
+    cliProgress?: boolean | TransferCli;
+    cliName?: string;
     cliAction?: string;
 };
-
-const DEFAULT_OPTIONS: DownloadEngineOptionsCLI = {
-    truncateName: true,
-    cliProgress: true,
-    cliAction: "Downloading"
-};
-
-export function downloadCliOptions(options: DownloadEngineOptionsCLI = {}) {
-    options = {...DEFAULT_OPTIONS, ...options};
-    const cli = new TransferCli({
-        action: options.cliAction,
-        truncateName: options.truncateName,
-        name: options.fileName
-    });
-
-    const transfer = new TransferStatistics();
-    const newOptions: Partial<DownloadEngineOptionsNodejs> = {
-        ...options,
-        onProgress: (status) => {
-            const progress = transfer.updateProgress(status.bytesDownloaded, status.totalBytes);
-            const update = {...status, ...progress};
-
-            options.onProgress?.(update);
-            if (options.cliProgress) {
-                cli.updateProgress(update);
-            }
-        }
-    };
-
-    return newOptions;
-}
 
 /**
  * Download one file with CLI progress
  */
-export async function downloadFile(linkParts: string | string[], options?: DownloadEngineOptionsCLI) {
-    return await DownloadEngineNodejs.fromParts(linkParts, downloadCliOptions(options));
+export async function downloadFile(options: DownloadEngineOptionsCLI) {
+    const downloader = await DownloadEngineNodejs.createFromOptions(options);
+
+    if (options.cliProgress) {
+        options.cliAction ??= options.fetchStrategy === "localFile" ? "Copying" : "Downloading";
+
+        const cli = options.cliProgress instanceof TransferCli ? options.cliProgress : new TransferCli({
+            ...options,
+            action: options.cliAction,
+            name: options.cliName
+        });
+
+        downloader.on("progress", cli.updateProgress);
+    }
+
+    return downloader;
 }
 
+export type DownloadSequenceOptions = {
+    truncateName?: boolean | number;
+    cliProgress?: boolean | TransferCli;
+    cliName?: string;
+    cliAction?: string;
+    fetchStrategy?: "localFile" | "fetch";
+};
+
 /**
- * Copy one file with CLI progress
+ * Download multiple files with CLI progress
  */
-export async function copyFile(pathParts: string | string[], options: DownloadEngineOptionsCLI = {}) {
-    options.cliAction ??= "Copying";
-    return await DownloadEngineNodejs.copyLocalFile(pathParts, downloadCliOptions(options));
+export async function downloadSequence(options: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
+    let downloadOptions: DownloadSequenceOptions = {};
+    if (options instanceof BaseDownloadEngine || options instanceof Promise) {
+        downloads.unshift(options);
+    } else {
+        downloadOptions = options;
+    }
+
+    const allDownloads = await Promise.all(downloads);
+    const oneDownloader = new DownloadEngineMultiDownload(allDownloads);
+
+    if (downloadOptions.cliProgress) {
+        if (downloadOptions.fetchStrategy) {
+            downloadOptions.cliAction ??= downloadOptions.fetchStrategy === "localFile" ? "Copying" : "Downloading";
+        } else {
+            downloadOptions.cliAction ??= "Transferring";
+        }
+
+        const cli = downloadOptions.cliProgress instanceof TransferCli ? downloadOptions.cliProgress : new TransferCli({
+            ...options,
+            action: downloadOptions.cliAction,
+            name: downloadOptions.cliName
+        });
+
+        oneDownloader.on("progress", progress => {
+            cli.updateProgress({
+                ...progress,
+                comment: `${progress.index + 1}/${allDownloads.length}`
+            });
+        });
+    }
+
+    return oneDownloader;
 }

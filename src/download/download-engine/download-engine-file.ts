@@ -1,18 +1,32 @@
 import {PromisePool, Stoppable} from "@supercharge/promise-pool";
 import ProgressStatusFile from "./progress-status-file.js";
 import {ChunkStatus, DownloadEngineFileOptions, DownloadFile, DownloadProgressInfo} from "./types.js";
+import Emittery from "emittery";
 
+export type DownloadEngineFileOptionsWithDefaults = DownloadEngineFileOptions &
+    {
+        chunkSize: number;
+        parallelStreams: number;
+    };
 
-const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptions, "fetchStream" | "writeStream"> = {
+export interface DownloadEngineFileEvents {
+    start: undefined;
+    paused: undefined;
+    resumed: undefined;
+    progress: ProgressStatusFile;
+    save: DownloadProgressInfo;
+    finished: undefined;
+    closed: undefined;
+}
+
+const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {
     chunkSize: 1024 * 1024 * 5,
     parallelStreams: 4
 };
 
-export type DownloadEngineFileOptionsWithDefaults =
-    Partial<typeof DEFAULT_OPTIONS>
-    & Pick<DownloadEngineFileOptions, "fetchStream" | "writeStream">;
+export default class DownloadEngineFile extends Emittery<DownloadEngineFileEvents> {
+    public readonly file: DownloadFile;
 
-export default class DownloadEngineFile {
     protected _progress: DownloadProgressInfo = {
         part: 0,
         chunks: [],
@@ -21,7 +35,7 @@ export default class DownloadEngineFile {
 
     protected _closed = false;
     protected _progressStatus: ProgressStatusFile;
-    protected _options: DownloadEngineFileOptions;
+    protected _options: DownloadEngineFileOptionsWithDefaults;
     protected _activePool?: Stoppable;
     protected _activeStreamBytes: { [key: number]: number } = {};
 
@@ -31,6 +45,9 @@ export default class DownloadEngineFile {
     protected _pausedResolve?: () => void;
     protected _pausedReject?: (error: Error) => void;
 
+    get fileSize() {
+        return this.file.totalSize;
+    }
 
     protected get _activePart() {
         return this.file.parts[this._progress.part];
@@ -47,8 +64,10 @@ export default class DownloadEngineFile {
         return chunksBytes + streamingBytes;
     }
 
-    constructor(public readonly file: DownloadFile, options: DownloadEngineFileOptionsWithDefaults) {
-        this._progressStatus = new ProgressStatusFile(file.totalSize, file.parts.length, file.localFileName, options.objectType);
+    constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
+        super();
+        this.file = file;
+        this._progressStatus = new ProgressStatusFile(file.totalSize, file.parts.length, file.localFileName, options.comment);
         this._options = {...DEFAULT_OPTIONS, ...options};
         this._initProgress();
     }
@@ -72,7 +91,7 @@ export default class DownloadEngineFile {
     }
 
     async download() {
-        this._options.onStart?.();
+        await this.emit("start");
         for (let i = this._progress.part; i < this.file.parts.length; i++) {
             if (i > this._progress.part) {
                 this._progress.part = i;
@@ -88,7 +107,7 @@ export default class DownloadEngineFile {
             this._activeStreamBytes = {};
             await this._downloadPart();
         }
-        await this._options.onFinished?.();
+        await this.emit("finished");
     }
 
     protected async _downloadPart() {
@@ -108,23 +127,28 @@ export default class DownloadEngineFile {
                     const end = Math.min(start + this._progress.chunkSize, this._activePart.size);
                     const buffer = await this._options.fetchStream.fetchBytes(this._activePart.downloadURL!, start, end, (length: number) => {
                         this._activeStreamBytes[index] = length;
-                        this._saveProgressDownloadPart();
+                        this._sendProgressDownloadPart();
                     });
 
                     await this._options.writeStream.write(start, buffer);
                     this._progress.chunks[index] = ChunkStatus.COMPLETE;
                     delete this._activeStreamBytes[index];
 
-                    await this._saveProgressDownloadPart();
+                    await this._saveProgress();
                 });
         } finally {
             this._activePool = undefined;
         }
     }
 
-    protected async _saveProgressDownloadPart() {
-        await this._options.saveProgress?.(this._progress);
-        this._options.onProgress?.(this._progressStatus.createStatus(this._progress.part + 1, this.bytesDownloaded));
+    protected async _saveProgress() {
+        await this.emit("save", this._progress);
+        this._sendProgressDownloadPart();
+    }
+
+    protected _sendProgressDownloadPart() {
+        const progress = this._progressStatus.createStatus(this._progress.part + 1, this.bytesDownloaded);
+        this.emit("progress", progress);
     }
 
     pause() {
@@ -137,6 +161,7 @@ export default class DownloadEngineFile {
             this._pausedResolve = resolve;
             this._pausedReject = reject;
         });
+        this.emit("paused");
     }
 
     resume() {
@@ -146,6 +171,7 @@ export default class DownloadEngineFile {
 
         this._paused = false;
         this._pausedResolve?.();
+        this.emit("resumed");
     }
 
     async close() {
@@ -157,7 +183,7 @@ export default class DownloadEngineFile {
         this.pause();
         await this._options.writeStream.close();
         await this._options.fetchStream.close();
-        await this._options.onClosed?.();
+        await this.emit("closed");
     }
 
     [Symbol.dispose]() {

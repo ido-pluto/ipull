@@ -1,6 +1,6 @@
 <div align="center">
     <h1>iPull</h1>
-    <img src="https://github.com/ido-pluto/ipull/blob/main/assets/ipull-logo-rounded.png" height="200px" />
+    <img src="./assets/ipull-logo-rounded.png" height="200px" />
 </div>
 
 <div align="center">
@@ -20,7 +20,7 @@
 npx ipull http://example.com/file.large
 ```
 
-![pull-example](https://github.com/ido-pluto/ipull/blob/main/assets/pull-file.gif)
+![pull-example](./assets/pull-file.gif)
 
 ## Features
 
@@ -36,9 +36,10 @@ npx ipull http://example.com/file.large
 ```ts
 import {downloadFile} from 'ipull';
 
-const downloader = downloadFile('https://example.com/file.large', {
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
     directory: './this/path',
-    cliProgress: true // Show progress bar in the CLI (default: true)
+    cliProgress: true // Show progress bar in the CLI (default: false)
 });
 
 await downloader.download();
@@ -49,28 +50,34 @@ await downloader.download();
 Download a file in the browser using multiple connections
 
 ```ts
-import {downloadFileBrowserMemory} from "ipull/dist/browser.js";
+import {downloadFileBrowser} from "ipull/dist/browser.js";
 
-const {downloader, memory} = await downloadFileBrowserMemory(DOWNLOAD_URL, {
+const downloader = await downloadFileBrowser({
+    url: 'https://example.com/file.large',
     acceptRangeAlwaysTrue: true // cors origin request will not return the range header, but we can force it to be true (multipart download)
 });
 
 await downloader.download();
-image.src = memory.createBlobURL();
+image.src = downloader.writeStream.resultAsBlobURL();
+
+console.log(downloader.writeStream.result); // Uint8Array
 ```
 
 ### Custom stream
 
+You can use a custom stream
 ```ts
 import {downloadFileBrowser} from "ipull/dist/browser.js";
 
-const downloader = await downloadFileBrowser(DOWNLOAD_URL, {
+const downloader = await downloadFileBrowser({
+    url: 'https://example.com/file.large',
     onWrite: (cursor: number, buffer: Uint8Array, options) => {
         console.log(`Writing ${buffer.length} bytes at cursor ${cursor}, with options: ${JSON.stringify(options)}`);
     }
 });
 
 await downloader.download();
+console.log(downloader.writeStream.result === 0); // true, because we write to a custom stream
 ```
 
 ## CLI
@@ -115,12 +122,13 @@ Beneficial for downloading large files from servers that limit file size. (e.g. 
 import {downloadFile} from 'ipull';
 
 const downloadParts = [
-    "https://example.com/file.large1",
-    "https://example.com/file.large2",
-    "https://example.com/file.large3",
+    "https://example.com/file.large-part-1",
+    "https://example.com/file.large-part-2",
+    "https://example.com/file.large-part-3",
 ];
 
-const downloader = downloadFile(downloadParts, {
+const downloader = await downloadFile({
+    partsURL: downloadParts,
     directory: './this/path',
     filename: 'file.large'
 });
@@ -137,28 +145,15 @@ You can set custom headers for the download request
 ```ts
 import {downloadFile} from 'ipull';
 
-const downloader = downloadFile('https://example.com/file.large', {
-    directory: './this/path',
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
+    savePath: './this/path/file.large',
     headers: {
         'Authorization': 'Bearer token'
     }
 });
 
 await downloader.download();
-```
-
-### Copy file
-
-Copy file from local directory to another directory with CLI progress bar
-
-```ts
-import {copyFile} from 'ipull';
-
-const downloader = await copyFile('path/to/file', {
-    directory: './this/path'
-});
-await downloader.download();
-
 ```
 
 ### Abort download
@@ -168,12 +163,13 @@ You can cancel the download by calling the `abort` method
 ```ts
 import {downloadFile} from 'ipull';
 
-const downloader = downloadFile('https://example.com/file.large', {
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
     directory: './this/path'
 });
 
 setTimeout(() => {
-    downloader.abort();
+    downloader.close();
 }, 5_000);
 
 await downloader.download();
@@ -184,7 +180,8 @@ await downloader.download();
 ```ts
 import {downloadFile} from 'ipull';
 
-const downloader = downloadFile('https://example.com/file.large', {
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
     directory: './this/path'
 });
 
@@ -209,7 +206,8 @@ with [async-retry](https://www.npmjs.com/package/async-retry)
 ```ts
 import {downloadFile} from 'ipull';
 
-const downloader = downloadFile('https://example.com/file.large', {
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
     directory: './this/path'
 });
 
@@ -220,51 +218,79 @@ try {
 }
 ```
 
-### Custom Downloader
+### Listening to events
 
-In this example, there will be one progress bar for all the files
+Events are emitted using the `EventEmitter` pattern and can be listened to using the `on` method
 
 ```ts
-import {TransferCli, DownloadEngineNodejs, TransferStatistics} from "ipull";
+interface DownloadEngineEvents {
+    start: [];
+    paused: [];
+    resumed: [];
+    progress: [ProgressStatusFile];
+    save: [DownloadProgressInfo];
+    finished: [];
+    closed: [];
+}
 
-const cli = new TransferCli();
-const statistics = new TransferStatistics();
-
-const filesToDownload = ["https://example.com/file1.large", "https://example.com/file2.large", "https://example.com/file3.large"];
-let totalSize = 0;
-let bytesDownloaded = 0;
-
-const downloadsPromise = filesToDownload.map((url, index) => {
-    return DownloadEngineNodejs.fromParts(url, {
-        onInit(engine) {
-            totalSize += engine.file.totalSize;
-        },
-        onProgress(progress) {
-            const status = statistics.updateProgress(bytesDownloaded + progress.bytesDownloaded, totalSize);
-
-            cli.updateProgress({
-                ...status,
-                ...progress,
-                objectType: `${index}/${filesToDownload.length}`
-            });
-        },
-        onClosed(engine) {
-            bytesDownloaded += engine.file.totalSize
-        }
-    });
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
+    directory: './this/path'
 });
 
-for (const downloader of await Promise.all(downloadsPromise)) {
-    await downloader.download();
-}
+downloader.on("progress", (progress) => {
+    console.log(`Downloaded ${progress.transferred} bytes`);
+});
 ```
 
-![custom-progress-bar](https://github.com/ido-pluto/ipull/blob/main/assets/custom-progress.png)
+### Download multiple files
+
+If you want to download multiple files, you can use the `downloadSequence` function
+```ts
+import {downloadFile, downloadSequence} from "ipull";
+
+const downloader = await downloadSequence(
+    {
+        cliProgress: true,
+    },
+    downloadFile({
+        url: "https://example.com/file1.large",
+        directory: "."
+    }),
+    downloadFile({
+        url: "https://example.com/file2.large",
+        directory: "."
+    }),
+);
+
+await downloader.download();
+```
+
+### Custom progress bar
+
+```ts
+import {downloadFile, TransferCli} from "ipull";
+
+class CustomCli extends TransferCli {
+    protected _createProgressBarFormat(): string {
+        const {fileName, ...data} = this.formattedStatus;
+        return `${fileName} ${this._createProgressBarLine()} ${JSON.stringify(data)}`;
+    }
+}
+
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
+    directory: './this/path',
+    cliProgress: new CustomCli()
+});
+
+await downloader.download();
+```
 
 <br />
 
 <div align="center" width="360">
-    <img alt="Star please" src="https://github.com/ido-pluto/ipull/blob/main/assets/star-please.png" width="360" margin="auto" />
+    <img alt="Star please" src="./assets/star-please.png" width="360" margin="auto" />
     <br/>
     <p align="right">
         <i>If you like this repo, star it ✨</i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;

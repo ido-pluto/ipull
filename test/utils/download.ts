@@ -14,9 +14,9 @@ export async function ensureLocalFile(download = BIG_IMAGE, local = EXAMPLE_FILE
         return local;
     }
 
-    const downloader = await downloadFile(download, {
-        directory: path.dirname(local),
-        fileName: path.basename(local)
+    const downloader = await downloadFile({
+        url: download,
+        savePath: local
     });
 
     await downloader.download();

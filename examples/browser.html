@@ -21,20 +21,22 @@
     const progressBar = document.getElementById("progress");
     const view = document.getElementById("view");
 
-    import {downloadFileBrowserMemory} from "ipull/dist/browser.js";
+    import {downloadFileBrowser} from "ipull/dist/browser.js";
     import prettyBytes from "pretty-bytes";
 
-    const {downloader, memory} = await downloadFileBrowserMemory(BIG_IMAGE, {
-        onProgress: (progress) => {
-            progressBar.value = progress.percentage;
-        },
+    const downloader = await downloadFileBrowser({
+        url: BIG_IMAGE,
         acceptRangeAlwaysTrue: true // cors origin request will not return the range header, but we can force it to be true (multipart download)
     });
 
-    imageSize.innerText = `Image Size: ${prettyBytes(downloader.file.totalSize)} bytes`;
+    downloader.on("progress", progress => {
+        progressBar.value = progress.percentage;
+    });
+
+    imageSize.innerText = `Image Size: ${prettyBytes(downloader.fileSize)} bytes`;
     await downloader.download();
 
-    view.src = memory.createBlobURL();
+    view.src = downloader.writeStream.resultAsBlobURL();
 </script>
 </body>
 

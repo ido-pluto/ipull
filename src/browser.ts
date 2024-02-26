@@ -1,4 +1,4 @@
-import {downloadFileBrowser, downloadFileBrowserMemory, DownloadFileBrowserOptions} from "./download/browser-download.js";
+import {downloadFileBrowser, DownloadFileBrowserOptions, downloadSequenceBrowser} from "./download/browser-download.js";
 import DownloadEngineBrowser, {DownloadEngineOptionsBrowser} from "./download/download-engine/engine/download-engine-browser.js";
 import DownloadEngineFile, {DownloadEngineFileOptionsWithDefaults} from "./download/download-engine/download-engine-file.js";
 import ProgressStatusFile from "./download/download-engine/progress-status-file.js";
@@ -19,14 +19,16 @@ import DownloadEngineFetchStreamXhr
     from "./download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-xhr.js";
 import BaseDownloadEngineWriteStream
     from "./download/download-engine/streams/download-engine-write-stream/base-download-engine-write-stream.js";
+import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "./download/transfer-visualize/progress-statistics-builder.js";
 
 export {
     DownloadEngineBrowser,
     DownloadEngineFile,
     TransferStatistics,
+    ProgressStatisticsBuilder,
     ProgressStatusFile,
     downloadFileBrowser,
-    downloadFileBrowserMemory,
+    downloadSequenceBrowser,
     truncateText,
     EmptyResponseError,
     StatusCodeError,
@@ -44,5 +46,6 @@ export type {
     DownloadEngineOptionsBrowser,
     DownloadEngineWriteStreamBrowserWriter,
     DownloadEngineFileOptionsWithDefaults as DownloadEngineFileOptions,
-    DownloadEngineFetchStreamOptions
+    DownloadEngineFetchStreamOptions,
+    TransferProgressWithStatus
 };
