@@ -11,7 +11,7 @@ import EmptyResponseError from "./download/download-engine/streams/download-engi
 import StatusCodeError from "./download/download-engine/streams/download-engine-fetch-stream/errors/status-code-error.js";
 import XhrError from "./download/download-engine/streams/download-engine-fetch-stream/errors/xhr-error.js";
 import BaseDownloadEngineFetchStream, {
-    DownloadEngineFetchStreamOptions
+    BaseDownloadEngineFetchStreamOptions
 } from "./download/download-engine/streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import DownloadEngineFetchStreamFetch
     from "./download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
@@ -46,6 +46,6 @@ export type {
     DownloadEngineOptionsBrowser,
     DownloadEngineWriteStreamBrowserWriter,
     DownloadEngineFileOptionsWithDefaults as DownloadEngineFileOptions,
-    DownloadEngineFetchStreamOptions,
+    BaseDownloadEngineFetchStreamOptions,
     TransferProgressWithStatus
 };

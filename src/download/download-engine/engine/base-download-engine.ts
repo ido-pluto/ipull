@@ -1,6 +1,8 @@
 import {DownloadEngineFileOptions, DownloadFile} from "../types.js";
 import DownloadEngineFile, {DownloadEngineFileEvents} from "../download-engine-file.js";
-import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {
+    BaseDownloadEngineFetchStreamOptions
+} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
 import Emittery from "emittery";
 import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "../../transfer-visualize/progress-statistics-builder.js";
@@ -13,6 +15,7 @@ export type BaseDownloadEngineOptions<FetchStrategy = "xhr" | "fetch" | "localFi
         headers?: Record<string, string>;
         acceptRangeIsKnown?: boolean;
         fetchStrategy?: FetchStrategy;
+        defaultFetchDownloadInfo?: BaseDownloadEngineFetchStreamOptions["defaultFetchDownloadInfo"];
     };
 
 export interface BaseDownloadEngineEvents extends Omit<DownloadEngineFileEvents, "progress"> {

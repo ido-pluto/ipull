@@ -6,7 +6,7 @@ import DownloadEngineFile, {DownloadEngineFileOptionsWithDefaults} from "./downl
 import {downloadFile, downloadSequence} from "./download/node-download.js";
 import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
 import BaseDownloadEngineFetchStream, {
-    DownloadEngineFetchStreamOptions
+    BaseDownloadEngineFetchStreamOptions
 } from "./download/download-engine/streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import DownloadEngineFetchStreamFetch
     from "./download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
@@ -41,7 +41,7 @@ export type {
     TransferCliStatus,
     DownloadEngineOptionsNodejs,
     DownloadEngineFileOptionsWithDefaults as DownloadEngineFileOptions,
-    DownloadEngineFetchStreamOptions,
+    BaseDownloadEngineFetchStreamOptions,
     TransferProgressWithStatus
 };
 

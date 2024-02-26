@@ -1,16 +1,17 @@
 import retry from "async-retry";
 
-export type DownloadEngineFetchStreamOptions = {
+export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
     headers?: Record<string, string>,
     /**
      * If true, parallel download will be enabled even if the server does not return `accept-range` header, this is good when using cross-origin requests
      */
     acceptRangeAlwaysTrue?: boolean
+    defaultFetchDownloadInfo?: { length: number, acceptRange: boolean }
 };
 
 export default abstract class BaseDownloadEngineFetchStream {
-    constructor(public readonly options: Partial<DownloadEngineFetchStreamOptions> = {}) {
+    constructor(public readonly options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
     }
 
     public async fetchBytes(url: string, start: number, end: number, onProgress?: (length: number) => void) {
@@ -22,7 +23,7 @@ export default abstract class BaseDownloadEngineFetchStream {
     protected abstract _fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array>;
 
     public async fetchDownloadInfo(url: string): Promise<{ length: number, acceptRange: boolean }> {
-        return await retry(async () => {
+        return this.options.defaultFetchDownloadInfo ?? await retry(async () => {
             return await this._fetchDownloadInfoWithoutRetry(url);
         }, this.options.retry);
     }
