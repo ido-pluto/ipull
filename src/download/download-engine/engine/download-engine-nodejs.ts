@@ -65,7 +65,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         DownloadEngineNodejs._validateOptions(options);
         const partsURL = "partsURL" in options ? options.partsURL : [options.url];
 
-        options.fetchStrategy ??= DownloadEngineNodejs._guessFetchStrategy(partsURL[0]) ? "localFile" : "fetch";
+        options.fetchStrategy ??= DownloadEngineNodejs._guessFetchStrategy(partsURL[0]);
         const fetchStream = options.fetchStrategy === "localFile" ?
             new DownloadEngineFetchStreamLocalFile(options) :
             new DownloadEngineFetchStreamFetch(options);
