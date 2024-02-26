@@ -17,6 +17,8 @@ export interface DownloadEngineFileEvents {
     save: DownloadProgressInfo;
     finished: undefined;
     closed: undefined;
+
+    [key: string]: any;
 }
 
 const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {

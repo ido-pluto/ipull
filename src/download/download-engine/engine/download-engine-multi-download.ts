@@ -1,18 +1,23 @@
-import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
+import {BaseDownloadEngineEvents} from "./base-download-engine.js";
 import Emittery from "emittery";
-import ProgressStatisticsBuilder, {AnyEngines} from "../../transfer-visualize/progress-statistics-builder.js";
+import ProgressStatisticsBuilder, {AnyEngine} from "../../transfer-visualize/progress-statistics-builder.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 
-export default class DownloadEngineMultiDownload extends Emittery<BaseDownloadEngineEvents> implements Omit<BaseDownloadEngine, "options" | "file"> {
+interface DownloadEngineMultiDownloadEvents<Engine = AnyEngine> extends BaseDownloadEngineEvents {
+    childDownloadStarted: Engine;
+    childDownloadClosed: Engine;
+}
+
+export default class DownloadEngineMultiDownload<Engine extends AnyEngine = AnyEngine> extends Emittery<DownloadEngineMultiDownloadEvents> {
     protected _aborted = false;
-    protected _activeEngine?: AnyEngines;
+    protected _activeEngine?: Engine;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
 
     get fileSize(): number {
         return this._engines.reduce((acc, engine) => acc + engine.fileSize, 0);
     }
 
-    public constructor(protected readonly _engines: AnyEngines[]) {
+    public constructor(protected readonly _engines: Engine[]) {
         super();
         this._initEvents();
     }
@@ -33,7 +38,10 @@ export default class DownloadEngineMultiDownload extends Emittery<BaseDownloadEn
         for (const engine of this._engines) {
             if (this._aborted) return;
             this._activeEngine = engine;
+
+            await this.emit("childDownloadStarted", engine);
             await engine.download();
+            await this.emit("childDownloadClosed", engine);
         }
         await this.emit("finished");
         await this.close();

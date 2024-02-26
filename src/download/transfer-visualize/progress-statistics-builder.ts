@@ -11,9 +11,9 @@ interface CliProgressBuilderEvents {
     progress: TransferProgressWithStatus;
 }
 
-export type AnyEngines = DownloadEngineFile | BaseDownloadEngine | DownloadEngineMultiDownload;
+export type AnyEngine = DownloadEngineFile | BaseDownloadEngine | DownloadEngineMultiDownload;
 export default class ProgressStatisticsBuilder extends Emittery<CliProgressBuilderEvents> {
-    protected _engines: AnyEngines[] = [];
+    protected _engines: AnyEngine[] = [];
     protected _activeTransfers: { [index: number]: number } = {};
     protected _totalBytes = 0;
     protected _bytesDownloaded = 0;
@@ -28,13 +28,13 @@ export default class ProgressStatisticsBuilder extends Emittery<CliProgressBuild
             .reduce((acc, bytes) => acc + bytes, 0);
     }
 
-    public add(...engines: AnyEngines[]) {
+    public add(...engines: AnyEngine[]) {
         for (const engine of engines) {
             this._initEvents(engine);
         }
     }
 
-    protected _initEvents(engine: AnyEngines) {
+    protected _initEvents(engine: AnyEngine) {
         this._engines.push(engine);
         this._totalBytes += engine.fileSize;
         const index = this._engines.length - 1;
