@@ -1,4 +1,4 @@
-import {DownloadProgressInfo} from "../types.js";
+import {SaveProgressInfo} from "../types.js";
 import DownloadEngineFile from "../download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFetchStreamXhr from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-xhr.js";
@@ -11,7 +11,7 @@ import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stre
 
 export type DownloadEngineOptionsBrowser = BaseDownloadEngineOptions & {
     onWrite?: DownloadEngineWriteStreamBrowserWriter,
-    progress?: DownloadProgressInfo,
+    progress?: SaveProgressInfo,
     fetchStrategy?: "xhr" | "fetch",
 };
 

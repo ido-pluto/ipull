@@ -1,1 +1,3 @@
-export default class MissingEventError extends Error {}
+import EngineError from "./engine-error.js";
+
+export default class MissingEventError extends EngineError {}

@@ -1,6 +1,6 @@
 import {PromisePool, Stoppable} from "@supercharge/promise-pool";
 import ProgressStatusFile from "./progress-status-file.js";
-import {ChunkStatus, DownloadFile, DownloadProgressInfo} from "./types.js";
+import {ChunkStatus, DownloadFile, SaveProgressInfo} from "./types.js";
 import BaseDownloadEngineFetchStream from "./streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import BaseDownloadEngineWriteStream from "./streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import retry from "async-retry";
@@ -27,7 +27,7 @@ export type DownloadEngineFileEvents = {
     paused: () => void
     resumed: () => void
     progress: (progress: ProgressStatusFile) => void
-    save: (progress: DownloadProgressInfo) => void
+    save: (progress: SaveProgressInfo) => void
     finished: () => void
     closed: () => void
     [key: string]: any
@@ -42,7 +42,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public readonly file: DownloadFile;
     public options: DownloadEngineFileOptionsWithDefaults;
 
-    protected _progress: DownloadProgressInfo = {
+    protected _progress: SaveProgressInfo = {
         part: 0,
         chunks: [],
         chunkSize: 0

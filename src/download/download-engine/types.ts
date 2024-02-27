@@ -10,7 +10,7 @@ export enum ChunkStatus {
     COMPLETE
 }
 
-export type DownloadProgressInfo = {
+export type SaveProgressInfo = {
     part: number,
     chunks: ChunkStatus[],
     chunkSize: number,
@@ -20,5 +20,5 @@ export type DownloadFile = {
     totalSize: number
     localFileName: string
     parts: DownloadFilePart[]
-    downloadProgress?: DownloadProgressInfo
+    downloadProgress?: SaveProgressInfo
 };

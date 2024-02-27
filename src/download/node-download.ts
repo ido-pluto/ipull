@@ -13,7 +13,7 @@ export type CliProgressDownloadEngineOptions = {
     cliAction?: string;
 };
 
-export type DownloadEngineOptionsCLI = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions;
+export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions;
 
 function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOptions) {
     const cliOptions: TransferCliOptions = {...options};
@@ -35,7 +35,7 @@ function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOp
 /**
  * Download one file with CLI progress
  */
-export async function downloadFile(options: DownloadEngineOptionsCLI) {
+export async function downloadFile(options: DownloadFileOptions) {
     const downloader = await DownloadEngineNodejs.createFromOptions(options);
 
     if (options.cliProgress) {

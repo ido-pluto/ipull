@@ -1,4 +1,4 @@
-import {DownloadFile, DownloadProgressInfo} from "../types.js";
+import {DownloadFile, SaveProgressInfo} from "../types.js";
 import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-engine-file.js";
 import BaseDownloadEngineFetchStream, {
     BaseDownloadEngineFetchStreamOptions
@@ -23,7 +23,7 @@ export type BaseDownloadEngineEvents = {
     paused: () => void
     resumed: () => void
     progress: (progress: TransferProgressWithStatus) => void
-    save: (progress: DownloadProgressInfo) => void
+    save: (progress: SaveProgressInfo) => void
     finished: () => void
     closed: () => void
     [key: string]: any

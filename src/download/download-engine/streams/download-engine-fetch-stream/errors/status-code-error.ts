@@ -1,4 +1,6 @@
-export default class StatusCodeError extends Error {
+import FetchStreamError from "./fetch-stream-error.js";
+
+export default class StatusCodeError extends FetchStreamError {
     constructor(
         public readonly url: string,
         public readonly statusCode: number,
