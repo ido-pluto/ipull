@@ -6,8 +6,9 @@ export type BaseDownloadEngineFetchStreamOptions = {
     /**
      * If true, parallel download will be enabled even if the server does not return `accept-range` header, this is good when using cross-origin requests
      */
-    acceptRangeAlwaysTrue?: boolean
+    acceptRangeIsKnown?: boolean
     defaultFetchDownloadInfo?: { length: number, acceptRange: boolean }
+    ignoreIfRangeWithQueryParams?: boolean
 };
 
 export default abstract class BaseDownloadEngineFetchStream {
@@ -31,5 +32,16 @@ export default abstract class BaseDownloadEngineFetchStream {
     protected abstract _fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number, acceptRange: boolean }>;
 
     public close(): void | Promise<void> {
+    }
+
+    protected _appendToURL(url: string) {
+        const parsed = new URL(url);
+        if (this.options.ignoreIfRangeWithQueryParams) {
+            const randomText = Math.random()
+                .toString(36);
+            parsed.searchParams.set("_ignore", randomText);
+        }
+
+        return parsed.href;
     }
 }

@@ -11,7 +11,7 @@ describe("File Download", () => {
         const MIN_PARALLEL_CONNECTIONS = 4;
         const randomNumber = Math.max(MIN_PARALLEL_CONNECTIONS, Math.floor(Math.random() * 30));
         const fetchStream = new DownloadEngineFetchStreamFetch({
-            acceptRangeAlwaysTrue: true
+            acceptRangeIsKnown: true
         });
         const writeStream = new DownloadEngineWriteStreamBrowser(() => {
         });

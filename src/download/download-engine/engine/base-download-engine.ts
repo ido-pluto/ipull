@@ -9,13 +9,13 @@ import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "../../trans
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 
 export type InputURLOptions = { partsURL: string[] } | { url: string };
-export type BaseDownloadEngineOptions<FetchStrategy = "xhr" | "fetch" | "localFile"> = DownloadEngineFileOptions &
+export type BaseDownloadEngineOptions<FetchStrategy = "xhr" | "fetch" | "localFile"> =
+    DownloadEngineFileOptions
+    & BaseDownloadEngineFetchStreamOptions
+    &
     {
         comment?: string;
-        headers?: Record<string, string>;
-        acceptRangeIsKnown?: boolean;
         fetchStrategy?: FetchStrategy;
-        defaultFetchDownloadInfo?: BaseDownloadEngineFetchStreamOptions["defaultFetchDownloadInfo"];
     };
 
 export interface BaseDownloadEngineEvents extends Omit<DownloadEngineFileEvents, "progress"> {

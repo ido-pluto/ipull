@@ -26,7 +26,7 @@
 
     const downloader = await downloadFileBrowser({
         url: BIG_IMAGE,
-        acceptRangeAlwaysTrue: true // cors origin request will not return the range header, but we can force it to be true (multipart download)
+        acceptRangeIsKnown: true // cors origin request will not return the range header, but we can force it to be true (multipart download)
     });
 
     downloader.on("progress", progress => {

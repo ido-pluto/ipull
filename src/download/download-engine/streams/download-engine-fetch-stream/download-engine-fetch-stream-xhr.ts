@@ -2,6 +2,7 @@ import BaseDownloadEngineFetchStream from "./base-download-engine-fetch-stream.j
 import EmptyResponseError from "./errors/empty-response-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
+import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
@@ -15,12 +16,17 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             const xhr = new XMLHttpRequest();
             xhr.responseType = "arraybuffer";
-            xhr.open("GET", url, true);
+            xhr.open("GET", this._appendToURL(url), true);
             for (const [key, value] of Object.entries(headers)) {
                 xhr.setRequestHeader(key, value);
             }
 
             xhr.onload = function () {
+                const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
+                if (contentLength !== end - start) {
+                    throw new InvalidContentLengthError(end - start, contentLength);
+                }
+
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const arrayBuffer = xhr.response;
                     if (arrayBuffer) {
@@ -59,7 +65,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             xhr.onload = () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const length = xhr.getResponseHeader("Content-Length") || "-";
-                    const acceptRange = this.options.acceptRangeAlwaysTrue || xhr.getResponseHeader("Accept-Ranges") === "bytes";
+                    const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
                     resolve({length: parseInt(length), acceptRange});
                 } else {
                     reject(new StatusCodeError(url, xhr.status, xhr.statusText, this.options.headers));
