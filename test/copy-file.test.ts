@@ -1,11 +1,14 @@
 import {describe, test} from "vitest";
 import fs from "fs-extra";
-import {DownloadEngineFetchStreamLocalFile, DownloadEngineFile, downloadFile} from "../src/index.js";
 import DownloadEngineWriteStreamBrowser
     from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import {createDownloadFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
 import {fileHash} from "./utils/hash.js";
 import {copyFileTest} from "./utils/copy.js";
+import {downloadFile} from "../src/index.js";
+import DownloadEngineFetchStreamLocalFile
+    from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
+import DownloadEngineFile from "../src/download/download-engine/download-engine-file.js";
 
 describe("File Copy", async () => {
 
