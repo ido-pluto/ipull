@@ -5,14 +5,14 @@ import DownloadEngineFetchStreamXhr from "../streams/download-engine-fetch-strea
 import DownloadEngineWriteStreamBrowser, {
     DownloadEngineWriteStreamBrowserWriter
 } from "../streams/download-engine-write-stream/download-engine-write-stream-browser.js";
-import BaseDownloadEngine, {BaseDownloadEngineOptions, InputURLOptions} from "./base-download-engine.js";
+import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-engine.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 
-export type DownloadEngineOptionsBrowser = Omit<BaseDownloadEngineOptions<"fetch" | "xhr">, "fetchStream" | "writeStream"> &
-    InputURLOptions & {
+export type DownloadEngineOptionsBrowser = BaseDownloadEngineOptions & {
     onWrite?: DownloadEngineWriteStreamBrowserWriter,
-    progress?: DownloadProgressInfo
+    progress?: DownloadProgressInfo,
+    fetchStrategy?: "xhr" | "fetch",
 };
 
 export type DownloadEngineOptionsCustomFetchBrowser = DownloadEngineOptionsBrowser & {

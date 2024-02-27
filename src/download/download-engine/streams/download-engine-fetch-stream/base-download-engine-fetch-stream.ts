@@ -17,19 +17,19 @@ export default abstract class BaseDownloadEngineFetchStream {
 
     public async fetchBytes(url: string, start: number, end: number, onProgress?: (length: number) => void) {
         return await retry(async () => {
-            return await this._fetchBytesWithoutRetry(url, start, end, onProgress);
+            return await this.fetchBytesWithoutRetry(url, start, end, onProgress);
         }, this.options.retry);
     }
 
-    protected abstract _fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array>;
+    protected abstract fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array>;
 
     public async fetchDownloadInfo(url: string): Promise<{ length: number, acceptRange: boolean }> {
         return this.options.defaultFetchDownloadInfo ?? await retry(async () => {
-            return await this._fetchDownloadInfoWithoutRetry(url);
+            return await this.fetchDownloadInfoWithoutRetry(url);
         }, this.options.retry);
     }
 
-    protected abstract _fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number, acceptRange: boolean }>;
+    protected abstract fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number, acceptRange: boolean }>;
 
     public close(): void | Promise<void> {
     }

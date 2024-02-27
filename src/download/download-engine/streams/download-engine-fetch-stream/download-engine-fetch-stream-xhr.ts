@@ -6,7 +6,7 @@ import InvalidContentLengthError from "./errors/invalid-content-length-error.js"
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
-    protected _fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array> {
+    protected fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array> {
         return new Promise((resolve, reject) => {
             const headers = {
                 accept: "*/*",
@@ -54,7 +54,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
         });
     }
 
-    protected _fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean; }> {
+    protected fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean; }> {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("HEAD", url, true);

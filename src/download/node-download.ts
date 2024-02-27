@@ -1,14 +1,36 @@
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download-engine/engine/download-engine-nodejs.js";
-import TransferCli from "./transfer-visualize/transfer-cli.js";
+import TransferCli, {CustomOutput, TransferCliOptions} from "./transfer-visualize/transfer-cli/transfer-cli.js";
 import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js";
 import DownloadEngineMultiDownload from "./download-engine/engine/download-engine-multi-download.js";
+import transferCliSwitch, {AvailableTransferCli} from "./transfer-visualize/transfer-cli/transfer-cli-switch.js";
 
-export type DownloadEngineOptionsCLI = DownloadEngineOptionsNodejs & {
+
+export type CliProgressDownloadEngineOptions = {
     truncateName?: boolean | number;
-    cliProgress?: boolean | TransferCli;
+    cliProgress?: boolean | CustomOutput;
+    cliStyle?: AvailableTransferCli;
     cliName?: string;
     cliAction?: string;
 };
+
+export type DownloadEngineOptionsCLI = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions;
+
+function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOptions) {
+    const cliOptions: TransferCliOptions = {...options};
+
+    if (options.cliAction) {
+        cliOptions.action = options.cliAction;
+    }
+    if (options.cliName) {
+        cliOptions.name = options.cliName;
+    }
+
+    if (typeof options.cliProgress === "function") {
+        return TransferCli.customFormat(options.cliProgress);
+    }
+
+    return transferCliSwitch(options.cliStyle, cliOptions);
+}
 
 /**
  * Download one file with CLI progress
@@ -19,11 +41,7 @@ export async function downloadFile(options: DownloadEngineOptionsCLI) {
     if (options.cliProgress) {
         options.cliAction ??= options.fetchStrategy === "localFile" ? "Copying" : "Downloading";
 
-        const cli = options.cliProgress instanceof TransferCli ? options.cliProgress : new TransferCli({
-            ...options,
-            action: options.cliAction,
-            name: options.cliName
-        });
+        const cli = createCliProgressForDownloadEngine(options);
 
         downloader.on("progress", cli.updateProgress);
     }
@@ -31,11 +49,7 @@ export async function downloadFile(options: DownloadEngineOptionsCLI) {
     return downloader;
 }
 
-export type DownloadSequenceOptions = {
-    truncateName?: boolean | number;
-    cliProgress?: boolean | TransferCli;
-    cliName?: string;
-    cliAction?: string;
+export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & {
     fetchStrategy?: "localFile" | "fetch";
 };
 
@@ -56,16 +70,9 @@ export async function downloadSequence(options: DownloadSequenceOptions | Downlo
     if (downloadOptions.cliProgress) {
         if (downloadOptions.fetchStrategy) {
             downloadOptions.cliAction ??= downloadOptions.fetchStrategy === "localFile" ? "Copying" : "Downloading";
-        } else {
-            downloadOptions.cliAction ??= "Transferring";
         }
 
-        const cli = downloadOptions.cliProgress instanceof TransferCli ? downloadOptions.cliProgress : new TransferCli({
-            ...options,
-            action: downloadOptions.cliAction,
-            name: downloadOptions.cliName
-        });
-
+        const cli = createCliProgressForDownloadEngine(downloadOptions);
         oneDownloader.on("progress", progress => {
             cli.updateProgress({
                 ...progress,

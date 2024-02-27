@@ -24,14 +24,14 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
         });
     }
 
-    protected async _fetchBytesWithoutRetry(path: string, start: number, end: number) {
+    protected async fetchBytesWithoutRetry(path: string, start: number, end: number) {
         const file = await this._ensureFileOpen(path);
         const buffer = Buffer.alloc(end - start);
         await file.read(buffer, 0, buffer.byteLength, start);
         return buffer;
     }
 
-    protected async _fetchDownloadInfoWithoutRetry(path: string): Promise<{ length: number; acceptRange: boolean }> {
+    protected async fetchDownloadInfoWithoutRetry(path: string): Promise<{ length: number; acceptRange: boolean }> {
         const stat = await fs.stat(path);
         if (!stat.isFile()) {
             throw new Error("Path is a directory");

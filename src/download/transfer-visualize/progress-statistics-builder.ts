@@ -1,18 +1,25 @@
 import BaseDownloadEngine from "../download-engine/engine/base-download-engine.js";
-import Emittery from "emittery";
+import {EventEmitter} from "eventemitter3";
 import TransferStatistics, {TransferProgressInfo} from "./transfer-statistics.js";
-import ProgressStatusFile from "../download-engine/progress-status-file.js";
 import DownloadEngineFile from "../download-engine/download-engine-file.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
 
-export type TransferProgressWithStatus = Omit<ProgressStatusFile, "createStatus"> & TransferProgressInfo & { index: number };
+export type TransferProgressWithStatus = TransferProgressInfo & {
+    totalBytes: number,
+    totalDownloadParts: number,
+    fileName: string,
+    comment?: string,
+    downloadPart: number,
+    bytesDownloaded: number,
+    index: number
+};
 
 interface CliProgressBuilderEvents {
-    progress: TransferProgressWithStatus;
+    progress: (progress: TransferProgressWithStatus) => void;
 }
 
 export type AnyEngine = DownloadEngineFile | BaseDownloadEngine | DownloadEngineMultiDownload;
-export default class ProgressStatisticsBuilder extends Emittery<CliProgressBuilderEvents> {
+export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressBuilderEvents> {
     protected _engines: AnyEngine[] = [];
     protected _activeTransfers: { [index: number]: number } = {};
     protected _totalBytes = 0;

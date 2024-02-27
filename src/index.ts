@@ -1,6 +1,6 @@
 import {truncateText} from "./utils/truncate-text.js";
 import TransferStatistics, {TransferProgressInfo} from "./download/transfer-visualize/transfer-statistics.js";
-import TransferCli, {TransferCliOptions, TransferCliStatus} from "./download/transfer-visualize/transfer-cli.js";
+import TransferCli, {TransferCliOptions, TransferCliStatus} from "./download/transfer-visualize/transfer-cli/transfer-cli.js";
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download/download-engine/engine/download-engine-nodejs.js";
 import DownloadEngineFile, {DownloadEngineFileOptionsWithDefaults} from "./download/download-engine/download-engine-file.js";
 import {downloadFile, downloadSequence} from "./download/node-download.js";

@@ -4,7 +4,7 @@ import DownloadEngineFile from "../download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineWriteStreamNodejs from "../streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
 import DownloadEngineFetchStreamLocalFile from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
-import BaseDownloadEngine, {BaseDownloadEngineOptions, InputURLOptions} from "./base-download-engine.js";
+import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-engine.js";
 import SavePathError from "./error/save-path-error.js";
 import fs from "fs-extra";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
@@ -12,9 +12,9 @@ import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stre
 export const PROGRESS_FILE_EXTENSION = ".ipull";
 
 type PathOptions = { directory: string } | { savePath: string };
-export type DownloadEngineOptionsNodejs = Omit<BaseDownloadEngineOptions<"fetch" | "localFile">, "writeStream" | "fetchStream">
-    & PathOptions & InputURLOptions & {
+export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOptions & {
     fileName?: string;
+    fetchStrategy?: "localFile" | "fetch";
 };
 
 export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
@@ -42,17 +42,18 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     protected override _initEvents() {
         super._initEvents();
 
-        this._engine.on("save", async (data) => {
-            await this.options.writeStream.saveMedataAfterFile(data);
+        this._engine.on("save", (info) => {
+            this.options.writeStream.saveMedataAfterFile(info);
         });
 
-        this._engine.on("finished", async () => {
+        this._engine.options.onFinishAsync = async () => {
             await this.options.writeStream.ftruncate();
-        });
+        };
 
-        this._engine.on("closed", async () => {
-            await fs.rename(this.options.writeStream.path, this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length));
-        });
+        this._engine.options.onCloseAsync = async () => {
+            const closedFileName = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
+            await fs.rename(this.options.writeStream.path, closedFileName);
+        };
     }
 
     /**

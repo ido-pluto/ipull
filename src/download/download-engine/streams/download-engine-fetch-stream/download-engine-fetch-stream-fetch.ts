@@ -2,7 +2,7 @@ import BaseDownloadEngineFetchStream from "./base-download-engine-fetch-stream.j
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
-    protected async _fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void) {
+    protected async fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void) {
         const response = await fetch(this._appendToURL(url), {
             headers: {
                 accept: "*/*",
@@ -40,7 +40,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         return arrayBuffer;
     }
 
-    protected async _fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean }> {
+    protected async fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean }> {
         const response = await fetch(url, {
             method: "HEAD",
             ...this.options.headers

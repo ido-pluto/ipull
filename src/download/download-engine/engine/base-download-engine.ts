@@ -1,29 +1,36 @@
-import {DownloadEngineFileOptions, DownloadFile} from "../types.js";
-import DownloadEngineFile, {DownloadEngineFileEvents} from "../download-engine-file.js";
+import {DownloadFile, DownloadProgressInfo} from "../types.js";
+import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-engine-file.js";
 import BaseDownloadEngineFetchStream, {
     BaseDownloadEngineFetchStreamOptions
 } from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
-import Emittery from "emittery";
+import {EventEmitter} from "eventemitter3";
 import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "../../transfer-visualize/progress-statistics-builder.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
+import retry from "async-retry";
 
 export type InputURLOptions = { partsURL: string[] } | { url: string };
-export type BaseDownloadEngineOptions<FetchStrategy = "xhr" | "fetch" | "localFile"> =
-    DownloadEngineFileOptions
-    & BaseDownloadEngineFetchStreamOptions
-    &
-    {
-        comment?: string;
-        fetchStrategy?: FetchStrategy;
-    };
 
-export interface BaseDownloadEngineEvents extends Omit<DownloadEngineFileEvents, "progress"> {
-    progress: TransferProgressWithStatus;
-}
+export type BaseDownloadEngineOptions = InputURLOptions & BaseDownloadEngineFetchStreamOptions & {
+    chunkSize?: number;
+    parallelStreams?: number;
+    retry?: retry.Options
+    comment?: string;
+};
 
-export default class BaseDownloadEngine extends Emittery<BaseDownloadEngineEvents> {
-    public readonly options: BaseDownloadEngineOptions;
+export type BaseDownloadEngineEvents = {
+    start: () => void
+    paused: () => void
+    resumed: () => void
+    progress: (progress: TransferProgressWithStatus) => void
+    save: (progress: DownloadProgressInfo) => void
+    finished: () => void
+    closed: () => void
+    [key: string]: any
+};
+
+export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineEvents> {
+    public readonly options: DownloadEngineFileOptions;
     protected readonly _engine: DownloadEngineFile;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
     protected _downloadStarted = false;
@@ -36,7 +43,7 @@ export default class BaseDownloadEngine extends Emittery<BaseDownloadEngineEvent
         return this._engine.file.totalSize;
     }
 
-    protected constructor(engine: DownloadEngineFile, options: BaseDownloadEngineOptions) {
+    protected constructor(engine: DownloadEngineFile, options: DownloadEngineFileOptions) {
         super();
         this.options = options;
         this._engine = engine;
@@ -47,6 +54,9 @@ export default class BaseDownloadEngine extends Emittery<BaseDownloadEngineEvent
     protected _initEvents() {
         this._engine.on("start", () => {
             return this.emit("start");
+        });
+        this._engine.on("save", (info) => {
+            return this.emit("save", info);
         });
         this._engine.on("finished", () => {
             return this.emit("finished");
@@ -69,9 +79,13 @@ export default class BaseDownloadEngine extends Emittery<BaseDownloadEngineEvent
         if (this._downloadStarted) {
             throw new DownloadAlreadyStartedError();
         }
-        this._downloadStarted = true;
-        await this._engine.download();
-        await this.close();
+
+        try {
+            this._downloadStarted = true;
+            await this._engine.download();
+        } finally {
+            await this.close();
+        }
     }
 
     pause() {
