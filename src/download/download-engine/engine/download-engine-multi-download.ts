@@ -18,12 +18,13 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     protected _activeEngine?: Engine;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
     protected _downloadStatues: (TransferProgressWithStatus | ProgressStatus)[] = [];
+    protected _closeFiles: (() => Promise<void>)[] = [];
 
 
     public constructor(engines: (DownloadEngineMultiAllowedEngines | DownloadEngineMultiDownload)[]) {
         super();
         this._engines = DownloadEngineMultiDownload._extractEngines(engines);
-        this._initEvents();
+        this._init();
     }
 
     public get downloadStatues() {
@@ -34,12 +35,13 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         return this._engines.reduce((acc, engine) => acc + engine.downloadSize, 0);
     }
 
-    protected _initEvents() {
+    protected _init() {
         this._progressStatisticsBuilder.add(...this._engines);
         this._progressStatisticsBuilder.on("progress", progress => {
             this.emit("progress", progress);
         });
 
+        this._changeEngineFinishDownload();
         for (const [index, engine] of Object.entries(this._engines)) {
             const numberIndex = Number(index);
             this._downloadStatues[numberIndex] = engine.status;
@@ -64,7 +66,28 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             this.emit("childDownloadClosed", engine);
         }
         this.emit("finished");
+        await this._finishEnginesDownload();
         await this.close();
+    }
+
+    private _changeEngineFinishDownload() {
+        for (const engine of this._engines) {
+            const options = engine instanceof BaseDownloadEngine ? engine._fileEngineOptions : engine.options;
+            const onFinishAsync = options.onFinishAsync;
+            const onCloseAsync = options.onCloseAsync;
+
+            options.onFinishAsync = undefined;
+            options.onCloseAsync = undefined;
+            this._closeFiles.push(async () => {
+                await onFinishAsync?.();
+                await options.writeStream.close();
+                await onCloseAsync?.();
+            });
+        }
+    }
+
+    private async _finishEnginesDownload() {
+        await Promise.all(this._closeFiles.map(func => func()));
     }
 
     public pause(): void {

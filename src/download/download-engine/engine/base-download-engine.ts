@@ -1,8 +1,6 @@
 import {DownloadFile, SaveProgressInfo} from "../types.js";
 import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-engine-file.js";
-import BaseDownloadEngineFetchStream, {
-    BaseDownloadEngineFetchStreamOptions
-} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {BaseDownloadEngineFetchStreamOptions} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
 import {EventEmitter} from "eventemitter3";
 import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "../../transfer-visualize/progress-statistics-builder.js";
@@ -53,6 +51,13 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
     public get status() {
         return this._latestStatus ?? this._engine.status;
+    }
+
+    /**
+     * @internal
+     */
+    public get _fileEngineOptions() {
+        return this._engine.options;
     }
 
     protected _initEvents() {
