@@ -3,16 +3,13 @@ import {EventEmitter} from "eventemitter3";
 import TransferStatistics, {TransferProgressInfo} from "./transfer-statistics.js";
 import DownloadEngineFile from "../download-engine/download-engine-file.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
+import {ProgressStatus} from "../download-engine/progress-status-file.js";
 
-export type TransferProgressWithStatus = TransferProgressInfo & {
-    totalBytes: number,
-    totalDownloadParts: number,
-    fileName: string,
-    comment?: string,
-    downloadPart: number,
-    bytesDownloaded: number,
-    index: number
+export type ProgressStatusWithIndex = ProgressStatus & {
+    index: number,
 };
+
+export type TransferProgressWithStatus = TransferProgressInfo & ProgressStatusWithIndex;
 
 interface CliProgressBuilderEvents {
     progress: (progress: TransferProgressWithStatus) => void;
@@ -23,15 +20,15 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
     protected _engines: AnyEngine[] = [];
     protected _activeTransfers: { [index: number]: number } = {};
     protected _totalBytes = 0;
-    protected _bytesDownloaded = 0;
+    protected _transferredBytes = 0;
     protected statistics = new TransferStatistics();
 
     public get totalBytes() {
         return this._totalBytes;
     }
 
-    public get bytesDownloadedWithActiveTransfers() {
-        return this._bytesDownloaded + Object.values(this._activeTransfers)
+    public get transferredBytesWithActiveTransfers() {
+        return this._transferredBytes + Object.values(this._activeTransfers)
             .reduce((acc, bytes) => acc + bytes, 0);
     }
 
@@ -43,12 +40,12 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
 
     protected _initEvents(engine: AnyEngine) {
         this._engines.push(engine);
-        this._totalBytes += engine.fileSize;
+        this._totalBytes += engine.downloadSize;
         const index = this._engines.length - 1;
 
         engine.on("progress", (data) => {
-            this._activeTransfers[index] = data.bytesDownloaded;
-            const progress = this.statistics.updateProgress(this.bytesDownloadedWithActiveTransfers, this.totalBytes);
+            this._activeTransfers[index] = data.transferredBytes;
+            const progress = this.statistics.updateProgress(this.transferredBytesWithActiveTransfers, this.totalBytes);
 
             this.emit("progress", {
                 ...data,
@@ -59,7 +56,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
 
         engine.on("finished", () => {
             delete this._activeTransfers[index];
-            this._bytesDownloaded += engine.fileSize;
+            this._transferredBytes += engine.downloadSize;
         });
     }
 }

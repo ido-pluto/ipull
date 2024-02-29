@@ -34,21 +34,25 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     protected readonly _engine: DownloadEngineFile;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
     protected _downloadStarted = false;
-
-    get file() {
-        return this._engine.file;
-    }
-
-    get fileSize() {
-        return this._engine.file.totalSize;
-    }
-
+    protected _latestStatus?: TransferProgressWithStatus;
     protected constructor(engine: DownloadEngineFile, options: DownloadEngineFileOptions) {
         super();
         this.options = options;
         this._engine = engine;
         this._progressStatisticsBuilder.add(engine);
         this._initEvents();
+    }
+
+    public get file() {
+        return this._engine.file;
+    }
+
+    public get downloadSize() {
+        return this._engine.file.totalSize;
+    }
+
+    public get status() {
+        return this._latestStatus ?? this._engine.status;
     }
 
     protected _initEvents() {
@@ -71,6 +75,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
             return this.emit("resumed");
         });
         this._progressStatisticsBuilder.on("progress", (status) => {
+            this._latestStatus = status;
             return this.emit("progress", status);
         });
     }
@@ -88,15 +93,15 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         }
     }
 
-    pause() {
+    public pause() {
         return this._engine.pause();
     }
 
-    resume() {
+    public resume() {
         return this._engine.resume();
     }
 
-    close() {
+    public close() {
         return this._engine.close();
     }
 

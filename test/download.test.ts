@@ -61,5 +61,5 @@ describe("File Download", () => {
         await downloader.download();
         context.expect(totalBytesWritten)
             .toBe(file.totalSize);
-    });
+    }, {timeout: 1000 * 60});
 });

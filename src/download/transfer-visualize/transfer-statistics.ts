@@ -1,8 +1,8 @@
-import {clamp} from "../../utils/numbers.js";
+import {clamp} from "./utils/numbers.js";
 
 export type TransferProgressInfo = {
-    transferred: number,
-    total: number,
+    transferredBytes: number,
+    totalBytes: number,
     speed: number,
     percentage: number,
     timeLeft: number,
@@ -60,8 +60,8 @@ export default class TransferStatistics {
             .toFixed(2));
 
         return this._latestProgress = {
-            transferred: clamp(transferred),
-            total: clamp(total),
+            transferredBytes: clamp(transferred),
+            totalBytes: clamp(total),
             speed,
             percentage,
             timeLeft: timeLeftFinalNumber,

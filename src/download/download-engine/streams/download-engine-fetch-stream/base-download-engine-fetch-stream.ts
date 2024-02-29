@@ -1,4 +1,6 @@
 import retry from "async-retry";
+import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
+import {EventEmitter} from "eventemitter3";
 
 export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
@@ -11,9 +13,55 @@ export type BaseDownloadEngineFetchStreamOptions = {
     ignoreIfRangeWithQueryParams?: boolean
 };
 
-export default abstract class BaseDownloadEngineFetchStream {
-    constructor(public readonly options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
+export type FetchSubState = {
+    url: string,
+    start: number,
+    end: number,
+    chunkSize: number,
+    rangeSupport?: boolean,
+    onProgress?: (length: number) => void
+};
+
+export type BaseDownloadEngineFetchStreamEvents = {
+    paused: () => void
+    resumed: () => void
+    aborted: () => void
+};
+
+export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
+    public readonly abstract transferAction: string;
+    public readonly options: Partial<BaseDownloadEngineFetchStreamOptions> = {};
+    public state: FetchSubState = null!;
+    public paused?: Promise<void>;
+    public aborted = false;
+    protected _pausedResolve?: () => void;
+
+    constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
+        super();
+        this.options = options;
+        this.initEvents();
     }
+
+    protected initEvents() {
+        this.on("aborted", () => {
+            this.aborted = true;
+            this._pausedResolve?.();
+        });
+
+        this.on("paused", () => {
+            this.paused = new Promise((resolve) => {
+                this._pausedResolve = resolve;
+            });
+        });
+
+        this.on("resumed", () => {
+            this._pausedResolve?.();
+            this._pausedResolve = undefined;
+            this.paused = undefined;
+        });
+    }
+
+    abstract withSubState(state: FetchSubState): this;
 
     public async fetchBytes(url: string, start: number, end: number, onProgress?: (length: number) => void) {
         return await retry(async () => {
@@ -31,10 +79,31 @@ export default abstract class BaseDownloadEngineFetchStream {
 
     protected abstract fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number, acceptRange: boolean }>;
 
-    public close(): void | Promise<void> {
+    public async fetchChunks(callback: (data: Uint8Array, index: number) => void) {
+        let lastStartLocation = this.state.start;
+        let retryResolvers = retryAsyncStatementSimple(this.options.retry);
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            try {
+                return await this.fetchWithoutRetryChunks(callback);
+            } catch (error: any) {
+                if (lastStartLocation !== this.state.start) {
+                    lastStartLocation = this.state.start;
+                    retryResolvers = retryAsyncStatementSimple(this.options.retry);
+                }
+                await retryResolvers(error);
+            }
+        }
     }
 
-    protected _appendToURL(url: string) {
+    protected abstract fetchWithoutRetryChunks(callback: (data: Uint8Array, index: number) => void): Promise<void> | void;
+
+    public close(): void | Promise<void> {
+        this.emit("aborted");
+    }
+
+    protected appendToURL(url: string) {
         const parsed = new URL(url);
         if (this.options.ignoreIfRangeWithQueryParams) {
             const randomText = Math.random()

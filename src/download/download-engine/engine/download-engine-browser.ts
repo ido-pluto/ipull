@@ -38,7 +38,7 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
         this.options = _options;
     }
 
-    get writeStream(): Omit<WriteStream, "write" | "close"> {
+    public get writeStream(): Omit<WriteStream, "write" | "close"> {
         return this.options.writeStream;
     }
 
@@ -58,7 +58,7 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
     }
 
 
-    static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsCustomFetchBrowser) {
+    protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsCustomFetchBrowser) {
         const downloadFile = await DownloadEngineBrowser._createDownloadFile(options.partsURL, options.fetchStream);
         downloadFile.downloadProgress = options.progress;
 

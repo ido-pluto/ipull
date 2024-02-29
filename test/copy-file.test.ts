@@ -2,9 +2,9 @@ import {describe, test} from "vitest";
 import fs from "fs-extra";
 import DownloadEngineWriteStreamBrowser
     from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
-import {createDownloadFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
+import {createDownloadFile, ensureLocalFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
 import {fileHash} from "./utils/hash.js";
-import {copyFileTest} from "./utils/copy.js";
+import {copyFileInfo} from "./utils/copy.js";
 import {downloadFile} from "../src/index.js";
 import DownloadEngineFetchStreamLocalFile
     from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
@@ -12,15 +12,16 @@ import DownloadEngineFile from "../src/download/download-engine/download-engine-
 
 describe("File Copy", async () => {
 
-    test.concurrent("copy text file", async (context) => {
-        const {originalFileHash, fileToCopy, copyFileToName} = await copyFileTest(TEXT_FILE_EXAMPLE);
+    test.concurrent("copy text parallel streams", async (context) => {
+        const {originalFileHash, fileToCopy, copyFileToName} = await copyFileInfo(TEXT_FILE_EXAMPLE);
 
         const engine = await downloadFile({
             url: fileToCopy,
             directory: ".",
             fileName: copyFileToName,
             chunkSize: 4,
-            parallelStreams: 8,
+            parallelStreams: 1,
+            fetchStrategy: "localFile",
             cliProgress: false
         });
         await engine.download();
@@ -32,14 +33,17 @@ describe("File Copy", async () => {
             .toBe(originalFileHash);
     });
 
-    test.concurrent("copy image", async (context) => {
-        const {originalFileHash, fileToCopy, copyFileToName} = await copyFileTest(TEXT_FILE_EXAMPLE, 1);
+    test.concurrent("copy image one stream", async (context) => {
+        const imagePath = await ensureLocalFile();
+        const {originalFileHash, fileToCopy, copyFileToName} = await copyFileInfo(imagePath);
 
         const engine = await downloadFile({
             url: fileToCopy,
             directory: ".",
             fileName: copyFileToName,
-            cliProgress: false
+            fetchStrategy: "localFile",
+            cliProgress: false,
+            parallelStreams: 1
         });
         await engine.download();
 

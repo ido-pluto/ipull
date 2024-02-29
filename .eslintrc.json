@@ -247,14 +247,6 @@
         "eol-last": [
             "warn",
             "always"
-        ],
-        "max-len": [
-            "warn",
-            {
-                "code": 140,
-                "tabWidth": 4,
-                "ignoreStrings": true
-            }
         ]
     }
 }

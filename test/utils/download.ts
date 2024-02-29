@@ -1,9 +1,9 @@
 import path from "path";
 import {fileURLToPath} from "url";
 import fs from "fs-extra";
+import fsPromise from "fs/promises";
 import {DownloadFile} from "../../src/download/download-engine/types.js";
 import {BIG_IMAGE} from "./files.js";
-import {downloadFile} from "../../src/index.js";
 import BaseDownloadEngineFetchStream
     from "../../src/download/download-engine/streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import DownloadEngineFetchStreamFetch
@@ -18,12 +18,9 @@ export async function ensureLocalFile(download = BIG_IMAGE, local = EXAMPLE_FILE
         return local;
     }
 
-    const downloader = await downloadFile({
-        url: download,
-        savePath: local
-    });
+    const response = await fetch(download);
+    await fsPromise.writeFile(local, response.body!);
 
-    await downloader.download();
     return local;
 }
 
