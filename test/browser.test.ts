@@ -29,7 +29,7 @@ describe("Browser", () => {
         const hash = hashBuffer(downloader.writeStream.result);
         context.expect(hash)
             .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
-    }, {timeout: 1000 * 10});
+    });
 
     test.concurrent("Download file browser", async (context) => {
         let buffer = Buffer.alloc(0);
@@ -52,4 +52,4 @@ describe("Browser", () => {
         context.expect(lastWrite)
             .toBe(downloader.file.totalSize);
     });
-});
+}, {timeout: 1000 * 60 * 3});

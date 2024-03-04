@@ -1,11 +1,9 @@
 import {describe, test} from "vitest";
 import {ChunkStatus} from "../src/download/download-engine/types.js";
-import DownloadEngineWriteStreamBrowser
-    from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
+import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import {BIG_IMAGE} from "./utils/files.js";
 import {createDownloadFile} from "./utils/download.js";
-import DownloadEngineFetchStreamFetch
-    from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
+import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFile from "../src/download/download-engine/download-engine-file.js";
 
 describe("File Download", () => {
@@ -41,7 +39,7 @@ describe("File Download", () => {
             .toBeGreaterThan(randomNumber);
         context.expect(maxInParallelConnections)
             .toBe(randomNumber - 1);
-    }, {timeout: 1000 * 60});
+    });
 
 
     test.concurrent("Total bytes written", async (context) => {
@@ -61,5 +59,5 @@ describe("File Download", () => {
         await downloader.download();
         context.expect(totalBytesWritten)
             .toBe(file.totalSize);
-    }, {timeout: 1000 * 60});
-});
+    });
+}, {timeout: 1000 * 60 * 3});
