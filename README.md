@@ -271,14 +271,14 @@ await downloader.download();
 ```ts
 import {downloadFile, FormattedStatus} from "ipull";
 
-function progressBarStyle({fileName, ...data}: FormattedStatus) {
+function createProgressBar({fileName, ...data}: FormattedStatus) {
     return `${fileName} ${JSON.stringify(data)}`;
 }
 
 const downloader = await downloadFile({
     url: "https://example.com/file.large",
     directory: "./this/path",
-    cliStyle: progressBarStyle
+    cliStyle: createProgressBar
 });
 
 await downloader.download();
