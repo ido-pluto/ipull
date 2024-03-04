@@ -77,7 +77,7 @@ const downloader = await downloadFileBrowser({
 });
 
 await downloader.download();
-console.log(downloader.writeStream.result === 0); // true, because we write to a custom stream
+console.log(downloader.writeStream.result.length === 0); // true, because we write to a custom stream
 ```
 
 ## CLI
@@ -227,7 +227,7 @@ interface DownloadEngineEvents {
     start: [];
     paused: [];
     resumed: [];
-    progress: [TransferProgressWithStatus];
+    progress: [FormattedStatus];
     save: [DownloadProgressInfo];
     finished: [];
     closed: [];
@@ -269,19 +269,16 @@ await downloader.download();
 ### Custom progress bar
 
 ```ts
-import {downloadFile, TransferCli} from "ipull";
+import {downloadFile, FormattedStatus} from "ipull";
 
-class CustomCli extends TransferCli {
-    protected _createProgressBarFormat(): string {
-        const {fileName, ...data} = this.formattedStatus;
-        return `${fileName} ${this._createProgressBarLine()} ${JSON.stringify(data)}`;
-    }
+function progressBarStyle({fileName, ...data}: FormattedStatus) {
+    return `${fileName} ${JSON.stringify(data)}`;
 }
 
 const downloader = await downloadFile({
-    url: 'https://example.com/file.large',
-    directory: './this/path',
-    cliProgress: new CustomCli()
+    url: "https://example.com/file.large",
+    directory: "./this/path",
+    cliStyle: progressBarStyle
 });
 
 await downloader.download();

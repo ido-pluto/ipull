@@ -1,10 +1,9 @@
 import chalk from "chalk";
 import {centerPad} from "../../utils/cli-text.js";
 import {clamp} from "../../utils/numbers.js";
-import {CliInfoStatus, createFormattedStatus, FormattedCliStatus} from "../format-cli-info.js";
-import {ProgressStatus} from "../../../download-engine/progress-status-file.js";
+import {FormattedStatus} from "../../format-transfer-status.js";
 
-export type TransferCliProgressBarStatus = CliInfoStatus & {
+export type CliFormattedStatus = FormattedStatus & {
     transferAction: string
 };
 
@@ -12,10 +11,10 @@ export type TransferCliProgressBarStatus = CliInfoStatus & {
  * A class to display transfer progress in the terminal, with a progress bar and other information.
  */
 export default class BaseTransferCliProgressBar {
-    protected status: FormattedCliStatus & TransferCliProgressBarStatus;
+    protected status: CliFormattedStatus;
 
-    protected constructor(status: ProgressStatus) {
-        this.status = createFormattedStatus(status);
+    protected constructor(status: CliFormattedStatus) {
+        this.status = status;
     }
 
     protected createProgressBarLine(length: number) {
@@ -55,7 +54,7 @@ ${chalk.green(formattedPercentage.padEnd(7))
         return this.createProgressBarFormat();
     }
 
-    public static create(status: ProgressStatus) {
+    public static create(status: CliFormattedStatus) {
         return new BaseTransferCliProgressBar(status).createStatusLine();
     }
 }

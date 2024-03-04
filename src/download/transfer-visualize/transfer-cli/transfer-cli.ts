@@ -1,11 +1,10 @@
 import logUpdate from "log-update";
 import debounce from "lodash.debounce";
 import {TRUNCATE_TEXT_MAX_LENGTH, truncateText} from "../utils/cli-text.js";
-import {TransferProgressWithStatus} from "../progress-statistics-builder.js";
-import BaseTransferCliProgressBar from "./progress-bars/base-transfer-cli-progress-bar.js";
-import {ProgressStatus} from "../../download-engine/progress-status-file.js";
+import BaseTransferCliProgressBar, {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
 import CliSpinnersLoadingAnimation from "./loading-animation/cli-spinners-loading-animation.js";
+import {FormattedStatus} from "../format-transfer-status.js";
 
 export type TransferCliOptions = {
     action?: string,
@@ -13,7 +12,7 @@ export type TransferCliOptions = {
     truncateName: boolean | number;
     debounceWait: number;
     maxDebounceWait: number;
-    createProgressBar: (status: ProgressStatus) => string;
+    createProgressBar: (status: CliFormattedStatus) => string;
     loadingAnimation: cliSpinners.SpinnerName,
     loadingText?: string;
 };
@@ -44,9 +43,10 @@ export default class TransferCli {
         });
     }
 
-    public updateStatues(statues: (TransferProgressWithStatus | ProgressStatus)[]) {
+    public updateStatues(statues: FormattedStatus[]) {
         const newLog = statues.map((status) => {
             status.fileName = this._truncateName(status.fileName);
+            status.transferAction = this.options.action ?? status.transferAction;
             return this.options.createProgressBar(status);
         })
             .join("\n");

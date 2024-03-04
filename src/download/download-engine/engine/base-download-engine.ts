@@ -3,9 +3,10 @@ import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-engine-
 import BaseDownloadEngineFetchStream, {BaseDownloadEngineFetchStreamOptions} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
 import {EventEmitter} from "eventemitter3";
-import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "../../transfer-visualize/progress-statistics-builder.js";
+import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer-visualize/progress-statistics-builder.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 import retry from "async-retry";
+import {createFormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 
 export type InputURLOptions = { partsURL: string[] } | { url: string };
 
@@ -20,7 +21,7 @@ export type BaseDownloadEngineEvents = {
     start: () => void
     paused: () => void
     resumed: () => void
-    progress: (progress: TransferProgressWithStatus) => void
+    progress: (progress: ProgressStatusWithIndex) => void
     save: (progress: SaveProgressInfo) => void
     finished: () => void
     closed: () => void
@@ -32,7 +33,8 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     protected readonly _engine: DownloadEngineFile;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
     protected _downloadStarted = false;
-    protected _latestStatus?: TransferProgressWithStatus;
+    protected _latestStatus?: ProgressStatusWithIndex;
+
     protected constructor(engine: DownloadEngineFile, options: DownloadEngineFileOptions) {
         super();
         this.options = options;
@@ -50,7 +52,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     public get status() {
-        return this._latestStatus ?? this._engine.status;
+        return this._latestStatus ?? createFormattedStatus(this._engine.status);
     }
 
     /**

@@ -1,18 +1,16 @@
 import BaseDownloadEngine from "../download-engine/engine/base-download-engine.js";
 import {EventEmitter} from "eventemitter3";
-import TransferStatistics, {TransferProgressInfo} from "./transfer-statistics.js";
-import DownloadEngineFile from "../download-engine/download-engine-file.js";
+import TransferStatistics from "./transfer-statistics.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
-import {ProgressStatus} from "../download-engine/progress-status-file.js";
+import {createFormattedStatus, FormattedStatus} from "./format-transfer-status.js";
+import DownloadEngineFile from "../download-engine/download-engine-file.js";
 
-export type ProgressStatusWithIndex = ProgressStatus & {
+export type ProgressStatusWithIndex = FormattedStatus & {
     index: number,
 };
 
-export type TransferProgressWithStatus = TransferProgressInfo & ProgressStatusWithIndex;
-
 interface CliProgressBuilderEvents {
-    progress: (progress: TransferProgressWithStatus) => void;
+    progress: (progress: ProgressStatusWithIndex) => void;
 }
 
 export type AnyEngine = DownloadEngineFile | BaseDownloadEngine | DownloadEngineMultiDownload;
@@ -48,8 +46,10 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             const progress = this.statistics.updateProgress(this.transferredBytesWithActiveTransfers, this.totalBytes);
 
             this.emit("progress", {
-                ...data,
-                ...progress,
+                ...createFormattedStatus({
+                    ...data,
+                    ...progress
+                }),
                 index
             });
         });

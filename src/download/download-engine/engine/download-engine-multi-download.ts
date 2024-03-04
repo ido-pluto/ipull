@@ -1,9 +1,9 @@
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
 import {EventEmitter} from "eventemitter3";
-import ProgressStatisticsBuilder, {TransferProgressWithStatus} from "../../transfer-visualize/progress-statistics-builder.js";
+import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer-visualize/progress-statistics-builder.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 import DownloadEngineFile from "../download-engine-file.js";
-import {ProgressStatus} from "../progress-status-file.js";
+import {createFormattedStatus, FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 
 type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineFile;
 
@@ -17,7 +17,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     protected _aborted = false;
     protected _activeEngine?: Engine;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
-    protected _downloadStatues: (TransferProgressWithStatus | ProgressStatus)[] = [];
+    protected _downloadStatues: (ProgressStatusWithIndex | FormattedStatus)[] = [];
     protected _closeFiles: (() => Promise<void>)[] = [];
 
 
@@ -44,9 +44,9 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         this._changeEngineFinishDownload();
         for (const [index, engine] of Object.entries(this._engines)) {
             const numberIndex = Number(index);
-            this._downloadStatues[numberIndex] = engine.status;
+            this._downloadStatues[numberIndex] = createFormattedStatus(engine.status);
             engine.on("progress", (progress) => {
-                this._downloadStatues[numberIndex] = progress;
+                this._downloadStatues[numberIndex] = createFormattedStatus(progress);
             });
         }
     }

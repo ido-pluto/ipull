@@ -3,12 +3,12 @@ import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js
 import DownloadEngineMultiDownload from "./download-engine/engine/download-engine-multi-download.js";
 import TransferCli, {TransferCliOptions} from "./transfer-visualize/transfer-cli/transfer-cli.js";
 import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./transfer-visualize/transfer-cli/progress-bars/switch-cli-progress-style.js";
-
+import {CliFormattedStatus} from "./transfer-visualize/transfer-cli/progress-bars/base-transfer-cli-progress-bar.js";
 
 export type CliProgressDownloadEngineOptions = {
     truncateName?: boolean | number;
     cliProgress?: boolean;
-    cliStyle?: AvailableCLIProgressStyle;
+    cliStyle?: AvailableCLIProgressStyle | ((status: CliFormattedStatus) => string)
     cliName?: string;
     cliAction?: string;
 };
@@ -24,8 +24,11 @@ function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOp
     if (options.cliName) {
         cliOptions.name = options.cliName;
     }
+
     if (options.cliStyle) {
-        cliOptions.createProgressBar = switchCliProgressStyle(options.cliStyle);
+        cliOptions.createProgressBar = typeof options.cliStyle === "function" ?
+            options.cliStyle :
+            switchCliProgressStyle(options.cliStyle);
     }
 
     return new TransferCli(cliOptions);
