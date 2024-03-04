@@ -2,12 +2,12 @@ import {SaveProgressInfo} from "../types.js";
 import DownloadEngineFile from "../download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFetchStreamXhr from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-xhr.js";
-import DownloadEngineWriteStreamBrowser, {
-    DownloadEngineWriteStreamBrowserWriter
-} from "../streams/download-engine-write-stream/download-engine-write-stream-browser.js";
+import DownloadEngineWriteStreamBrowser, {DownloadEngineWriteStreamBrowserWriter} from "../streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-engine.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
+
+const DEFAULT_PARALLEL_STREAMS_FOR_XHR = 3;
 
 export type DownloadEngineOptionsBrowser = BaseDownloadEngineOptions & {
     onWrite?: DownloadEngineWriteStreamBrowserWriter,
@@ -50,6 +50,9 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
         const partsURL = "partsURL" in options ? options.partsURL : [options.url];
 
         options.fetchStrategy ??= DownloadEngineBrowser._defaultFetchXHR() ? "xhr" : "fetch";
+        if (options.fetchStrategy === "xhr") {
+            options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_XHR;
+        }
 
         const fetchStream = options.fetchStrategy === "xhr" ?
             new DownloadEngineFetchStreamXhr(options) : new DownloadEngineFetchStreamFetch(options);
