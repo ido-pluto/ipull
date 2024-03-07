@@ -20,10 +20,16 @@ setCommand.description("Set download locations")
     .addHelpText("afterAll", HELP_TEXT)
     .action(async (path, value, {delete: deleteSetting}) => {
         if (deleteSetting) {
-            await AppDB.del(path);
+            await AppDB.update(data => {
+                delete data[path];
+            });
+
             console.log(`Deleted ${path}`);
             return;
         }
-        await AppDB.put(path, value);
+
+        await AppDB.update(data => {
+            data[path] = value;
+        });
         console.log(`${value} set to ${path}`);
     });

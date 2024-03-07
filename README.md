@@ -66,6 +66,7 @@ console.log(downloader.writeStream.result); // Uint8Array
 ### Custom stream
 
 You can use a custom stream
+
 ```ts
 import {downloadFileBrowser} from "ipull/dist/browser.js";
 
@@ -85,7 +86,7 @@ console.log(downloader.writeStream.result.length === 0); // true, because we wri
 ```
 Usage: ipull [options] [files...]
 
-Pull/copy files from remote server/local directory
+Pull/copy files from a remote server/local directory
 
 Arguments:
   files                         Files to pull/copy
@@ -114,8 +115,7 @@ ipull set .zip ~/Downloads/zips
 
 ### Download file from parts
 
-Download a file from multiple parts, and merge them into a single file.
-
+Consolidate multiple files parts into one file.
 Beneficial for downloading large files from servers that limit file size. (e.g. HuggingFace models)
 
 ```ts
@@ -203,6 +203,8 @@ finish
 If a network/file-system error occurs, the download will automatically retry
 with [async-retry](https://www.npmjs.com/package/async-retry)
 
+If the maximum reties was reached the download will fail and an error will be thrown from the `download()` call:
+
 ```ts
 import {downloadFile} from 'ipull';
 
@@ -245,7 +247,12 @@ downloader.on("progress", (progress) => {
 
 ### Download multiple files
 
-If you want to download multiple files, you can use the `downloadSequence` function
+If you want to download multiple files, you can use the `downloadSequence` function.
+
+By default, it will download files one by one, but you can set the `parallel` option to download them in parallel.
+It is better to download one file at a time if you are downloading from the same server (as it may limit the number of
+connections).
+
 ```ts
 import {downloadFile, downloadSequence} from "ipull";
 

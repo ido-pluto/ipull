@@ -1,21 +1,13 @@
-import {Level} from "level";
+import {JSONFilePreset} from "lowdb/node";
 import {DB_PATH} from "../const.js";
-
-const NOT_FOUND_STATUS = 404;
-
-export const AppDB = new Level(
-    DB_PATH,
-    {valueEncoding: "json"}
-);
+import {Low} from "lowdb";
 
 
-export async function getWithDefault(name: string, defaultValue = null) {
-    try {
-        return await AppDB.get(name);
-    } catch (error: any) {
-        if (error.status === NOT_FOUND_STATUS) {
-            return defaultValue;
-        }
-        throw error;
-    }
-}
+const AppDB = await JSONFilePreset(DB_PATH, {} as Record<string, string>);
+await AppDB.read();
+
+
+export {
+    AppDB,
+    Low
+};
