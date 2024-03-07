@@ -4,7 +4,6 @@ import {Low} from "lowdb";
 
 
 const AppDB = await JSONFilePreset(DB_PATH, {} as Record<string, string>);
-await AppDB.read();
 
 
 export {
