@@ -24,7 +24,7 @@ const NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
     minimumIntegerDigits: 3
 };
 
-const PRETTY_MS_OPTIONS: PrettyMsOptions = {
+export const PRETTY_MS_OPTIONS: PrettyMsOptions = {
     ...NUMBER_FORMAT_OPTIONS,
     keepDecimalsOnWholeSeconds: true,
     secondsDecimalDigits: 2,
