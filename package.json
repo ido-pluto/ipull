@@ -1,9 +1,10 @@
 {
   "name": "ipull",
   "version": "1.0.0",
-  "description": "The only file downloader you'll ever need. Node.js & Browser, CLI and library for fast and reliable file downloads.",
+  "description": "The only file downloader you'll ever need. For node.js and the browser, CLI and library for fast and reliable file downloads.",
   "main": "dist/index.js",
   "type": "module",
+  "types": "dist/index.d.ts",
   "bin": {
     "ipull": "./dist/cli/cli.js"
   },
@@ -14,8 +15,30 @@
     "LICENSE"
   ],
   "exports": {
-    ".": "./dist/index.js",
-    "./browser": "./dist/browser.js",
+    ".": {
+      "types": "./dist/index.d.ts",
+      "node": {
+        "import": "./dist/index.js",
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "browser": {
+        "import": "./dist/browser.js",
+        "types": "./dist/browser.d.ts",
+        "default": "./dist/browser.js"
+      }
+    },
+    "./node": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./browser": {
+      "import": "./dist/browser.js",
+      "types": "./dist/browser.d.ts",
+      "default": "./dist/browser.js"
+    },
+    "./dist/index.js": "./dist/index.js",
     "./dist/browser.js": "./dist/browser.js"
   },
   "engines": {
