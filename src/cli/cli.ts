@@ -9,7 +9,6 @@ import findDownloadDir, {downloadToDirectory, findFileName} from "./utils/find-d
 
 const pullCommand = new Command();
 pullCommand
-    .version(packageJson.version)
     .description("Pull/copy files from remote server/local directory")
     .argument("[files...]", "Files to pull/copy")
     .option("-s --save [path]", "Save location (directory/file)")
@@ -50,7 +49,8 @@ pullCommand
             }, ...fileDownloads);
             await downloader.download();
         }
-    });
+    })
+    .version(packageJson.version);
 
 pullCommand.addCommand(setCommand);
 pullCommand.parse();
