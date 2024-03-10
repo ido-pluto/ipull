@@ -20,7 +20,6 @@ pullCommand
             process.exit(0);
         }
 
-        const useDownloadSequence = files.length > 1;
         const fileDownloads = await Promise.all(
             files.map(async (file) => {
                 const isDirectory = saveLocation && await downloadToDirectory(saveLocation);
@@ -32,23 +31,17 @@ pullCommand
                     directory,
                     fileName,
                     truncateName,
-                    cliProgress: !useDownloadSequence,
-                    cliStyle: "fancy",
                     parallelStreams: Number(number) || 4
                 });
             })
         );
 
-        if (fileDownloads.length === 1)
-            await fileDownloads[0].download();
-        else {
-            const downloader = await downloadSequence({
-                truncateName,
-                cliProgress: true,
-                cliStyle: "fancy"
-            }, ...fileDownloads);
-            await downloader.download();
-        }
+        const downloader = await downloadSequence({
+            truncateName,
+            cliProgress: true,
+            cliStyle: "fancy"
+        }, ...fileDownloads);
+        await downloader.download();
     })
     .version(packageJson.version);
 
