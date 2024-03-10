@@ -28,7 +28,7 @@ function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOp
     if (options.cliStyle) {
         cliOptions.createProgressBar = typeof options.cliStyle === "function" ?
             options.cliStyle :
-            switchCliProgressStyle(options.cliStyle);
+            switchCliProgressStyle(options.cliStyle, {truncateName: options.truncateName});
     }
 
     return new TransferCli(cliOptions);
