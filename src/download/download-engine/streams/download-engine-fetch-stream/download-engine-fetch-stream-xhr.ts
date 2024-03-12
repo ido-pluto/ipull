@@ -1,8 +1,9 @@
-import BaseDownloadEngineFetchStream, {FetchSubState} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
+import retry from "async-retry";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
@@ -10,12 +11,16 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
     withSubState(state: FetchSubState): this {
         const fetchStream = new DownloadEngineFetchStreamXhr(this.options);
-        fetchStream.state = state;
-
-        return fetchStream as this;
+        return this.cloneState(state, fetchStream) as this;
     }
 
-    protected override fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array> {
+    public async fetchBytes(url: string, start: number, end: number, onProgress?: (length: number) => void) {
+        return await retry(async () => {
+            return await this.fetchBytesWithoutRetry(url, start, end, onProgress);
+        }, this.options.retry);
+    }
+
+    protected fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array> {
         return new Promise((resolve, reject) => {
             const headers = {
                 accept: "*/*",
@@ -60,10 +65,14 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.send();
+
+            this.on("aborted", () => {
+                xhr.abort();
+            });
         });
     }
 
-    public override async fetchChunks(callback: (data: Uint8Array, index: number) => void) {
+    public override async fetchChunks(callback: WriteCallback) {
         if (this.state.rangeSupport) {
             return await this._fetchChunksRangeSupport(callback);
         }
@@ -75,23 +84,20 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
         throw new Error("Method not needed, use fetchChunks instead.");
     }
 
-    protected async _fetchChunksRangeSupport(callback: (data: Uint8Array, index: number) => void) {
-        let index = 0;
-        while (this.state.start < this.state.end) {
+    protected async _fetchChunksRangeSupport(callback: WriteCallback) {
+        while (this._startSize < this._endSize) {
             await this.paused;
             if (this.aborted) return;
-            const end = Math.min(this.state.end, this.state.start + this.state.chunkSize);
 
-            const chunk = await this.fetchBytes(this.state.url, this.state.start, end, this.state.onProgress);
-            this.state.start += chunk.length;
-            callback(chunk, index++);
+            const chunk = await this.fetchBytes(this.state.url, this._startSize, this._endSize, this.state.onProgress);
+            callback([chunk], this._startSize, this.state.startChunk++);
         }
     }
 
-    protected async _fetchChunksWithoutRange(callback: (data: Uint8Array, index: number) => void) {
+    protected async _fetchChunksWithoutRange(callback: WriteCallback) {
         const relevantContent = await (async (): Promise<Uint8Array> => {
-            const result = await this.fetchBytes(this.state.url, 0, this.state.end, this.state.onProgress);
-            return result.slice(this.state.start, this.state.end);
+            const result = await this.fetchBytes(this.state.url, 0, this._endSize, this.state.onProgress);
+            return result.slice(this._startSize, this._endSize);
         })();
 
         let totalReceivedLength = 0;
@@ -105,7 +111,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             const chunk = relevantContent.slice(start, end);
             totalReceivedLength += chunk.byteLength;
-            callback(chunk, index++);
+            callback([chunk], index * this.state.chunkSize, index++);
         }
     }
 

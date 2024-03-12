@@ -1,43 +1,51 @@
+import {WriteCallback} from "../base-download-engine-fetch-stream.js";
+
 export type SmartChunkSplitOptions = {
     chunkSize: number;
+    startChunk: number;
 };
 
 export default class SmartChunkSplit {
-    private readonly _callback: (data: Uint8Array, index: number) => void;
+    private readonly _callback: WriteCallback;
     private readonly _options: SmartChunkSplitOptions;
-    private _counter: number = 0;
-    private _chunk: Uint8Array = new Uint8Array(0);
+    private _bytesWriteLocation: number;
+    private _bytesLeftovers: number = 0;
+    private _chunks: Uint8Array[] = [];
 
-    public constructor(_callback: (data: Uint8Array, index: number) => void, _options: SmartChunkSplitOptions) {
+    public constructor(_callback: WriteCallback, _options: SmartChunkSplitOptions) {
         this._options = _options;
         this._callback = _callback;
+        this._bytesWriteLocation = _options.startChunk * _options.chunkSize;
     }
 
-
     public addChunk(data: Uint8Array) {
-        const oldData = this._chunk;
-        this._chunk = new Uint8Array(oldData.length + data.length);
-        this._chunk.set(oldData);
-        this._chunk.set(data, oldData.length);
-
+        this._chunks.push(data);
         this._sendChunk();
     }
 
-    public get leftOverLength() {
-        return this._chunk.length;
+    public get savedLength() {
+        return this._bytesLeftovers + this._chunks.reduce((acc, chunk) => acc + chunk.length, 0);
     }
 
     public sendLeftovers() {
-        if (this._chunk.length > 0) {
-            this._callback(this._chunk, this._counter++);
+        if (this.savedLength > 0) {
+            this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++);
         }
     }
 
     private _sendChunk() {
-        while (this._chunk.length >= this._options.chunkSize) {
-            const chunk = this._chunk.slice(0, this._options.chunkSize);
-            this._chunk = this._chunk.slice(this._options.chunkSize);
-            this._callback(chunk, this._counter++);
+        while (this._chunks.length && this.savedLength >= this._options.chunkSize) {
+            let sendLength = this._bytesLeftovers;
+            for (let i = 0; i < this._chunks.length; i++) {
+                sendLength += this._chunks[i].byteLength;
+                if (sendLength >= this._options.chunkSize) {
+                    this._callback(this._chunks.slice(0, i + 1), this._bytesWriteLocation, this._options.startChunk++);
+                    this._chunks = this._chunks.slice(i + 1);
+                    this._bytesWriteLocation += sendLength - this._bytesLeftovers;
+                    this._bytesLeftovers = sendLength - this._options.chunkSize;
+                    break;
+                }
+            }
         }
     }
 }

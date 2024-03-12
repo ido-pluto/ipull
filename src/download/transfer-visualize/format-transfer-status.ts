@@ -1,7 +1,7 @@
 import {TransferProgressInfo} from "./transfer-statistics.js";
 import prettyBytes, {Options as PrettyBytesOptions} from "pretty-bytes";
 import prettyMilliseconds, {Options as PrettyMsOptions} from "pretty-ms";
-import {ProgressStatus} from "../download-engine/progress-status-file.js";
+import {ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 
 export type CliInfoStatus = TransferProgressInfo & {
     fileName?: string,

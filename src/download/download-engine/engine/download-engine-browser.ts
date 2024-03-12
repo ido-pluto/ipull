@@ -1,5 +1,5 @@
 import {SaveProgressInfo} from "../types.js";
-import DownloadEngineFile from "../download-engine-file.js";
+import DownloadEngineFile from "../download-file/download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFetchStreamXhr from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-xhr.js";
 import DownloadEngineWriteStreamBrowser, {DownloadEngineWriteStreamBrowserWriter} from "../streams/download-engine-write-stream/download-engine-write-stream-browser.js";

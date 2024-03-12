@@ -3,7 +3,7 @@ import {EventEmitter} from "eventemitter3";
 import TransferStatistics from "./transfer-statistics.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
 import {createFormattedStatus, FormattedStatus} from "./format-transfer-status.js";
-import DownloadEngineFile from "../download-engine/download-engine-file.js";
+import DownloadEngineFile from "../download-engine/download-file/download-engine-file.js";
 
 export type ProgressStatusWithIndex = FormattedStatus & {
     index: number,

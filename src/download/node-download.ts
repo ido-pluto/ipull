@@ -5,6 +5,9 @@ import TransferCli, {TransferCliOptions} from "./transfer-visualize/transfer-cli
 import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./transfer-visualize/transfer-cli/progress-bars/switch-cli-progress-style.js";
 import {CliFormattedStatus} from "./transfer-visualize/transfer-cli/progress-bars/base-transfer-cli-progress-bar.js";
 
+export const DEFAULT_PARALLEL_STREAMS_FOR_NODEJS = 3;
+export const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "fancy";
+
 export type CliProgressDownloadEngineOptions = {
     truncateName?: boolean | number;
     cliProgress?: boolean;
@@ -25,11 +28,9 @@ function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOp
         cliOptions.name = options.cliName;
     }
 
-    if (options.cliStyle) {
-        cliOptions.createProgressBar = typeof options.cliStyle === "function" ?
-            options.cliStyle :
-            switchCliProgressStyle(options.cliStyle, {truncateName: options.truncateName});
-    }
+    cliOptions.createProgressBar = typeof options.cliStyle === "function" ?
+        options.cliStyle :
+        switchCliProgressStyle(options.cliStyle ?? DEFAULT_CLI_STYLE, {truncateName: options.truncateName});
 
     return new TransferCli(cliOptions);
 }
@@ -45,6 +46,7 @@ export async function downloadFile(options: DownloadFileOptions) {
         cli = createCliProgressForDownloadEngine(options);
         cli.loadingAnimation.start();
     }
+    options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_NODEJS;
 
 
     const downloader = await DownloadEngineNodejs.createFromOptions(options);

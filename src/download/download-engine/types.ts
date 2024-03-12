@@ -14,6 +14,7 @@ export type SaveProgressInfo = {
     part: number,
     chunks: ChunkStatus[],
     chunkSize: number,
+    parallelStreams: number
 };
 
 export type DownloadFile = {

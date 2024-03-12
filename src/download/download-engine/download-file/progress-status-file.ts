@@ -48,6 +48,19 @@ export default class ProgressStatusFile {
     }
 
     public createStatus(downloadPart: number, transferredBytes: number): ProgressStatusFile {
-        return new ProgressStatusFile(this.totalBytes, this.totalDownloadParts, this.fileName, this.comment, this.transferAction, downloadPart, transferredBytes);
+        const newStatus = new ProgressStatusFile(
+            this.totalBytes,
+            this.totalDownloadParts,
+            this.fileName,
+            this.comment,
+            this.transferAction,
+            downloadPart,
+            transferredBytes
+        );
+
+        newStatus.startTime = this.startTime;
+        newStatus.endTime = this.endTime;
+
+        return newStatus;
     }
 }

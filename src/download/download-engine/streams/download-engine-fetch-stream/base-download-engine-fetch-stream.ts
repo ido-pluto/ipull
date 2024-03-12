@@ -15,18 +15,22 @@ export type BaseDownloadEngineFetchStreamOptions = {
 
 export type FetchSubState = {
     url: string,
-    start: number,
-    end: number,
+    startChunk: number,
+    endChunk: number,
+    totalSize: number,
     chunkSize: number,
     rangeSupport?: boolean,
-    onProgress?: (length: number) => void
+    onProgress?: (length: number) => void,
 };
 
 export type BaseDownloadEngineFetchStreamEvents = {
     paused: () => void
     resumed: () => void
     aborted: () => void
+    errorCountIncreased: (errorCount: number, error: Error) => void
 };
+
+export type WriteCallback = (data: Uint8Array[], position: number, index: number) => void;
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
     public readonly abstract transferAction: string;
@@ -35,11 +39,20 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public paused?: Promise<void>;
     public aborted = false;
     protected _pausedResolve?: () => void;
+    public errorCount = {value: 0};
 
     constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
         super();
         this.options = options;
         this.initEvents();
+    }
+
+    protected get _startSize() {
+        return this.state.startChunk * this.state.chunkSize;
+    }
+
+    protected get _endSize() {
+        return Math.min(this.state.endChunk * this.state.chunkSize, this.state.totalSize);
     }
 
     protected initEvents() {
@@ -63,24 +76,34 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
 
     abstract withSubState(state: FetchSubState): this;
 
-    public async fetchBytes(url: string, start: number, end: number, onProgress?: (length: number) => void) {
-        return await retry(async () => {
-            return await this.fetchBytesWithoutRetry(url, start, end, onProgress);
-        }, this.options.retry);
-    }
+    protected cloneState<Fetcher extends BaseDownloadEngineFetchStream>(state: FetchSubState, fetchStream: Fetcher): Fetcher {
+        fetchStream.state = state;
+        fetchStream.errorCount = this.errorCount;
+        fetchStream.on("errorCountIncreased", this.emit.bind(this, "errorCountIncreased"));
 
-    protected abstract fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array>;
+        this.on("aborted", fetchStream.emit.bind(fetchStream, "aborted"));
+        this.on("paused", fetchStream.emit.bind(fetchStream, "paused"));
+        this.on("resumed", fetchStream.emit.bind(fetchStream, "resumed"));
+
+        return fetchStream;
+    }
 
     public async fetchDownloadInfo(url: string): Promise<{ length: number, acceptRange: boolean }> {
         return this.options.defaultFetchDownloadInfo ?? await retry(async () => {
-            return await this.fetchDownloadInfoWithoutRetry(url);
+            try {
+                return await this.fetchDownloadInfoWithoutRetry(url);
+            } catch (error: any) {
+                this.errorCount.value++;
+                this.emit("errorCountIncreased", this.errorCount.value, error);
+                throw error;
+            }
         }, this.options.retry);
     }
 
     protected abstract fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number, acceptRange: boolean }>;
 
-    public async fetchChunks(callback: (data: Uint8Array, index: number) => void) {
-        let lastStartLocation = this.state.start;
+    public async fetchChunks(callback: WriteCallback) {
+        let lastStartLocation = this.state.startChunk;
         let retryResolvers = retryAsyncStatementSimple(this.options.retry);
 
         // eslint-disable-next-line no-constant-condition
@@ -88,16 +111,19 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
             try {
                 return await this.fetchWithoutRetryChunks(callback);
             } catch (error: any) {
-                if (lastStartLocation !== this.state.start) {
-                    lastStartLocation = this.state.start;
+                if (error?.name === "AbortError") return;
+                if (lastStartLocation !== this.state.startChunk) {
+                    lastStartLocation = this.state.startChunk;
                     retryResolvers = retryAsyncStatementSimple(this.options.retry);
                 }
+                this.errorCount.value++;
+                this.emit("errorCountIncreased", this.errorCount.value, error);
                 await retryResolvers(error);
             }
         }
     }
 
-    protected abstract fetchWithoutRetryChunks(callback: (data: Uint8Array, index: number) => void): Promise<void> | void;
+    protected abstract fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> | void;
 
     public close(): void | Promise<void> {
         this.emit("aborted");

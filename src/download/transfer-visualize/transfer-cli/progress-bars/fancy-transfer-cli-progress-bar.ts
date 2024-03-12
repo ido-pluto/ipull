@@ -149,8 +149,9 @@ export default class FancyTransferCliProgressBar {
         const wasSuccessful = this.status.percentage === 100;
         const {endTime, startTime} = this.status;
 
+        const downloadTime = (endTime || Date.now()) - startTime;
         const finishedText = wasSuccessful
-            ? `downloaded ${this.status.formatTransferred} in ${prettyMilliseconds(endTime - startTime, PRETTY_MS_OPTIONS)}`
+            ? `downloaded ${this.status.formatTransferred} in ${prettyMilliseconds(downloadTime, PRETTY_MS_OPTIONS)}`
             : `failed downloading after ${prettyMilliseconds(endTime - startTime, PRETTY_MS_OPTIONS)}`;
 
         return renderDataLine([{

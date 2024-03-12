@@ -4,7 +4,7 @@ import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/st
 import {BIG_IMAGE} from "./utils/files.js";
 import {createDownloadFile} from "./utils/download.js";
 import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
-import DownloadEngineFile from "../src/download/download-engine/download-engine-file.js";
+import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
 
 describe("File Download", () => {
     test.concurrent("Parallel connection download", async (context) => {

@@ -1,9 +1,10 @@
 import logUpdate from "log-update";
 import debounce from "lodash.debounce";
-import BaseTransferCliProgressBar, {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
+import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
 import CliSpinnersLoadingAnimation from "./loading-animation/cli-spinners-loading-animation.js";
 import {FormattedStatus} from "../format-transfer-status.js";
+import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
 
 export type TransferCliOptions = {
     action?: string,
@@ -20,7 +21,7 @@ export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
     truncateName: true,
     debounceWait: 20,
     maxDebounceWait: 100,
-    createProgressBar: BaseTransferCliProgressBar.createLineRenderer({truncateName: false}),
+    createProgressBar: switchCliProgressStyle("basic", {truncateName: true}),
     loadingAnimation: "dots",
     loadingText: "Gathering information"
 };
@@ -33,7 +34,7 @@ export default class TransferCli {
     public constructor(options: Partial<TransferCliOptions>) {
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
 
-        this._logUpdate = debounce(this._logUpdate.bind(this), this.options.debounceWait, {
+        this.updateStatues = debounce(this.updateStatues.bind(this), this.options.debounceWait, {
             maxWait: this.options.maxDebounceWait
         });
 

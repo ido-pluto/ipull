@@ -1,5 +1,5 @@
 import {DownloadFile, SaveProgressInfo} from "../types.js";
-import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-engine-file.js";
+import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-file/download-engine-file.js";
 import BaseDownloadEngineFetchStream, {BaseDownloadEngineFetchStreamOptions} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
 import {EventEmitter} from "eventemitter3";

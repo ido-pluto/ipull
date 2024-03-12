@@ -2,7 +2,7 @@ import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engi
 import {EventEmitter} from "eventemitter3";
 import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer-visualize/progress-statistics-builder.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
-import DownloadEngineFile from "../download-engine-file.js";
+import DownloadEngineFile from "../download-file/download-engine-file.js";
 import {createFormattedStatus, FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 
 type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineFile;

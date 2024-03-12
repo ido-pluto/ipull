@@ -2,9 +2,9 @@ import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import retry from "async-retry";
 import fsExtra from "fs-extra";
-import BaseDownloadEngineFetchStream, {FetchSubState} from "./base-download-engine-fetch-stream.js";
-import {promiseWithResolvers} from "./utils/retry-async-statement.js";
+import BaseDownloadEngineFetchStream, {FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
+import streamResponse from "./utils/stream-response.js";
 
 const OPEN_MODE = "r";
 
@@ -15,9 +15,7 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
 
     override withSubState(state: FetchSubState): this {
         const fetchStream = new DownloadEngineFetchStreamLocalFile(this.options);
-        fetchStream.state = state;
-
-        return fetchStream as this;
+        return this.cloneState(state, fetchStream) as this;
     }
 
     private async _ensureFileOpen(path: string) {
@@ -34,54 +32,15 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
         });
     }
 
-    protected override async fetchWithoutRetryChunks(callback: (data: Uint8Array, index: number) => void) {
+    protected override async fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> {
         const file = await this._ensureFileOpen(this.state.url);
-        const {promise, resolve, reject} = promiseWithResolvers();
-
-        const smartSplit = new SmartChunkSplit(callback, this.state);
         const stream = file.createReadStream({
-            start: this.state.start,
-            end: this.state.end,
+            start: this._startSize,
+            end: this._endSize,
             autoClose: true
         });
 
-        stream.on("data", (chunk) => {
-            smartSplit.addChunk(new Uint8Array(chunk as Buffer));
-            this.state.onProgress?.(smartSplit.leftOverLength);
-        });
-
-        stream.on("close", () => {
-            smartSplit.sendLeftovers();
-            resolve();
-        });
-
-        stream.on("error", (error) => {
-            reject(error);
-        });
-
-        const pause = stream.pause.bind(stream);
-        const resume = stream.resume.bind(stream);
-        const close = stream.destroy.bind(stream);
-
-        this.on("paused", pause);
-        this.on("resumed", resume);
-        this.on("aborted", close);
-
-        try {
-            await promise;
-        } finally {
-            this.off("paused", pause);
-            this.off("resumed", resume);
-            this.off("aborted", close);
-            stream.destroy();
-        }
-    }
-
-    protected override async fetchBytesWithoutRetry(path: string, start: number, end: number) {
-        const file = await this._ensureFileOpen(path);
-        const buffer = Buffer.alloc(end - start);
-        await file.read(buffer, 0, buffer.byteLength, start);
-        return buffer;
+        return await streamResponse(stream, this, new SmartChunkSplit(callback, this.state), this.state.onProgress);
     }
 
     protected override async fetchDownloadInfoWithoutRetry(path: string): Promise<{ length: number; acceptRange: boolean }> {
