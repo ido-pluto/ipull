@@ -1,12 +1,12 @@
 import path from "path";
 import fs from "fs-extra";
-import {getWithDefault} from "../../settings/settings.js";
+import {AppDB} from "../../settings/settings.js";
 
 const DEFAULT_DOWNLOAD_DIR = process.cwd();
 
 export default async function findDownloadDir(fileName?: string) {
-    const downloadLocation = await getWithDefault(path.extname(fileName || ""));
-    const defaultLocation = await getWithDefault("default");
+    const downloadLocation = AppDB.data[path.extname(fileName || "")];
+    const defaultLocation = AppDB.data["default"];
     return downloadLocation || defaultLocation || DEFAULT_DOWNLOAD_DIR;
 }
 

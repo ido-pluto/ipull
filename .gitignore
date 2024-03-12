@@ -8,3 +8,4 @@ node_modules
 
 /.env
 /.eslintcache
+/test/utils/files/big-image.jpg

@@ -2,13 +2,21 @@ import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import retry from "async-retry";
 import fsExtra from "fs-extra";
-import BaseDownloadEngineFetchStream from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import SmartChunkSplit from "./utils/smart-chunk-split.js";
+import streamResponse from "./utils/stream-response.js";
 
 const OPEN_MODE = "r";
 
 export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngineFetchStream {
+    public override transferAction = "Copying";
     private _fd: FileHandle | null = null;
     private _fsPath: string | null = null;
+
+    override withSubState(state: FetchSubState): this {
+        const fetchStream = new DownloadEngineFetchStreamLocalFile(this.options);
+        return this.cloneState(state, fetchStream) as this;
+    }
 
     private async _ensureFileOpen(path: string) {
         return await withLock(this, "_lock", async () => {
@@ -24,14 +32,18 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
         });
     }
 
-    protected async _fetchBytesWithoutRetry(path: string, start: number, end: number) {
-        const file = await this._ensureFileOpen(path);
-        const buffer = Buffer.alloc(end - start);
-        await file.read(buffer, 0, buffer.byteLength, start);
-        return buffer;
+    protected override async fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> {
+        const file = await this._ensureFileOpen(this.state.url);
+        const stream = file.createReadStream({
+            start: this._startSize,
+            end: this._endSize,
+            autoClose: true
+        });
+
+        return await streamResponse(stream, this, new SmartChunkSplit(callback, this.state), this.state.onProgress);
     }
 
-    protected async _fetchDownloadInfoWithoutRetry(path: string): Promise<{ length: number; acceptRange: boolean }> {
+    protected override async fetchDownloadInfoWithoutRetry(path: string): Promise<{ length: number; acceptRange: boolean }> {
         const stat = await fs.stat(path);
         if (!stat.isFile()) {
             throw new Error("Path is a directory");
@@ -43,6 +55,7 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
     }
 
     override close() {
+        super.close();
         this._fd?.close();
         this._fd = null;
     }

@@ -1,9 +1,13 @@
 import path from "path";
 import {fileURLToPath} from "url";
 import fs from "fs-extra";
-import {BaseDownloadEngineFetchStream, DownloadEngineFetchStreamFetch, downloadFile} from "../../src/index.js";
+import fsPromise from "fs/promises";
 import {DownloadFile} from "../../src/download/download-engine/types.js";
 import {BIG_IMAGE} from "./files.js";
+import BaseDownloadEngineFetchStream
+    from "../../src/download/download-engine/streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
+import DownloadEngineFetchStreamFetch
+    from "../../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 const EXAMPLE_FILE = path.join(__dirname, "files", "big-image.jpg");
@@ -14,12 +18,9 @@ export async function ensureLocalFile(download = BIG_IMAGE, local = EXAMPLE_FILE
         return local;
     }
 
-    const downloader = await downloadFile(download, {
-        directory: path.dirname(local),
-        fileName: path.basename(local)
-    });
+    const response = await fetch(download);
+    await fsPromise.writeFile(local, response.body!);
 
-    await downloader.download();
     return local;
 }
 

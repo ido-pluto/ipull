@@ -1,58 +1,97 @@
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download-engine/engine/download-engine-nodejs.js";
-import TransferCli from "./transfer-visualize/transfer-cli.js";
-import TransferStatistics, {TransferProgressInfo} from "./transfer-visualize/transfer-statistics.js";
-import ProgressStatusFile from "./download-engine/progress-status-file.js";
+import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js";
+import DownloadEngineMultiDownload from "./download-engine/engine/download-engine-multi-download.js";
+import TransferCli, {TransferCliOptions} from "./transfer-visualize/transfer-cli/transfer-cli.js";
+import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./transfer-visualize/transfer-cli/progress-bars/switch-cli-progress-style.js";
+import {CliFormattedStatus} from "./transfer-visualize/transfer-cli/progress-bars/base-transfer-cli-progress-bar.js";
 
-export type DownloadFileCLIOnProgress = TransferProgressInfo & Omit<ProgressStatusFile, "createStatus">;
-export type DownloadEngineOptionsCLI = Omit<Partial<DownloadEngineOptionsNodejs>, "onProgress"> & {
-    onProgress?: (info: DownloadFileCLIOnProgress) => any;
+export const DEFAULT_PARALLEL_STREAMS_FOR_NODEJS = 3;
+export const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "fancy";
+
+export type CliProgressDownloadEngineOptions = {
     truncateName?: boolean | number;
     cliProgress?: boolean;
+    cliStyle?: AvailableCLIProgressStyle | ((status: CliFormattedStatus) => string)
+    cliName?: string;
     cliAction?: string;
 };
 
-const DEFAULT_OPTIONS: DownloadEngineOptionsCLI = {
-    truncateName: true,
-    cliProgress: true,
-    cliAction: "Downloading"
-};
+export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions;
 
-export function downloadCliOptions(options: DownloadEngineOptionsCLI = {}) {
-    options = {...DEFAULT_OPTIONS, ...options};
-    const cli = new TransferCli({
-        action: options.cliAction,
-        truncateName: options.truncateName,
-        name: options.fileName
-    });
+function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOptions) {
+    const cliOptions: Partial<TransferCliOptions> = {...options};
 
-    const transfer = new TransferStatistics();
-    const newOptions: Partial<DownloadEngineOptionsNodejs> = {
-        ...options,
-        onProgress: (status) => {
-            const progress = transfer.updateProgress(status.bytesDownloaded, status.totalBytes);
-            const update = {...status, ...progress};
+    if (options.cliAction) {
+        cliOptions.action = options.cliAction;
+    }
+    if (options.cliName) {
+        cliOptions.name = options.cliName;
+    }
 
-            options.onProgress?.(update);
-            if (options.cliProgress) {
-                cli.updateProgress(update);
-            }
-        }
-    };
+    cliOptions.createProgressBar = typeof options.cliStyle === "function" ?
+        options.cliStyle :
+        switchCliProgressStyle(options.cliStyle ?? DEFAULT_CLI_STYLE, {truncateName: options.truncateName});
 
-    return newOptions;
+    return new TransferCli(cliOptions);
 }
 
 /**
  * Download one file with CLI progress
  */
-export async function downloadFile(linkParts: string | string[], options?: DownloadEngineOptionsCLI) {
-    return await DownloadEngineNodejs.fromParts(linkParts, downloadCliOptions(options));
+export async function downloadFile(options: DownloadFileOptions) {
+    let cli: TransferCli | undefined;
+    if (options.cliProgress) {
+        options.cliAction ??= options.fetchStrategy === "localFile" ? "Copying" : "Downloading";
+
+        cli = createCliProgressForDownloadEngine(options);
+        cli.loadingAnimation.start();
+    }
+    options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_NODEJS;
+
+
+    const downloader = await DownloadEngineNodejs.createFromOptions(options);
+
+    cli?.loadingAnimation.stop();
+    downloader.on("progress", () => {
+        cli?.updateStatues([downloader.status]);
+    });
+
+    return downloader;
 }
 
+export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & {
+    fetchStrategy?: "localFile" | "fetch";
+};
+
 /**
- * Copy one file with CLI progress
+ * Download multiple files with CLI progress
  */
-export async function copyFile(pathParts: string | string[], options: DownloadEngineOptionsCLI = {}) {
-    options.cliAction ??= "Copying";
-    return await DownloadEngineNodejs.copyLocalFile(pathParts, downloadCliOptions(options));
+export async function downloadSequence(options: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
+    let downloadOptions: DownloadSequenceOptions = {};
+    if (options instanceof BaseDownloadEngine || options instanceof Promise) {
+        downloads.unshift(options);
+    } else {
+        downloadOptions = options;
+    }
+
+    let cli: TransferCli | undefined;
+    if (downloadOptions.cliProgress) {
+        if (downloadOptions.fetchStrategy) {
+            downloadOptions.cliAction ??= downloadOptions.fetchStrategy === "localFile" ? "Copying" : "Downloading";
+        }
+
+        cli = createCliProgressForDownloadEngine(downloadOptions);
+        cli.loadingAnimation.start();
+
+    }
+
+    const allDownloads = await Promise.all(downloads);
+    const oneDownloader = new DownloadEngineMultiDownload(allDownloads);
+
+    cli?.loadingAnimation.stop();
+    oneDownloader.on("progress", () => {
+        cli?.updateStatues(oneDownloader.downloadStatues);
+    });
+
+    return oneDownloader;
 }

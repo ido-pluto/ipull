@@ -1,51 +1,69 @@
-import BaseDownloadEngineFetchStream from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
+import SmartChunkSplit from "./utils/smart-chunk-split.js";
 
+type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
-    protected async _fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void) {
-        const response = await fetch(url, {
+    public override transferAction = "Downloading";
+
+    withSubState(state: FetchSubState): this {
+        const fetchStream = new DownloadEngineFetchStreamFetch(this.options);
+        return this.cloneState(state, fetchStream) as this;
+    }
+
+    protected override async fetchWithoutRetryChunks(callback: WriteCallback) {
+        const controller = new AbortController();
+        const response = await fetch(this.appendToURL(this.state.url), {
             headers: {
                 accept: "*/*",
                 ...this.options.headers,
-                range: `bytes=${start}-${end - 1}` // get the range up to end-1. Length 2: 0-1
-            }
+                range: `bytes=${this._startSize}-${this._endSize - 1}`
+            },
+            signal: controller.signal
         });
 
-        let receivedLength = 0;
+        this.on("aborted", () => {
+            controller.abort();
+        });
+
+        const contentLength = parseInt(response.headers.get("content-length")!);
+        const expectedContentLength = this._endSize - this._startSize;
+        if (contentLength !== expectedContentLength) {
+            throw new InvalidContentLengthError(expectedContentLength, contentLength);
+        }
+
         const reader = response.body!.getReader();
-        const chunks = [];
-
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            const {done, value} = await reader.read();
-            if (done) break;
-
-            receivedLength += value.length;
-            chunks.push(value);
-            onProgress?.(receivedLength);
-        }
-
-        const arrayBuffer = new Uint8Array(receivedLength);
-        let position = 0;
-        for (const chunk of chunks) {
-            arrayBuffer.set(chunk, position);
-            position += chunk.length;
-        }
-
-        return arrayBuffer;
+        return await this.chunkGenerator(callback, () => reader.read());
     }
 
-    protected async _fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean }> {
+    protected override async fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean; }> {
         const response = await fetch(url, {
             method: "HEAD",
-            ...this.options.headers
+            headers: this.options.headers
         });
 
         const length = parseInt(response.headers.get("content-length")!);
-        const acceptRange = this.options.acceptRangeAlwaysTrue || response.headers.get("accept-ranges") === "bytes";
+        const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
 
         return {
             length,
             acceptRange
         };
+    }
+
+    async chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
+        const smartSplit = new SmartChunkSplit(callback, this.state);
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+            const {done, value} = await getNextChunk();
+            await this.paused;
+            if (done || this.aborted) break;
+
+            smartSplit.addChunk(value);
+            this.state.onProgress?.(smartSplit.savedLength);
+        }
+
+        smartSplit.sendLeftovers();
     }
 }

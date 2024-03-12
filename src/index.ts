@@ -1,44 +1,35 @@
-import {truncateText} from "./utils/truncate-text.js";
-import TransferStatistics, {TransferProgressInfo} from "./download/transfer-visualize/transfer-statistics.js";
-import TransferCli, {TransferCliOptions, TransferCliStatus} from "./download/transfer-visualize/transfer-cli.js";
-import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download/download-engine/engine/download-engine-nodejs.js";
-import DownloadEngineFile, {DownloadEngineFileOptionsWithDefaults} from "./download/download-engine/download-engine-file.js";
-import {copyFile, downloadFile} from "./download/node-download.js";
-import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
-import BaseDownloadEngineFetchStream, {
-    DownloadEngineFetchStreamOptions
-} from "./download/download-engine/streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
-import DownloadEngineFetchStreamFetch
-    from "./download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
-import DownloadEngineFetchStreamLocalFile
-    from "./download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
-import BaseDownloadEngineWriteStream
-    from "./download/download-engine/streams/download-engine-write-stream/base-download-engine-write-stream.js";
-import DownloadEngineWriteStreamNodejs
-    from "./download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
+import DownloadEngineNodejs from "./download/download-engine/engine/download-engine-nodejs.js";
+import {downloadFile, DownloadFileOptions, downloadSequence, DownloadSequenceOptions} from "./download/node-download.js";
+import {SaveProgressInfo} from "./download/download-engine/types.js";
+import PathNotAFileError from "./download/download-engine/streams/download-engine-fetch-stream/errors/path-not-a-file-error.js";
+import EmptyResponseError from "./download/download-engine/streams/download-engine-fetch-stream/errors/empty-response-error.js";
+import StatusCodeError from "./download/download-engine/streams/download-engine-fetch-stream/errors/status-code-error.js";
+import XhrError from "./download/download-engine/streams/download-engine-fetch-stream/errors/xhr-error.js";
+import InvalidContentLengthError from "./download/download-engine/streams/download-engine-fetch-stream/errors/invalid-content-length-error.js";
+import FetchStreamError from "./download/download-engine/streams/download-engine-fetch-stream/errors/fetch-stream-error.js";
+import IpullError from "./errors/ipull-error.js";
+import EngineError from "./download/download-engine/engine/error/engine-error.js";
+import {FormattedStatus} from "./download/transfer-visualize/format-transfer-status.js";
 
 export {
-    TransferStatistics,
-    TransferCli,
-    DownloadEngineNodejs,
-    BaseDownloadEngine,
-    DownloadEngineFile,
-    truncateText,
     downloadFile,
-    copyFile,
-    BaseDownloadEngineFetchStream,
-    DownloadEngineFetchStreamFetch,
-    DownloadEngineFetchStreamLocalFile,
-    BaseDownloadEngineWriteStream,
-    DownloadEngineWriteStreamNodejs
+    downloadSequence,
+    PathNotAFileError,
+    EmptyResponseError,
+    StatusCodeError,
+    XhrError,
+    InvalidContentLengthError,
+    FetchStreamError,
+    IpullError,
+    EngineError
 };
 
 export type {
-    TransferProgressInfo,
-    TransferCliOptions,
-    TransferCliStatus,
-    DownloadEngineOptionsNodejs,
-    DownloadEngineFileOptionsWithDefaults as DownloadEngineFileOptions,
-    DownloadEngineFetchStreamOptions
+    DownloadFileOptions,
+    DownloadSequenceOptions,
+    DownloadEngineNodejs,
+    SaveProgressInfo,
+    FormattedStatus
 };
+
 

@@ -1,98 +1,120 @@
 import path from "path";
-import fs from "fs-extra";
-import {DownloadEngineFileOptions, DownloadFile} from "../types.js";
-import DownloadEngineFile from "../download-engine-file.js";
+import {DownloadFile} from "../types.js";
+import DownloadEngineFile from "../download-file/download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineWriteStreamNodejs from "../streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
-import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import DownloadEngineFetchStreamLocalFile from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
-import ProgressStatusFile from "../progress-status-file.js";
-import BaseDownloadEngine from "./base-download-engine.js";
+import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-engine.js";
+import SavePathError from "./error/save-path-error.js";
+import fs from "fs-extra";
+import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 
 export const PROGRESS_FILE_EXTENSION = ".ipull";
 
-export type DownloadEngineOptionsNodejsCustomFetch =
-    Omit<Partial<DownloadEngineFileOptions>, "saveProgress" | "writeStream" | "onFinished" | "onProgress">
-    & {
-    fetchStream: BaseDownloadEngineFetchStream,
-    objectType?: string;
+type PathOptions = { directory: string } | { savePath: string };
+export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOptions & {
     fileName?: string;
-    headers?: Record<string, string>;
-    acceptRangeIsKnown?: boolean;
-    directory?: string;
-    onFinished?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
-    onProgress?: (status: ProgressStatusFile, downloader: DownloadEngineNodejs) => void | Promise<void>;
-    onStart?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
-    onInit?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
-    onClosed?: (downloader: DownloadEngineNodejs) => void | Promise<void>;
+    fetchStrategy?: "localFile" | "fetch";
 };
 
-export type DownloadEngineOptionsNodejs = Omit<DownloadEngineOptionsNodejsCustomFetch, "fetchStream">;
+export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
+    partsURL: string[];
+    fetchStream: BaseDownloadEngineFetchStream
+};
 
-export default class DownloadEngineNodejs extends BaseDownloadEngine {
-    protected constructor(engine: DownloadEngineFile) {
-        super(engine);
+export type DownloadEngineOptionsNodejsConstructor<WriteStream = DownloadEngineWriteStreamNodejs> =
+    DownloadEngineOptionsNodejsCustomFetch
+    & {
+    writeStream: WriteStream
+};
+
+/**
+ * Download engine for Node.js
+ */
+export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNodejs = DownloadEngineWriteStreamNodejs> extends BaseDownloadEngine {
+    public override readonly options: DownloadEngineOptionsNodejsConstructor<T>;
+
+    protected constructor(engine: DownloadEngineFile, _options: DownloadEngineOptionsNodejsConstructor<T>) {
+        super(engine, _options);
+        this.options = _options;
+    }
+
+    protected override _initEvents() {
+        super._initEvents();
+
+        this._engine.options.onSaveProgressAsync = async (progress) => {
+            await this.options.writeStream.saveMedataAfterFile(progress);
+        };
+
+        this._engine.options.onFinishAsync = async () => {
+            await this.options.writeStream.ftruncate();
+        };
+
+        this._engine.options.onCloseAsync = async () => {
+            const closedFileName = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
+            await fs.rename(this.options.writeStream.path, closedFileName);
+        };
     }
 
     /**
-     * Download one file from a URL or a list of URLs (file split to parts)
+     * Download/copy a file
+     *
+     * if `fetchStrategy` is defined as "localFile" it will copy the file, otherwise it will download it
+     * By default, it will guess the strategy based on the URL
      */
-    static async fromParts(partsURL: string | string[], options: Partial<DownloadEngineOptionsNodejs> = {}) {
-        return DownloadEngineNodejs._fromPartsCustomFetch(partsURL, {
-            ...options,
-            fetchStream: new DownloadEngineFetchStreamFetch(options)
-        });
+    public static async createFromOptions(options: DownloadEngineOptionsNodejs) {
+        DownloadEngineNodejs._validateOptions(options);
+        const partsURL = "partsURL" in options ? options.partsURL : [options.url];
+
+        options.fetchStrategy ??= DownloadEngineNodejs._guessFetchStrategy(partsURL[0]);
+        const fetchStream = options.fetchStrategy === "localFile" ?
+            new DownloadEngineFetchStreamLocalFile(options) :
+            new DownloadEngineFetchStreamFetch(options);
+
+        return DownloadEngineNodejs._createFromOptionsWithCustomFetch({...options, partsURL, fetchStream});
     }
 
-    /**
-     * Copy file with progress
-     */
-    static async copyLocalFile(fileParts: string | string[], options: Partial<DownloadEngineOptionsNodejs>) {
-        return DownloadEngineNodejs._fromPartsCustomFetch(fileParts, {
-            ...options,
-            fetchStream: new DownloadEngineFetchStreamLocalFile(options)
-        });
-    }
-
-    protected static async _fromPartsCustomFetch(urlParts: string | string[], options: DownloadEngineOptionsNodejsCustomFetch) {
-        const downloadFile = await DownloadEngineNodejs._createDownloadFile(urlParts, options.fetchStream);
+    protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsNodejsCustomFetch) {
+        const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partsURL, options.fetchStream);
         const downloadLocation = DownloadEngineNodejs._createDownloadLocation(downloadFile, options);
 
         const writeStream = new DownloadEngineWriteStreamNodejs(downloadLocation + PROGRESS_FILE_EXTENSION, options);
         writeStream.fileSize = downloadFile.totalSize;
 
         downloadFile.downloadProgress = await writeStream.loadMetadataAfterFileWithoutRetry();
-        const engine = new DownloadEngineFile(downloadFile, {
-            ...options,
-            writeStream,
-            async onProgress(status) {
-                await options.onProgress?.(status, nodejsDownloadEngine);
-            },
-            async saveProgress(progress) {
-                await writeStream.saveMedataAfterFile(progress);
-            },
-            async onFinished() {
-                await writeStream.ftruncate();
-                await options.onFinished?.(nodejsDownloadEngine);
-            },
-            async onClosed() {
-                try {
-                    await fs.rename(downloadLocation + PROGRESS_FILE_EXTENSION, downloadLocation);
-                } catch {}
-                await options.onClosed?.(nodejsDownloadEngine);
-            },
-            async onStart() {
-                await options.onStart?.(nodejsDownloadEngine);
-            }
-        });
-        const nodejsDownloadEngine = new DownloadEngineNodejs(engine);
-        await options.onInit?.(nodejsDownloadEngine);
-        return nodejsDownloadEngine;
+
+        const allOptions: DownloadEngineOptionsNodejsConstructor = {...options, writeStream};
+        const engine = new DownloadEngineFile(downloadFile, allOptions);
+        return new DownloadEngineNodejs(engine, allOptions);
     }
 
-    protected static _createDownloadLocation(download: DownloadFile, options: Partial<DownloadEngineOptionsNodejs>) {
+    protected static _createDownloadLocation(download: DownloadFile, options: DownloadEngineOptionsNodejs) {
+        if ("savePath" in options) {
+            return options.savePath;
+        }
+
         const fileName = options.fileName || download.localFileName;
-        const directory = options.directory || process.cwd();
-        return path.join(directory, fileName);
+        return path.join(options.directory, fileName);
+    }
+
+    protected static _validateOptions(options: DownloadEngineOptionsNodejs) {
+        if (!("directory" in options) && !("savePath" in options)) {
+            throw new SavePathError("Either `directory` or `savePath` must be provided");
+        }
+
+        if ("directory" in options && "savePath" in options) {
+            throw new SavePathError("Both `directory` and `savePath` cannot be provided");
+        }
+
+        DownloadEngineNodejs._validateURL(options);
+    }
+
+    protected static _guessFetchStrategy(url: string) {
+        try {
+            new URL(url);
+            return "fetch";
+        } catch {}
+
+        return "localFile";
     }
 }
