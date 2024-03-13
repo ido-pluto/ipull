@@ -26,13 +26,21 @@ export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
     loadingText: "Gathering information"
 };
 
+export enum CLI_LEVEL {
+    LOW = 0,
+    HIGH = 2
+}
+
 
 export default class TransferCli {
-    protected readonly loadingAnimation: CliSpinnersLoadingAnimation;
+    public static activeCLILevel = CLI_LEVEL.LOW;
+    public readonly loadingAnimation: CliSpinnersLoadingAnimation;
     protected options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
+    protected myCLILevel: number;
 
-    public constructor(options: Partial<TransferCliOptions>) {
+    public constructor(options: Partial<TransferCliOptions>, myCLILevel = CLI_LEVEL.LOW) {
+        TransferCli.activeCLILevel = this.myCLILevel = myCLILevel;
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
 
         this.updateStatues = debounce(this.updateStatues.bind(this), this.options.debounceWait, {
@@ -45,23 +53,21 @@ export default class TransferCli {
         this.stop = this.stop.bind(this);
     }
 
-    startLoading() {
-        this.loadingAnimation.start();
-    }
-
     start() {
-        this.loadingAnimation.stop();
         this.stdoutManager.hook();
         process.on("exit", this.stop);
     }
 
     stop() {
-        this.stdoutManager.erase();
         this.stdoutManager.unhook(false);
         process.off("exit", this.stop);
     }
 
     public updateStatues(statues: FormattedStatus[]) {
+        if (this.myCLILevel !== TransferCli.activeCLILevel) {
+            return; // Do not update if there is a higher level CLI, meaning that this CLI is sub-CLI
+        }
+
         const newLog = statues.map((status) => {
             status.transferAction = this.options.action ?? status.transferAction;
             return this.options.createProgressBar(status);

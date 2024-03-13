@@ -55,6 +55,10 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         return this._latestStatus ?? createFormattedStatus(this._engine.status);
     }
 
+    public get downloadStatues() {
+        return [this.status];
+    }
+
     /**
      * @internal
      */

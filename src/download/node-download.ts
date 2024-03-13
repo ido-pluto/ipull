@@ -1,69 +1,23 @@
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download-engine/engine/download-engine-nodejs.js";
 import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js";
 import DownloadEngineMultiDownload from "./download-engine/engine/download-engine-multi-download.js";
-import TransferCli, {TransferCliOptions} from "./transfer-visualize/transfer-cli/transfer-cli.js";
-import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./transfer-visualize/transfer-cli/progress-bars/switch-cli-progress-style.js";
-import {CliFormattedStatus} from "./transfer-visualize/transfer-cli/progress-bars/base-transfer-cli-progress-bar.js";
+import CliAnimationWrapper, {CliProgressDownloadEngineOptions} from "./transfer-visualize/transfer-cli/cli-animation-wrapper.js";
+import {CLI_LEVEL} from "./transfer-visualize/transfer-cli/transfer-cli.js";
 
-export const DEFAULT_PARALLEL_STREAMS_FOR_NODEJS = 3;
-export const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "fancy";
-
-export type CliProgressDownloadEngineOptions = {
-    truncateName?: boolean | number;
-    cliProgress?: boolean;
-    cliStyle?: AvailableCLIProgressStyle | ((status: CliFormattedStatus) => string)
-    cliName?: string;
-    cliAction?: string;
-};
-
+const DEFAULT_PARALLEL_STREAMS_FOR_NODEJS = 3;
 export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions;
-
-function createCliProgressForDownloadEngine(options: CliProgressDownloadEngineOptions) {
-    const cliOptions: Partial<TransferCliOptions> = {...options};
-
-    if (options.cliAction) {
-        cliOptions.action = options.cliAction;
-    }
-    if (options.cliName) {
-        cliOptions.name = options.cliName;
-    }
-
-    cliOptions.createProgressBar = typeof options.cliStyle === "function" ?
-        options.cliStyle :
-        switchCliProgressStyle(options.cliStyle ?? DEFAULT_CLI_STYLE, {truncateName: options.truncateName});
-
-    return new TransferCli(cliOptions);
-}
 
 /**
  * Download one file with CLI progress
  */
 export async function downloadFile(options: DownloadFileOptions) {
-    let cli: TransferCli | undefined;
-    if (options.cliProgress) {
-        options.cliAction ??= options.fetchStrategy === "localFile" ? "Copying" : "Downloading";
-
-        cli = createCliProgressForDownloadEngine(options);
-        cli.startLoading();
-    }
     options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_NODEJS;
 
+    const downloader = DownloadEngineNodejs.createFromOptions(options);
+    const wrapper = new CliAnimationWrapper(downloader, options);
 
-    const downloader = await DownloadEngineNodejs.createFromOptions(options);
-
-    if (cli) {
-        cli.start();
-        downloader.on("progress", () => {
-            cli?.updateStatues([downloader.status]);
-        });
-
-        downloader.on("closed", () => {
-            cli?.stop();
-        });
-    }
-
-
-    return downloader;
+    await wrapper.attachAnimation();
+    return await downloader;
 }
 
 export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & {
@@ -81,30 +35,10 @@ export async function downloadSequence(options: DownloadSequenceOptions | Downlo
         downloadOptions = options;
     }
 
-    let cli: TransferCli | undefined;
-    if (downloadOptions.cliProgress) {
-        if (downloadOptions.fetchStrategy) {
-            downloadOptions.cliAction ??= downloadOptions.fetchStrategy === "localFile" ? "Copying" : "Downloading";
-        }
+    downloadOptions.cliLevel = CLI_LEVEL.HIGH;
+    const downloader = DownloadEngineMultiDownload.fromEngines(downloads);
+    const wrapper = new CliAnimationWrapper(downloader, downloadOptions);
 
-        cli = createCliProgressForDownloadEngine(downloadOptions);
-        cli.startLoading();
-
-    }
-
-    const allDownloads = await Promise.all(downloads);
-    const oneDownloader = new DownloadEngineMultiDownload(allDownloads);
-
-    if (cli) {
-        cli.start();
-        oneDownloader.on("progress", () => {
-            cli?.updateStatues(oneDownloader.downloadStatues);
-        });
-
-        oneDownloader.on("closed", () => {
-            cli?.stop();
-        });
-    }
-
-    return oneDownloader;
+    await wrapper.attachAnimation();
+    return await downloader;
 }

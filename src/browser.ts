@@ -9,6 +9,7 @@ import FetchStreamError from "./download/download-engine/streams/download-engine
 import IpullError from "./errors/ipull-error.js";
 import EngineError from "./download/download-engine/engine/error/engine-error.js";
 import {FormattedStatus} from "./download/transfer-visualize/format-transfer-status.js";
+import DownloadEngineMultiDownload from "./download/download-engine/engine/download-engine-multi-download.js";
 
 export {
     downloadFileBrowser,
@@ -25,6 +26,7 @@ export {
 export type {
     DownloadFileBrowserOptions,
     DownloadEngineBrowser,
+    DownloadEngineMultiDownload,
     FormattedStatus,
     SaveProgressInfo
 };

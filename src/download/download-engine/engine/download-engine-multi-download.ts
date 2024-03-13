@@ -21,7 +21,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     protected _closeFiles: (() => Promise<void>)[] = [];
 
 
-    public constructor(engines: (DownloadEngineMultiAllowedEngines | DownloadEngineMultiDownload)[]) {
+    protected constructor(engines: (DownloadEngineMultiAllowedEngines | DownloadEngineMultiDownload)[]) {
         super();
         this._engines = DownloadEngineMultiDownload._extractEngines(engines);
         this._init();
@@ -113,5 +113,9 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             return engine;
         })
             .flat();
+    }
+
+    public static async fromEngines<Engine extends DownloadEngineMultiAllowedEngines>(engines: (Engine | Promise<Engine>)[]) {
+        return new DownloadEngineMultiDownload(await Promise.all(engines));
     }
 }
