@@ -58,9 +58,10 @@ export function createFormattedStatus(status: ProgressStatus | FormattedStatus):
     const formatTransferredOfTotal = `${formatTransferred}/${formatTotal}`;
     const formatTimeLeft = prettyMilliseconds(fullStatus.timeLeft, PRETTY_MS_OPTIONS);
     const formattedPercentage = fullStatus.percentage.toLocaleString(undefined, {
-        ...NUMBER_FORMAT_OPTIONS,
-        minimumIntegerDigits: 1
-    }) + "%";
+        minimumIntegerDigits: 1,
+        minimumFractionDigits: 4
+    })
+        .slice(0, 5) + "%";
 
     return {
         ...fullStatus,

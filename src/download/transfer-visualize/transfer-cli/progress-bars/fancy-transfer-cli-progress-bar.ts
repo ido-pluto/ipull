@@ -1,6 +1,5 @@
 import chalk from "chalk";
 import {truncateText} from "../../utils/cli-text.js";
-import {clamp} from "../../utils/numbers.js";
 import {FormattedStatus, PRETTY_MS_OPTIONS} from "../../format-transfer-status.js";
 import isUnicodeSupported from "is-unicode-supported";
 import {DataPart, renderDataLine} from "../../utils/data-line.js";
@@ -42,10 +41,10 @@ export default class FancyTransferCliProgressBar {
     }
 
     protected renderProgressLine(): string {
-        const {formattedSpeed, formatTimeLeft, formatTransferred, formatTotal} = this.status;
+        const {formattedSpeed, formatTimeLeft, formatTransferred, formatTotal, formattedPercentage, percentage} = this.status;
 
-        const progressBarPercentage = clamp(this.status.transferredBytes / this.status.totalBytes, 0, 1);
-        const progressBarText = ` ${getFormattedPercentage(progressBarPercentage)} (${formatTransferred}/${formatTotal}) `;
+        const formattedPercentageWithPadding = formattedPercentage.padEnd(6, " ");
+        const progressBarText = ` ${formattedPercentageWithPadding} (${formatTransferred}/${formatTotal}) `;
         const etaText = formatTimeLeft + " left";
 
         return renderDataLine([{
@@ -73,10 +72,10 @@ export default class FancyTransferCliProgressBar {
             formatter(_, size) {
                 const leftPad = " ".repeat(Math.floor((size - progressBarText.length) / 2));
                 return renderProgressBar({
-                    barText: leftPad + ` ${chalk.black.bgWhiteBright(getFormattedPercentage(progressBarPercentage))} ${chalk.gray(`(${formatTransferred}/${formatTotal})`)} `,
-                    backgroundText: leftPad + ` ${chalk.yellow.bgGray(getFormattedPercentage(progressBarPercentage))} ${chalk.white(`(${formatTransferred}/${formatTotal})`)} `,
+                    barText: leftPad + ` ${chalk.black.bgWhiteBright(formattedPercentageWithPadding)} ${chalk.gray(`(${formatTransferred}/${formatTotal})`)} `,
+                    backgroundText: leftPad + ` ${chalk.yellow.bgGray(formattedPercentageWithPadding)} ${chalk.white(`(${formatTransferred}/${formatTotal})`)} `,
                     length: size,
-                    loadedPercentage: progressBarPercentage,
+                    loadedPercentage: percentage / 100,
                     barStyle: chalk.black.bgWhiteBright,
                     backgroundStyle: chalk.bgGray
                 });
@@ -224,12 +223,6 @@ export default class FancyTransferCliProgressBar {
             return new FancyTransferCliProgressBar(status, options).renderStatusLine();
         };
     }
-}
-
-function getFormattedPercentage(percentage: number) {
-    const truncatedNumber = Math.floor(percentage * 100 * 1000) / 1000;
-    const percentText = truncatedNumber.toFixed(3);
-    return (percentText.slice(0, 5) + "%").padEnd(6, " ");
 }
 
 function renderProgressBar({barText, backgroundText, length, loadedPercentage, barStyle, backgroundStyle}: {
