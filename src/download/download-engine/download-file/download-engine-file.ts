@@ -83,7 +83,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         const streamingBytes = Object.values(this._activeStreamBytes)
             .reduce((acc, bytes) => acc + bytes, 0);
 
-        return chunksBytes + streamingBytes;
+        return Math.min(chunksBytes + streamingBytes, this.downloadSize);
     }
 
     protected _emptyChunksForPart(part: number) {
@@ -109,6 +109,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.emit("start");
         this._progressStatus.started();
         for (let i = this._progress.part; i < this.file.parts.length; i++) {
+            // If we are starting a new part, we need to reset the progress
             if (i > this._progress.part || !this._activePart.acceptRange) {
                 this._progress.part = i;
                 this._progress.chunkSize = this.options.chunkSize;
@@ -116,10 +117,17 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 this._progress.chunks = this._emptyChunksForPart(i);
             }
 
+            // If the part does not support range, we can only download it with a single stream
             if (!this._activePart.acceptRange) {
                 this._progress.parallelStreams = 1;
             }
 
+            // Reset in progress chunks
+            this._progress.chunks = this._progress.chunks.map(chunk =>
+                (chunk === ChunkStatus.COMPLETE ? ChunkStatus.COMPLETE : ChunkStatus.NOT_STARTED)
+            );
+
+            // Reset active stream progress
             this._activeStreamBytes = {};
             const downloadProgram = new DownloadProgram(this._progress, this._downloadSlice.bind(this));
             await downloadProgram.download();
@@ -130,7 +138,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         await this.options.onFinishAsync?.();
     }
 
-    protected async _downloadSlice(startChunk: number, endChunk: number) {
+    protected _downloadSlice(startChunk: number, endChunk: number) {
         const fetchState = this.options.fetchStream.withSubState({
             chunkSize: this._progress.chunkSize,
             startChunk,
@@ -145,31 +153,40 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         });
 
         this._progress.chunks[startChunk] = ChunkStatus.IN_PROGRESS;
-        await fetchState.fetchChunks((chunks, writePosition, index) => {
-            if (this._closed) return;
+        const allWrites: (Promise<any> | void)[] = [];
+        return (async () => {
+            await fetchState.fetchChunks((chunks, writePosition, index) => {
+                if (this._closed) return;
 
-            for (const chunk of chunks) {
-                this.options.writeStream.write(writePosition, chunk);
-                writePosition += chunk.length;
-            }
+                for (const chunk of chunks) {
+                    const writePromise = this.options.writeStream.write(writePosition, chunk);
+                    allWrites.push(writePromise);
+                    writePosition += chunk.length;
+                    writePromise?.then(() => {
+                        allWrites.splice(allWrites.indexOf(writePromise), 1);
+                    });
+                }
 
-            this._progress.chunks[index] = ChunkStatus.COMPLETE;
+                this._progress.chunks[index] = ChunkStatus.COMPLETE;
+                delete this._activeStreamBytes[startChunk];
+                void this._saveProgress();
+
+                const nextChunk = this._progress.chunks[index + 1];
+                if (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED) {
+                    return fetchState.close();
+                }
+
+                this._progress.chunks[index + 1] = ChunkStatus.IN_PROGRESS;
+            });
             delete this._activeStreamBytes[startChunk];
-            void this._saveProgress();
-
-            if (this._progress.chunks[index + 1] != ChunkStatus.NOT_STARTED) {
-                return fetchState.close();
-            }
-
-            this._progress.chunks[index + 1] = ChunkStatus.IN_PROGRESS;
-        });
-        delete this._activeStreamBytes[startChunk];
+            await Promise.all(allWrites);
+        })();
     }
 
-    protected async _saveProgress() {
+    protected _saveProgress() {
         this.emit("save", this._progress);
         this._sendProgressDownloadPart();
-        await withLock(this, "_saveLock", async () => {
+        return withLock(this, "_saveLock", async () => {
             await this.options.onSaveProgressAsync?.(this._progress);
         });
     }

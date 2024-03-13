@@ -18,7 +18,7 @@ export default class DownloadProgram {
 
     public async download() {
         if (this._savedProgress.parallelStreams === 1) {
-            return this._downloadSlice(0, this._savedProgress.chunks.length);
+            return await this._downloadSlice(0, this._savedProgress.chunks.length);
         }
 
         const activeDownloads: Promise<any>[] = [];
