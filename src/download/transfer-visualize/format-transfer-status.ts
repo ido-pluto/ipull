@@ -3,6 +3,8 @@ import prettyBytes, {Options as PrettyBytesOptions} from "pretty-bytes";
 import prettyMilliseconds, {Options as PrettyMsOptions} from "pretty-ms";
 import {ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 
+const DEFAULT_LOCALIZATION: Intl.LocalesArgument = "en-US";
+
 export type CliInfoStatus = TransferProgressInfo & {
     fileName?: string,
     comment?: string
@@ -31,7 +33,7 @@ export const PRETTY_MS_OPTIONS: PrettyMsOptions = {
     compact: true
 };
 
-const PRETTY_BYTES_OPTIONS: PrettyBytesOptions = {...NUMBER_FORMAT_OPTIONS, space: false};
+const PRETTY_BYTES_OPTIONS: PrettyBytesOptions = {...NUMBER_FORMAT_OPTIONS, space: false, locale: DEFAULT_LOCALIZATION};
 
 const DEFAULT_CLI_INFO_STATUS: CliInfoStatus = {
     speed: 0,
@@ -57,7 +59,7 @@ export function createFormattedStatus(status: ProgressStatus | FormattedStatus):
     const formatTotal = prettyBytes(fullStatus.totalBytes, PRETTY_BYTES_OPTIONS);
     const formatTransferredOfTotal = `${formatTransferred}/${formatTotal}`;
     const formatTimeLeft = prettyMilliseconds(fullStatus.timeLeft, PRETTY_MS_OPTIONS);
-    const formattedPercentage = fullStatus.percentage.toLocaleString(undefined, {
+    const formattedPercentage = fullStatus.percentage.toLocaleString(DEFAULT_LOCALIZATION, {
         minimumIntegerDigits: 1,
         minimumFractionDigits: 4
     })
