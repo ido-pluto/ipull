@@ -1,4 +1,4 @@
-import logUpdate from "log-update";
+import UpdateManager from "stdout-update";
 import debounce from "lodash.debounce";
 import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
@@ -28,8 +28,9 @@ export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
 
 
 export default class TransferCli {
-    public readonly loadingAnimation: CliSpinnersLoadingAnimation;
+    protected readonly loadingAnimation: CliSpinnersLoadingAnimation;
     protected options: TransferCliOptions;
+    protected stdoutManager = UpdateManager.getInstance();
 
     public constructor(options: Partial<TransferCliOptions>) {
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
@@ -41,6 +42,23 @@ export default class TransferCli {
         this.loadingAnimation = new CliSpinnersLoadingAnimation(cliSpinners[this.options.loadingAnimation], {
             loadingText: this.options.loadingText
         });
+        this.stop = this.stop.bind(this);
+    }
+
+    startLoading() {
+        this.loadingAnimation.start();
+    }
+
+    start() {
+        this.loadingAnimation.stop();
+        this.stdoutManager.hook();
+        process.on("exit", this.stop);
+    }
+
+    stop() {
+        this.stdoutManager.erase();
+        this.stdoutManager.unhook(false);
+        process.off("exit", this.stop);
     }
 
     public updateStatues(statues: FormattedStatus[]) {
@@ -53,6 +71,6 @@ export default class TransferCli {
     }
 
     protected _logUpdate(text: string) {
-        logUpdate(text);
+        this.stdoutManager.update(text.split("\n"));
     }
 }

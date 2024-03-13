@@ -44,17 +44,24 @@ export async function downloadFile(options: DownloadFileOptions) {
         options.cliAction ??= options.fetchStrategy === "localFile" ? "Copying" : "Downloading";
 
         cli = createCliProgressForDownloadEngine(options);
-        cli.loadingAnimation.start();
+        cli.startLoading();
     }
     options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_NODEJS;
 
 
     const downloader = await DownloadEngineNodejs.createFromOptions(options);
 
-    cli?.loadingAnimation.stop();
-    downloader.on("progress", () => {
-        cli?.updateStatues([downloader.status]);
-    });
+    if (cli) {
+        cli.start();
+        downloader.on("progress", () => {
+            cli?.updateStatues([downloader.status]);
+        });
+
+        downloader.on("closed", () => {
+            cli?.stop();
+        });
+    }
+
 
     return downloader;
 }
@@ -81,17 +88,23 @@ export async function downloadSequence(options: DownloadSequenceOptions | Downlo
         }
 
         cli = createCliProgressForDownloadEngine(downloadOptions);
-        cli.loadingAnimation.start();
+        cli.startLoading();
 
     }
 
     const allDownloads = await Promise.all(downloads);
     const oneDownloader = new DownloadEngineMultiDownload(allDownloads);
 
-    cli?.loadingAnimation.stop();
-    oneDownloader.on("progress", () => {
-        cli?.updateStatues(oneDownloader.downloadStatues);
-    });
+    if (cli) {
+        cli.start();
+        oneDownloader.on("progress", () => {
+            cli?.updateStatues(oneDownloader.downloadStatues);
+        });
+
+        oneDownloader.on("closed", () => {
+            cli?.stop();
+        });
+    }
 
     return oneDownloader;
 }
