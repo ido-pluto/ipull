@@ -31,6 +31,7 @@
         "./src/index.ts"
     ],
     "include": [
-        "./src"
+        "./src",
+        "./test"
     ]
 }

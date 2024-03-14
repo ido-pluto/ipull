@@ -2,6 +2,8 @@ import {describe, test} from "vitest";
 import {downloadFileBrowser} from "../src/browser.js";
 import {hashBuffer} from "./utils/hash.js";
 import {BIG_IMAGE} from "./utils/files.js";
+import {ensureLocalFile} from "./utils/download.js";
+import fs from "fs-extra";
 
 // @ts-ignore
 globalThis.XMLHttpRequest = await import("xmlhttprequest-ssl").then(m => m.XMLHttpRequest);
@@ -19,12 +21,20 @@ describe("Browser", () => {
     });
 
     test.concurrent("Download file browser - memory (xhr)", async (context) => {
+        const imageBuffer = await fs.readFile(await ensureLocalFile(BIG_IMAGE));
         const downloader = await downloadFileBrowser({
             url: BIG_IMAGE,
             fetchStrategy: "xhr"
         });
 
         await downloader.download();
+
+        const imageUint8Array = new Uint8Array(imageBuffer);
+        for (let i = 0; i < imageUint8Array.byteLength; i++) {
+            if (imageUint8Array[i] !== downloader.writeStream.result[i]) {
+                console.log(i, imageUint8Array[i], downloader.writeStream.result[i]);
+            }
+        }
 
         const hash = hashBuffer(downloader.writeStream.result);
         context.expect(hash)
