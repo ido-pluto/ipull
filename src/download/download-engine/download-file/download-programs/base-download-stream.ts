@@ -16,7 +16,7 @@ export default abstract class BaseDownloadStream {
         this.savedProgress = _savedProgress;
     }
 
-    public async download() {
+    public async download(): Promise<void> {
         if (this.savedProgress.parallelStreams === 1) {
             return await this._downloadSlice(0, this.savedProgress.chunks.length);
         }

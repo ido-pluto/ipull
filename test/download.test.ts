@@ -1,7 +1,7 @@
 import {describe, test} from "vitest";
 import {ChunkStatus} from "../src/download/download-engine/types.js";
 import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
-import {BIG_IMAGE} from "./utils/files.js";
+import {BIG_FILE} from "./utils/files.js";
 import {createDownloadFile} from "./utils/download.js";
 import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
@@ -16,7 +16,7 @@ describe("File Download", () => {
         const writeStream = new DownloadEngineWriteStreamBrowser(() => {
         });
 
-        const file = await createDownloadFile(BIG_IMAGE);
+        const file = await createDownloadFile(BIG_FILE);
 
         let saveProgressCalledLength = 0;
         let maxInParallelConnections = 0;
@@ -49,7 +49,7 @@ describe("File Download", () => {
             totalBytesWritten += data.byteLength;
         });
 
-        const file = await createDownloadFile(BIG_IMAGE);
+        const file = await createDownloadFile(BIG_FILE);
         const downloader = new DownloadEngineFile(file, {
             chunkSize: 1024 * 1024 * 25,
             fetchStream,

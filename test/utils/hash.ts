@@ -1,10 +1,10 @@
-import * as crypto from "crypto";
 import fs from "fs-extra";
+import hash from "hash.js";
 
-export function hashBuffer(bufferData: Uint8Array | Buffer) {
-    const hash = crypto.createHash("sha256");
-    hash.update(bufferData);
-    return hash.digest("hex");
+export function hashBuffer(bufferData: Uint8Array) {
+    return hash.sha256()
+        .update(bufferData)
+        .digest("hex");
 }
 
 export async function fileHash(location: string) {

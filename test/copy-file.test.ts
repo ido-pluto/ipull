@@ -1,9 +1,10 @@
 import {describe, test} from "vitest";
 import fs from "fs-extra";
-import {ensureLocalFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
+import {BIG_FILE_EXAMPLE, ensureLocalFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
 import {fileHash} from "./utils/hash.js";
 import {copyFileInfo} from "./utils/copy.js";
 import {downloadFile} from "../src/index.js";
+import {BIG_FILE} from "./utils/files.js";
 
 describe("File Copy", async () => {
 
@@ -29,7 +30,7 @@ describe("File Copy", async () => {
     });
 
     test.concurrent("copy image one stream", async (context) => {
-        const imagePath = await ensureLocalFile();
+        const imagePath = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const {originalFileHash, fileToCopy, copyFileToName} = await copyFileInfo(imagePath);
 
         const engine = await downloadFile({

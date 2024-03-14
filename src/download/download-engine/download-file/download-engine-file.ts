@@ -158,18 +158,23 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         });
 
         this._progress.chunks[startChunk] = ChunkStatus.IN_PROGRESS;
-        const allWrites: (Promise<any> | void)[] = [];
         return (async () => {
+            const allWrites: (Promise<any> | void)[] = [];
+
             await fetchState.fetchChunks((chunks, writePosition, index) => {
-                if (this._closed) return;
+                if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
+                    return;
+                }
 
                 for (const chunk of chunks) {
                     const writePromise = this.options.writeStream.write(writePosition, chunk);
-                    allWrites.push(writePromise);
                     writePosition += chunk.length;
-                    writePromise?.then(() => {
-                        allWrites.splice(allWrites.indexOf(writePromise), 1);
-                    });
+                    if (writePromise) {
+                        allWrites.push(writePromise);
+                        writePromise?.then(() => {
+                            allWrites.splice(allWrites.indexOf(writePromise), 1);
+                        });
+                    }
                 }
 
                 this._progress.chunks[index] = ChunkStatus.COMPLETE;
@@ -177,11 +182,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 void this._saveProgress();
 
                 const nextChunk = this._progress.chunks[index + 1];
-                if (endChunk >= index && (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED)) {
-                    return fetchState.close();
-                }
+                const shouldReadNext = endChunk - index > 1; // grater than 1, meaning there is a next chunk
 
-                this._progress.chunks[index + 1] = ChunkStatus.IN_PROGRESS;
+                if (shouldReadNext) {
+                    if (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED) {
+                        return fetchState.close();
+                    }
+                    this._progress.chunks[index + 1] = ChunkStatus.IN_PROGRESS;
+                }
             });
             delete this._activeStreamBytes[startChunk];
             await Promise.all(allWrites);

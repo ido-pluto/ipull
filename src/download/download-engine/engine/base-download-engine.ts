@@ -8,6 +8,7 @@ import DownloadAlreadyStartedError from "./error/download-already-started-error.
 import retry from "async-retry";
 import {createFormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
+import InvalidContentLengthError from "./error/invalid-content-length-error.js";
 
 export type InputURLOptions = { partsURL: string[] } | { url: string };
 
@@ -129,9 +130,13 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
         for (const part of parts) {
             const {length, acceptRange, newURL} = await fetchStream.fetchDownloadInfo(part);
+            const downloadURL = newURL ?? part;
+            if (isNaN(length)) {
+                throw new InvalidContentLengthError(downloadURL);
+            }
             downloadFile.totalSize += length;
             downloadFile.parts.push({
-                downloadURL: newURL ?? part,
+                downloadURL,
                 size: length,
                 acceptRange
             });

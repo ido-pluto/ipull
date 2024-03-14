@@ -46,7 +46,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const arrayBuffer = xhr.response;
                     if (arrayBuffer) {
-                        resolve(arrayBuffer);
+                        resolve(new Uint8Array(arrayBuffer));
                     } else {
                         reject(new EmptyResponseError(url, headers));
                     }

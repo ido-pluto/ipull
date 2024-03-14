@@ -50,7 +50,7 @@
     "cli": "npm run build && node -r dotenv/config ./dist/cli/cli.js",
     "format": "npm run lint:eslint -- --fix",
     "prepack": "npm run build",
-    "test": "vitest",
+    "test": "vitest --run",
     "lint": "npm run lint:eslint",
     "lint:eslint": "eslint --ext .js --ext .ts .",
     "clean": "rm -rf ./node_modules ./dist ./tsconfig.tsbuildinfo"
@@ -112,6 +112,7 @@
     "eslint-plugin-jsdoc": "^48.2.0",
     "eslint-plugin-n": "^16.6.2",
     "eslint-plugin-node": "^11.1.0",
+    "hash.js": "^1.1.7",
     "husky": "^8.0.3",
     "semantic-release": "^21.1.2",
     "tslib": "^2.6.1",
