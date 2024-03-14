@@ -33,7 +33,7 @@
         progressBar.value = progress.percentage;
     });
 
-    imageSize.innerText = `Image Size: ${prettyBytes(downloader.fileSize)} bytes`;
+    imageSize.innerText = `Image Size: ${prettyBytes(downloader.downloadSize)} bytes`;
     await downloader.download();
 
     view.src = downloader.writeStream.resultAsBlobURL();

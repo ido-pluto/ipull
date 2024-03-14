@@ -79,7 +79,11 @@
     "downloader",
     "download",
     "file",
-    "pull"
+    "pull",
+    "xhr",
+    "fetch",
+    "idm",
+    "download-engine"
   ],
   "author": "Ido S.",
   "license": "MIT",

@@ -1,4 +1,4 @@
-import BaseDownloadEngineFetchStream, {FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 
@@ -36,7 +36,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         return await this.chunkGenerator(callback, () => reader.read());
     }
 
-    protected override async fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean; }> {
+    protected override async fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse> {
         const response = await fetch(url, {
             method: "HEAD",
             headers: this.options.headers
@@ -47,7 +47,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         return {
             length,
-            acceptRange
+            acceptRange,
+            newURL: response.url
         };
     }
 

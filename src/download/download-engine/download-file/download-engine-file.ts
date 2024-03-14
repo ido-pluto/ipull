@@ -5,7 +5,7 @@ import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stre
 import retry from "async-retry";
 import {EventEmitter} from "eventemitter3";
 import {withLock} from "lifecycle-utils";
-import DownloadProgram from "./download-program.js";
+import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
@@ -17,6 +17,7 @@ export type DownloadEngineFileOptions = {
     onFinishAsync?: () => Promise<void>
     onCloseAsync?: () => Promise<void>
     onSaveProgressAsync?: (progress: SaveProgressInfo) => Promise<void>
+    programType?: AvailablePrograms
 };
 
 export type DownloadEngineFileOptionsWithDefaults = DownloadEngineFileOptions & {
@@ -129,7 +130,11 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
             // Reset active stream progress
             this._activeStreamBytes = {};
-            const downloadProgram = new DownloadProgram(this._progress, this._downloadSlice.bind(this));
+            const downloadProgram = switchProgram(
+                this._progress,
+                this._downloadSlice.bind(this),
+                this.options.fetchStream.programType || this.options.programType
+            );
             await downloadProgram.download();
         }
         this._progressStatus.finished();
@@ -172,7 +177,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 void this._saveProgress();
 
                 const nextChunk = this._progress.chunks[index + 1];
-                if (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED) {
+                if (endChunk >= index && (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED)) {
                     return fetchState.close();
                 }
 

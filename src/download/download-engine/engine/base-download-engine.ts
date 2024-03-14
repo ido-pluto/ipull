@@ -7,6 +7,7 @@ import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 import retry from "async-retry";
 import {createFormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
+import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
 
 export type InputURLOptions = { partsURL: string[] } | { url: string };
 
@@ -15,6 +16,7 @@ export type BaseDownloadEngineOptions = InputURLOptions & BaseDownloadEngineFetc
     parallelStreams?: number;
     retry?: retry.Options
     comment?: string;
+    programType?: AvailablePrograms
 };
 
 export type BaseDownloadEngineEvents = {
@@ -126,10 +128,10 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         };
 
         for (const part of parts) {
-            const {length, acceptRange} = await fetchStream.fetchDownloadInfo(part);
+            const {length, acceptRange, newURL} = await fetchStream.fetchDownloadInfo(part);
             downloadFile.totalSize += length;
             downloadFile.parts.push({
-                downloadURL: part,
+                downloadURL: newURL ?? part,
                 size: length,
                 acceptRange
             });

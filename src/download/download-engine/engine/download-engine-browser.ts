@@ -7,8 +7,6 @@ import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-eng
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 
-const DEFAULT_PARALLEL_STREAMS_FOR_XHR = 3;
-
 export type DownloadEngineOptionsBrowser = BaseDownloadEngineOptions & {
     onWrite?: DownloadEngineWriteStreamBrowserWriter,
     progress?: SaveProgressInfo,
@@ -49,11 +47,6 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
         DownloadEngineBrowser._validateOptions(options);
         const partsURL = "partsURL" in options ? options.partsURL : [options.url];
 
-        options.fetchStrategy ??= DownloadEngineBrowser._defaultFetchXHR() ? "xhr" : "fetch";
-        if (options.fetchStrategy === "xhr") {
-            options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_XHR;
-        }
-
         const fetchStream = options.fetchStrategy === "xhr" ?
             new DownloadEngineFetchStreamXhr(options) : new DownloadEngineFetchStreamFetch(options);
 
@@ -86,14 +79,5 @@ If you know the server accepts range requests, you can set "acceptRangeIsKnown" 
 
     protected static _validateOptions(options: DownloadEngineOptionsBrowser) {
         DownloadEngineBrowser._validateURL(options);
-    }
-
-    protected static _defaultFetchXHR() {
-        try {
-            return navigator.userAgent.toLowerCase()
-                .indexOf("firefox") > -1;
-        } catch {
-            return false;
-        }
     }
 }

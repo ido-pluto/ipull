@@ -1,12 +1,14 @@
-import BaseDownloadEngineFetchStream, {FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import retry from "async-retry";
+import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
+    public override readonly programType: AvailablePrograms = "chunks";
     public override transferAction = "Downloading";
 
     withSubState(state: FetchSubState): this {
@@ -115,7 +117,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
         }
     }
 
-    protected override fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number; acceptRange: boolean; }> {
+    protected override fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse> {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("HEAD", url, true);
@@ -127,7 +129,11 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const length = xhr.getResponseHeader("Content-Length") || "-";
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
-                    resolve({length: parseInt(length), acceptRange});
+                    resolve({
+                        length: parseInt(length),
+                        acceptRange,
+                        newURL: xhr.responseURL
+                    });
                 } else {
                     reject(new StatusCodeError(url, xhr.status, xhr.statusText, this.options.headers));
                 }

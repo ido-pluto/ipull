@@ -1,6 +1,7 @@
 import retry from "async-retry";
 import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
 import {EventEmitter} from "eventemitter3";
+import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 
 export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
@@ -11,6 +12,12 @@ export type BaseDownloadEngineFetchStreamOptions = {
     acceptRangeIsKnown?: boolean
     defaultFetchDownloadInfo?: { length: number, acceptRange: boolean }
     ignoreIfRangeWithQueryParams?: boolean
+};
+
+export type DownloadInfoResponse = {
+    length: number,
+    acceptRange: boolean,
+    newURL?: string
 };
 
 export type FetchSubState = {
@@ -33,6 +40,7 @@ export type BaseDownloadEngineFetchStreamEvents = {
 export type WriteCallback = (data: Uint8Array[], position: number, index: number) => void;
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
+    public readonly programType?: AvailablePrograms;
     public readonly abstract transferAction: string;
     public readonly options: Partial<BaseDownloadEngineFetchStreamOptions> = {};
     public state: FetchSubState = null!;
@@ -88,7 +96,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         return fetchStream;
     }
 
-    public async fetchDownloadInfo(url: string): Promise<{ length: number, acceptRange: boolean }> {
+    public async fetchDownloadInfo(url: string): Promise<DownloadInfoResponse> {
         return this.options.defaultFetchDownloadInfo ?? await retry(async () => {
             try {
                 return await this.fetchDownloadInfoWithoutRetry(url);
@@ -100,7 +108,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         }, this.options.retry);
     }
 
-    protected abstract fetchDownloadInfoWithoutRetry(url: string): Promise<{ length: number, acceptRange: boolean }>;
+    protected abstract fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse>;
 
     public async fetchChunks(callback: WriteCallback) {
         let lastStartLocation = this.state.startChunk;

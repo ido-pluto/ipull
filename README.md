@@ -38,7 +38,7 @@ import {downloadFile} from 'ipull';
 
 const downloader = await downloadFile({
     url: 'https://example.com/file.large',
-    directory: './this/path',
+    directory: './this/path', // or 'savePath' for full path
     cliProgress: true, // Show progress bar in the CLI (default: false)
     parallelStreams: 3 // Number of parallel connections (default: 3)
 });

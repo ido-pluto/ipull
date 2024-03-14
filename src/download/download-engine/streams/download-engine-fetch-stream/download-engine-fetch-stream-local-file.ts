@@ -2,7 +2,7 @@ import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import retry from "async-retry";
 import fsExtra from "fs-extra";
-import BaseDownloadEngineFetchStream, {FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 import streamResponse from "./utils/stream-response.js";
 
@@ -43,7 +43,7 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
         return await streamResponse(stream, this, new SmartChunkSplit(callback, this.state), this.state.onProgress);
     }
 
-    protected override async fetchDownloadInfoWithoutRetry(path: string): Promise<{ length: number; acceptRange: boolean }> {
+    protected override async fetchDownloadInfoWithoutRetry(path: string): Promise<DownloadInfoResponse> {
         const stat = await fs.stat(path);
         if (!stat.isFile()) {
             throw new Error("Path is a directory");
