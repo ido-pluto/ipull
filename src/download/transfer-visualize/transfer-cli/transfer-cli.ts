@@ -50,17 +50,22 @@ export default class TransferCli {
         this.loadingAnimation = new CliSpinnersLoadingAnimation(cliSpinners[this.options.loadingAnimation], {
             loadingText: this.options.loadingText
         });
-        this.stop = this.stop.bind(this);
+        this._processExit = this._processExit.bind(this);
     }
 
     start() {
         this.stdoutManager.hook();
-        process.on("exit", this.stop);
+        process.on("SIGINT", this._processExit);
     }
 
     stop() {
         this.stdoutManager.unhook(false);
-        process.off("exit", this.stop);
+        process.off("SIGINT", this._processExit);
+    }
+
+    private _processExit() {
+        this.stop();
+        process.exit(0);
     }
 
     public updateStatues(statues: FormattedStatus[]) {

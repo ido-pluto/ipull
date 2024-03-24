@@ -19,7 +19,7 @@ export default abstract class BaseLoadingAnimation {
 
     protected constructor(options: BaseLoadingAnimationOptions = DEFAULT_LOADING_ANIMATION_OPTIONS) {
         this.options = options;
-        this.stop = this.stop.bind(this);
+        this._processExit = this._processExit.bind(this);
     }
 
     protected _render(): void {
@@ -29,7 +29,7 @@ export default abstract class BaseLoadingAnimation {
     protected abstract createFrame(): string;
 
     start(): void {
-        process.on("exit", this.stop);
+        process.on("SIGINT", this._processExit);
 
         this.stdoutManager.hook();
         this._intervalId = setInterval(
@@ -45,7 +45,12 @@ export default abstract class BaseLoadingAnimation {
 
             clearInterval(this._intervalId);
             this._intervalId = undefined;
-            process.off("exit", this.stop);
+            process.off("SIGINT", this._processExit);
         }
+    }
+
+    private _processExit() {
+        this.stop();
+        process.exit(0);
     }
 }
