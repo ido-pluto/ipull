@@ -127,11 +127,15 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             xhr.onload = () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const length = xhr.getResponseHeader("Content-Length") || "-";
+                    const fileName = xhr.getResponseHeader("content-disposition")
+                        ?.match(/filename="(.+)"/)?.[1];
+
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
                     resolve({
                         length: parseInt(length),
                         acceptRange,
-                        newURL: xhr.responseURL
+                        newURL: xhr.responseURL,
+                        fileName
                     });
                 } else {
                     reject(new StatusCodeError(url, xhr.status, xhr.statusText, this.options.headers));

@@ -8,6 +8,7 @@ import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-eng
 import SavePathError from "./error/save-path-error.js";
 import fs from "fs-extra";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
+import filenamify from "filenamify";
 
 export const PROGRESS_FILE_EXTENSION = ".ipull";
 
@@ -77,6 +78,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsNodejsCustomFetch) {
         const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partsURL, options.fetchStream);
         const downloadLocation = DownloadEngineNodejs._createDownloadLocation(downloadFile, options);
+        downloadFile.localFileName = path.basename(downloadLocation);
 
         const writeStream = new DownloadEngineWriteStreamNodejs(downloadLocation + PROGRESS_FILE_EXTENSION, options);
         writeStream.fileSize = downloadFile.totalSize;
@@ -94,7 +96,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         }
 
         const fileName = options.fileName || download.localFileName;
-        return path.join(options.directory, fileName);
+        return path.join(options.directory, filenamify(fileName));
     }
 
     protected static _validateOptions(options: DownloadEngineOptionsNodejs) {

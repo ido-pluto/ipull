@@ -51,7 +51,11 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     public get downloadSize() {
-        return this._engine.file.totalSize;
+        return this.file.totalSize;
+    }
+
+    public get fileName() {
+        return this.file.localFileName;
     }
 
     public get status() {
@@ -128,18 +132,25 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
             localFileName
         };
 
+        let counter = 0;
         for (const part of parts) {
-            const {length, acceptRange, newURL} = await fetchStream.fetchDownloadInfo(part);
+            const {length, acceptRange, newURL, fileName} = await fetchStream.fetchDownloadInfo(part);
+
             const downloadURL = newURL ?? part;
             if (isNaN(length)) {
                 throw new InvalidContentLengthError(downloadURL);
             }
+
             downloadFile.totalSize += length;
             downloadFile.parts.push({
                 downloadURL,
                 size: length,
                 acceptRange
             });
+
+            if (counter++ === 0 && fileName) {
+                downloadFile.localFileName = fileName;
+            }
         }
 
         return downloadFile;

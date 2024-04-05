@@ -59,6 +59,10 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     async loadMetadataAfterFileWithoutRetry() {
+        if (!await fsExtra.pathExists(this.path)) {
+            return;
+        }
+
         const fd = await this._ensureFileOpen();
         const state = await fd.stat();
         const metadataSize = state.size - this.fileSize;

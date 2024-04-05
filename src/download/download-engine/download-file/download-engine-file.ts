@@ -68,6 +68,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         return this.file.totalSize;
     }
 
+    public get fileName() {
+        return this.file.localFileName;
+    }
+
     public get status(): ProgressStatus {
         return this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes);
     }

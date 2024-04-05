@@ -17,7 +17,8 @@ export type BaseDownloadEngineFetchStreamOptions = {
 export type DownloadInfoResponse = {
     length: number,
     acceptRange: boolean,
-    newURL?: string
+    newURL?: string,
+    fileName?: string
 };
 
 export type FetchSubState = {

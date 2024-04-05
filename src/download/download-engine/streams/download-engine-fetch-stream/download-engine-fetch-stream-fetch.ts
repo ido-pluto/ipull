@@ -44,11 +44,14 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         const length = parseInt(response.headers.get("content-length")!);
         const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
+        const fileName = response.headers.get("content-disposition")
+            ?.match(/filename="(.+)"/)?.[1];
 
         return {
             length,
             acceptRange,
-            newURL: response.url
+            newURL: response.url,
+            fileName
         };
     }
 
