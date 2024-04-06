@@ -5,6 +5,7 @@ import XhrError from "./errors/xhr-error.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import retry from "async-retry";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
+import {parseContentDisposition} from "./utils/content-disposition.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
@@ -127,8 +128,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             xhr.onload = () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const length = xhr.getResponseHeader("Content-Length") || "-";
-                    const fileName = xhr.getResponseHeader("content-disposition")
-                        ?.match(/filename="(.+)"/)?.[1];
+                    const fileName = parseContentDisposition(xhr.getResponseHeader("content-disposition"));
 
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
                     resolve({

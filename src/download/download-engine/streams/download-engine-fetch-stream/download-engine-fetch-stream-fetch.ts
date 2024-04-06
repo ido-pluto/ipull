@@ -1,6 +1,7 @@
 import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
+import {parseContentDisposition} from "./utils/content-disposition.js";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
@@ -44,8 +45,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         const length = parseInt(response.headers.get("content-length")!);
         const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
-        const fileName = response.headers.get("content-disposition")
-            ?.match(/filename="(.+)"/)?.[1];
+        const fileName = parseContentDisposition(response.headers.get("content-disposition"));
 
         return {
             length,
