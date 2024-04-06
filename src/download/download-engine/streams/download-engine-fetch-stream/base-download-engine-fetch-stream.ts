@@ -2,6 +2,7 @@ import retry from "async-retry";
 import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
 import {EventEmitter} from "eventemitter3";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
+import HttpError from "./errors/http-error.js";
 
 export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
@@ -98,15 +99,26 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     }
 
     public async fetchDownloadInfo(url: string): Promise<DownloadInfoResponse> {
-        return this.options.defaultFetchDownloadInfo ?? await retry(async () => {
+        let throwErr: Error | null = null;
+        const response = this.options.defaultFetchDownloadInfo ?? await retry(async () => {
             try {
                 return await this.fetchDownloadInfoWithoutRetry(url);
             } catch (error: any) {
+                if (error instanceof HttpError) {
+                    throwErr = error;
+                    return null;
+                }
                 this.errorCount.value++;
                 this.emit("errorCountIncreased", this.errorCount.value, error);
                 throw error;
             }
         }, this.options.retry);
+
+        if (throwErr) {
+            throw throwErr;
+        }
+
+        return response!;
     }
 
     protected abstract fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse>;
@@ -121,6 +133,10 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 return await this.fetchWithoutRetryChunks(callback);
             } catch (error: any) {
                 if (error?.name === "AbortError") return;
+                if (error instanceof HttpError) {
+                    throw error;
+                }
+
                 if (lastStartLocation !== this.state.startChunk) {
                     lastStartLocation = this.state.startChunk;
                     retryResolvers = retryAsyncStatementSimple(this.options.retry);
