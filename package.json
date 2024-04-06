@@ -138,6 +138,7 @@
     "lowdb": "^7.0.1",
     "pretty-bytes": "^6.1.0",
     "pretty-ms": "^8.0.0",
+    "sleep-promise": "^9.1.0",
     "slice-ansi": "^7.1.0",
     "stdout-update": "^4.0.1",
     "strip-ansi": "^7.1.0"

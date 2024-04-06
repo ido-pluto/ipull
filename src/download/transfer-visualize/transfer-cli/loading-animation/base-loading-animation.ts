@@ -1,4 +1,5 @@
 import UpdateManager from "stdout-update";
+import sleep from "sleep-promise";
 
 export type BaseLoadingAnimationOptions = {
     updateIntervalMs?: number;
@@ -12,9 +13,9 @@ export const DEFAULT_LOADING_ANIMATION_OPTIONS: BaseLoadingAnimationOptions = {
 const DEFAULT_UPDATE_INTERVAL_MS = 300;
 
 export default abstract class BaseLoadingAnimation {
-    private _intervalId?: NodeJS.Timeout;
     protected options: BaseLoadingAnimationOptions;
     protected stdoutManager = UpdateManager.getInstance();
+    protected _animationActive = false;
 
 
     protected constructor(options: BaseLoadingAnimationOptions = DEFAULT_LOADING_ANIMATION_OPTIONS) {
@@ -28,25 +29,27 @@ export default abstract class BaseLoadingAnimation {
 
     protected abstract createFrame(): string;
 
-    start(): void {
+    async start() {
         process.on("SIGINT", this._processExit);
 
         this.stdoutManager.hook();
-        this._intervalId = setInterval(
-            this._render.bind(this),
-            this.options.updateIntervalMs ?? DEFAULT_UPDATE_INTERVAL_MS
-        );
+
+        this._animationActive = true;
+        while (this._animationActive) {
+            this._render();
+            await sleep(this.options.updateIntervalMs ?? DEFAULT_UPDATE_INTERVAL_MS);
+        }
     }
 
     stop(): void {
-        if (this._intervalId) {
-            this.stdoutManager.erase();
-            this.stdoutManager.unhook(false);
-
-            clearInterval(this._intervalId);
-            this._intervalId = undefined;
-            process.off("SIGINT", this._processExit);
+        if (!this._animationActive) {
+            return;
         }
+
+        this.stdoutManager.erase();
+        this.stdoutManager.unhook(false);
+
+        process.off("SIGINT", this._processExit);
     }
 
     private _processExit() {
