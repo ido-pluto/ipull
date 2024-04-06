@@ -64,20 +64,25 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         }
 
         const fd = await this._ensureFileOpen();
-        const state = await fd.stat();
-        const metadataSize = state.size - this.fileSize;
-        if (metadataSize <= 0) {
-            return;
-        }
-
-        const metadataBuffer = Buffer.alloc(metadataSize);
-        await fd.read(metadataBuffer, 0, metadataSize, this.fileSize);
-        const decoder = new TextDecoder();
-        const metadataString = decoder.decode(metadataBuffer);
-
         try {
-            return JSON.parse(metadataString);
-        } catch {}
+            const state = await fd.stat();
+            const metadataSize = state.size - this.fileSize;
+            if (metadataSize <= 0) {
+                return;
+            }
+
+            const metadataBuffer = Buffer.alloc(metadataSize);
+            await fd.read(metadataBuffer, 0, metadataSize, this.fileSize);
+            const decoder = new TextDecoder();
+            const metadataString = decoder.decode(metadataBuffer);
+
+            try {
+                return JSON.parse(metadataString);
+            } catch {}
+        } finally {
+            this._fd = null;
+            await fd.close();
+        }
     }
 
     private async _writeWithoutRetry(cursor: number, buffer: Uint8Array) {
