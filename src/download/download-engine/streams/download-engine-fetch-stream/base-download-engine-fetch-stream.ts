@@ -41,6 +41,15 @@ export type BaseDownloadEngineFetchStreamEvents = {
 
 export type WriteCallback = (data: Uint8Array[], position: number, index: number) => void;
 
+const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
+    retry: {
+        retries: 150,
+        factor: 1.5,
+        minTimeout: 200,
+        maxTimeout: 5_000
+    }
+};
+
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
     public readonly programType?: AvailablePrograms;
     public readonly abstract transferAction: string;
@@ -53,7 +62,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
 
     constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
         super();
-        this.options = options;
+        this.options = {...DEFAULT_OPTIONS, ...options};
         this.initEvents();
     }
 
