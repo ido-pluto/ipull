@@ -46,6 +46,7 @@ export default abstract class BaseLoadingAnimation {
             return;
         }
 
+        this._animationActive = false;
         this.stdoutManager.erase();
         this.stdoutManager.unhook(false);
 

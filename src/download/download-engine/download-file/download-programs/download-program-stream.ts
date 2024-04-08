@@ -1,8 +1,8 @@
 import {ChunkStatus, SaveProgressInfo} from "../../types.js";
-import BaseDownloadStream, {DownloadSlice, ProgramSlice} from "./base-download-stream.js";
+import BaseDownloadProgram, {DownloadSlice, ProgramSlice} from "./base-download-program.js";
 
 
-export default class DownloadProgramStream extends BaseDownloadStream {
+export default class DownloadProgramStream extends BaseDownloadProgram {
     public constructor(savedProgress: SaveProgressInfo, downloadSlice: DownloadSlice) {
         super(savedProgress, downloadSlice);
     }

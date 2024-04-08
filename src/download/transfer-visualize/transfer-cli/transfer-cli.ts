@@ -38,6 +38,7 @@ export default class TransferCli {
     protected options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
     protected myCLILevel: number;
+    protected _cliStopped = false;
 
     public constructor(options: Partial<TransferCliOptions>, myCLILevel = CLI_LEVEL.LOW) {
         TransferCli.activeCLILevel = this.myCLILevel = myCLILevel;
@@ -54,13 +55,16 @@ export default class TransferCli {
     }
 
     start() {
+        this._cliStopped = false;
         this.stdoutManager.hook();
         process.on("SIGINT", this._processExit);
     }
 
     stop() {
+        if (this._cliStopped) return;
         this.stdoutManager.unhook(false);
         process.off("SIGINT", this._processExit);
+        this._cliStopped = true;
     }
 
     private _processExit() {
@@ -69,7 +73,7 @@ export default class TransferCli {
     }
 
     public updateStatues(statues: FormattedStatus[]) {
-        if (this.myCLILevel !== TransferCli.activeCLILevel) {
+        if (this._cliStopped || this.myCLILevel !== TransferCli.activeCLILevel) {
             return; // Do not update if there is a higher level CLI, meaning that this CLI is sub-CLI
         }
 

@@ -7,9 +7,10 @@ export type ProgramSlice = {
 
 export type DownloadSlice = (startChunk: number, endChunk: number) => Promise<void>;
 
-export default abstract class BaseDownloadStream {
+export default abstract class BaseDownloadProgram {
     protected savedProgress: SaveProgressInfo;
     protected readonly _downloadSlice: DownloadSlice;
+    protected _aborted = false;
 
     protected constructor(_savedProgress: SaveProgressInfo, _downloadSlice: DownloadSlice) {
         this._downloadSlice = _downloadSlice;
@@ -26,12 +27,14 @@ export default abstract class BaseDownloadStream {
         // eslint-disable-next-line no-constant-condition
         while (true) {
             while (activeDownloads.length >= this.savedProgress.parallelStreams) {
+                if (this._aborted) return;
                 await Promise.race(activeDownloads);
             }
 
             const slice = this._createOneSlice();
             if (slice == null) break;
 
+            if (this._aborted) return;
             const promise = this._downloadSlice(slice.start, slice.end);
             activeDownloads.push(promise);
             promise.then(() => {
@@ -43,4 +46,8 @@ export default abstract class BaseDownloadStream {
     }
 
     protected abstract _createOneSlice(): ProgramSlice | null;
+
+    public abort() {
+        this._aborted = true;
+    }
 }

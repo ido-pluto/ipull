@@ -6,6 +6,7 @@ import retry from "async-retry";
 import {EventEmitter} from "eventemitter3";
 import {withLock} from "lifecycle-utils";
 import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
+import BaseDownloadProgram from "./download-programs/base-download-program.js";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
@@ -55,6 +56,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     protected _closed = false;
     protected _progressStatus: ProgressStatusFile;
     protected _activeStreamBytes: { [key: number]: number } = {};
+    protected _activeProgram?: BaseDownloadProgram;
 
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
         super();
@@ -114,6 +116,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.emit("start");
         this._progressStatus.started();
         for (let i = this._progress.part; i < this.file.parts.length; i++) {
+            if (this._closed) return;
             // If we are starting a new part, we need to reset the progress
             if (i > this._progress.part || !this._activePart.acceptRange) {
                 this._progress.part = i;
@@ -134,13 +137,15 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
             // Reset active stream progress
             this._activeStreamBytes = {};
-            const downloadProgram = switchProgram(
+            this._activeProgram = switchProgram(
                 this._progress,
                 this._downloadSlice.bind(this),
                 this.options.fetchStream.programType || this.options.programType
             );
-            await downloadProgram.download();
+            await this._activeProgram.download();
         }
+        if (this._closed) return;
+
         this._progressStatus.finished();
         await this._saveProgress();
         this.emit("finished");
@@ -209,6 +214,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected _sendProgressDownloadPart() {
+        if (this._closed) return;
         this.emit("progress", this.status);
     }
 
@@ -233,10 +239,11 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public async close() {
         if (this._closed) return;
         this._closed = true;
+        this._activeProgram?.abort();
+        await this.options.onCloseAsync?.();
         await this.options.writeStream.close();
         await this.options.fetchStream.close();
         this.emit("closed");
-        await this.options.onCloseAsync?.();
     }
 
     public [Symbol.dispose]() {

@@ -52,8 +52,10 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         };
 
         this._engine.options.onCloseAsync = async () => {
-            const closedFileName = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
-            await fs.rename(this.options.writeStream.path, closedFileName);
+            if (this.status.ended) {
+                const closedFileName = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
+                await fs.rename(this.options.writeStream.path, closedFileName);
+            }
         };
     }
 
