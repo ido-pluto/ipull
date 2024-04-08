@@ -159,7 +159,9 @@ await downloader.download();
 
 ### Abort download
 
-You can cancel the download by calling the `abort` method
+You can cancel the download by calling the `close` method (it will not delete the file).
+
+If you want to also delete the file, you can call the `closeAndDeleteFile` method.
 
 ```ts
 import {downloadFile} from 'ipull';
