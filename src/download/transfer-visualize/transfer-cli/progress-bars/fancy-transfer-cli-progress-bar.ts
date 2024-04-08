@@ -6,6 +6,7 @@ import {DataPart, renderDataLine} from "../../utils/data-line.js";
 import prettyMilliseconds from "pretty-ms";
 import sliceAnsi from "slice-ansi";
 import stripAnsi from "strip-ansi";
+import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
 
 export type FancyCliOptions = {
     truncateName?: boolean | number
@@ -103,7 +104,16 @@ export default class FancyTransferCliProgressBar {
     }
 
     protected getNameAndCommentDataParts(): DataPart[] {
-        const {fileName, comment} = this.status;
+        const {fileName, comment, downloadStatus} = this.status;
+
+        let fullComment = comment;
+        if (downloadStatus === DownloadStatus.Cancelled || downloadStatus === DownloadStatus.Paused) {
+            if (fullComment) {
+                fullComment += " | " + downloadStatus;
+            } else {
+                fullComment = downloadStatus;
+            }
+        }
 
         return [{
             type: "name",
@@ -120,7 +130,7 @@ export default class FancyTransferCliProgressBar {
             cropper: truncateText,
             formatter: (text) => chalk.bold(text)
         }, ...(
-            (comment == null || comment.length === 0)
+            (fullComment == null || fullComment.length === 0)
                 ? []
                 : [{
                     type: "spacer",
@@ -129,9 +139,9 @@ export default class FancyTransferCliProgressBar {
                     formatter: (text) => chalk.dim(text)
                 }, {
                     type: "nameComment",
-                    fullText: comment,
-                    size: Math.min(comment.length, minCommentLength),
-                    maxSize: comment.length,
+                    fullText: fullComment,
+                    size: Math.min(fullComment.length, minCommentLength),
+                    maxSize: fullComment.length,
                     flex: 1,
                     cropper: truncateText,
                     formatter: (text) => chalk.dim(text)
@@ -207,7 +217,7 @@ export default class FancyTransferCliProgressBar {
     }
 
     public renderStatusLine(): string {
-        if (this.status.ended) {
+        if (this.status.downloadStatus === DownloadStatus.Finished || this.status.downloadStatus === DownloadStatus.Error) {
             return this.renderFinishedLine();
         }
 

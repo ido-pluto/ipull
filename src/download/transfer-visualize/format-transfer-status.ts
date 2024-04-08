@@ -1,7 +1,7 @@
 import {TransferProgressInfo} from "./transfer-statistics.js";
 import prettyBytes, {Options as PrettyBytesOptions} from "pretty-bytes";
 import prettyMilliseconds, {Options as PrettyMsOptions} from "pretty-ms";
-import {ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
+import {DownloadStatus, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 
 const DEFAULT_LOCALIZATION: Intl.LocalesArgument = "en-US";
 
@@ -65,6 +65,15 @@ export function createFormattedStatus(status: ProgressStatus | FormattedStatus):
     })
         .slice(0, 5) + "%";
 
+    let fullComment = fullStatus.comment;
+    if (status.downloadStatus === DownloadStatus.Cancelled || status.downloadStatus === DownloadStatus.Paused) {
+        if (fullComment) {
+            fullComment += " | " + status.downloadStatus;
+        } else {
+            fullComment = status.downloadStatus;
+        }
+    }
+
     return {
         ...fullStatus,
         formattedSpeed,
@@ -73,6 +82,6 @@ export function createFormattedStatus(status: ProgressStatus | FormattedStatus):
         formatTotal,
         formatTimeLeft,
         formattedPercentage,
-        formattedComment: fullStatus.comment ? `(${fullStatus.comment})` : ""
+        formattedComment: fullComment ? `(${fullComment})` : ""
     };
 }

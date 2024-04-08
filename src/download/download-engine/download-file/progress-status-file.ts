@@ -8,7 +8,16 @@ export type ProgressStatus = {
     startTime: number,
     endTime: number,
     transferAction: string
+    downloadStatus: DownloadStatus
 };
+
+export enum DownloadStatus {
+    Active = "Active",
+    Paused = "Paused",
+    Finished = "Finished",
+    Cancelled = "Cancelled",
+    Error = "Error"
+}
 
 export default class ProgressStatusFile {
     public readonly totalBytes: number;
@@ -18,6 +27,7 @@ export default class ProgressStatusFile {
     public readonly downloadPart: number;
     public readonly transferredBytes: number;
     public readonly transferAction: string;
+    public readonly downloadStatus: DownloadStatus = DownloadStatus.Active;
     public startTime: number = 0;
     public endTime: number = 0;
 
@@ -28,7 +38,8 @@ export default class ProgressStatusFile {
         comment?: string,
         transferAction = "Transferring",
         downloadPart = 0,
-        transferredBytes = 0
+        transferredBytes = 0,
+        downloadStatus = DownloadStatus.Active
     ) {
         this.transferAction = transferAction;
         this.transferredBytes = transferredBytes;
@@ -37,6 +48,7 @@ export default class ProgressStatusFile {
         this.fileName = fileName;
         this.totalDownloadParts = totalDownloadParts;
         this.totalBytes = totalBytes;
+        this.downloadStatus = downloadStatus;
     }
 
     public started() {
@@ -47,7 +59,7 @@ export default class ProgressStatusFile {
         this.endTime = Date.now();
     }
 
-    public createStatus(downloadPart: number, transferredBytes: number): ProgressStatusFile {
+    public createStatus(downloadPart: number, transferredBytes: number, downloadStatus = DownloadStatus.Active): ProgressStatusFile {
         const newStatus = new ProgressStatusFile(
             this.totalBytes,
             this.totalDownloadParts,
@@ -55,7 +67,8 @@ export default class ProgressStatusFile {
             this.comment,
             this.transferAction,
             downloadPart,
-            transferredBytes
+            transferredBytes,
+            downloadStatus
         );
 
         newStatus.startTime = this.startTime;

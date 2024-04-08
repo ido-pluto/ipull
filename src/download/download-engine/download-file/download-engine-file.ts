@@ -1,4 +1,4 @@
-import ProgressStatusFile, {ProgressStatus} from "./progress-status-file.js";
+import ProgressStatusFile, {DownloadStatus, ProgressStatus} from "./progress-status-file.js";
 import {ChunkStatus, DownloadFile, SaveProgressInfo} from "../types.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
@@ -57,6 +57,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     protected _progressStatus: ProgressStatusFile;
     protected _activeStreamBytes: { [key: number]: number } = {};
     protected _activeProgram?: BaseDownloadProgram;
+    protected _downloadStatus = DownloadStatus.Active;
 
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
         super();
@@ -75,7 +76,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public get status(): ProgressStatus {
-        return this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes);
+        return this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this._downloadStatus);
     }
 
     protected get _activePart() {
@@ -147,6 +148,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         if (this._closed) return;
 
         this._progressStatus.finished();
+        this._downloadStatus = DownloadStatus.Finished;
         await this._saveProgress();
         this.emit("finished");
         await this.options.onFinishAsync?.();
@@ -223,8 +225,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             return;
         }
 
+        this._downloadStatus = DownloadStatus.Paused;
         this.options.fetchStream.emit("paused");
         this.emit("paused");
+        this._sendProgressDownloadPart();
     }
 
     public resume() {
@@ -232,12 +236,17 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             return;
         }
 
+        this._downloadStatus = DownloadStatus.Active;
         this.options.fetchStream.emit("resumed");
         this.emit("resumed");
     }
 
     public async close() {
         if (this._closed) return;
+        if (this._downloadStatus !== DownloadStatus.Finished) {
+            this._downloadStatus = DownloadStatus.Cancelled;
+        }
+        this._sendProgressDownloadPart();
         this._closed = true;
         this._activeProgram?.abort();
         await this.options.onCloseAsync?.();

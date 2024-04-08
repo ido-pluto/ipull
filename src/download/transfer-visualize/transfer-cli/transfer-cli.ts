@@ -38,13 +38,15 @@ export default class TransferCli {
     protected options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
     protected myCLILevel: number;
-    protected _cliStopped = false;
+    protected latestProgress: FormattedStatus[] = [];
+    private _cliStopped = true;
+    private readonly _updateStatuesDebounce: () => void;
 
     public constructor(options: Partial<TransferCliOptions>, myCLILevel = CLI_LEVEL.LOW) {
         TransferCli.activeCLILevel = this.myCLILevel = myCLILevel;
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
 
-        this.updateStatues = debounce(this.updateStatues.bind(this), this.options.debounceWait, {
+        this._updateStatuesDebounce = debounce(this._updateStatues.bind(this), this.options.debounceWait, {
             maxWait: this.options.maxDebounceWait
         });
 
@@ -55,16 +57,18 @@ export default class TransferCli {
     }
 
     start() {
+        if (this.myCLILevel !== TransferCli.activeCLILevel) return;
         this._cliStopped = false;
         this.stdoutManager.hook();
         process.on("SIGINT", this._processExit);
     }
 
     stop() {
-        if (this._cliStopped) return;
+        if (this._cliStopped || this.myCLILevel !== TransferCli.activeCLILevel) return;
+        this._updateStatues();
+        this._cliStopped = true;
         this.stdoutManager.unhook(false);
         process.off("SIGINT", this._processExit);
-        this._cliStopped = true;
     }
 
     private _processExit() {
@@ -72,12 +76,16 @@ export default class TransferCli {
         process.exit(0);
     }
 
-    public updateStatues(statues: FormattedStatus[]) {
+    updateStatues(statues: FormattedStatus[]) {
+        this.latestProgress = statues;
+        this._updateStatuesDebounce();
+    }
+
+    private _updateStatues() {
         if (this._cliStopped || this.myCLILevel !== TransferCli.activeCLILevel) {
             return; // Do not update if there is a higher level CLI, meaning that this CLI is sub-CLI
         }
-
-        const newLog = statues.map((status) => {
+        const newLog = this.latestProgress.map((status) => {
             status.transferAction = this.options.action ?? status.transferAction;
             return this.options.createProgressBar(status);
         })

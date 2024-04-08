@@ -36,11 +36,6 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     protected _init() {
-        this._progressStatisticsBuilder.add(...this._engines);
-        this._progressStatisticsBuilder.on("progress", progress => {
-            this.emit("progress", progress);
-        });
-
         this._changeEngineFinishDownload();
         for (const [index, engine] of Object.entries(this._engines)) {
             const numberIndex = Number(index);
@@ -49,6 +44,11 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
                 this._downloadStatues[numberIndex] = createFormattedStatus(progress);
             });
         }
+
+        this._progressStatisticsBuilder.add(...this._engines);
+        this._progressStatisticsBuilder.on("progress", progress => {
+            this.emit("progress", progress);
+        });
     }
 
     public async download(): Promise<void> {
@@ -103,6 +103,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         this._aborted = true;
         await this._activeEngine?.close();
         this.emit("closed");
+
     }
 
     protected static _extractEngines<Engine>(engines: Engine[]) {

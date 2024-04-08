@@ -60,6 +60,16 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     }
 
     /**
+     * Abort the download & delete the file (if it exists)
+     */
+    public async closeAndDeleteFile() {
+        await this.close();
+        try {
+            await fs.unlink(this.options.writeStream.path);
+        } catch {}
+    }
+
+    /**
      * Download/copy a file
      *
      * if `fetchStrategy` is defined as "localFile" it will copy the file, otherwise it will download it
