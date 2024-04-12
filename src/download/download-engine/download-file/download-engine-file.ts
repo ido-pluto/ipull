@@ -91,7 +91,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         const streamingBytes = Object.values(this._activeStreamBytes)
             .reduce((acc, bytes) => acc + bytes, 0);
 
-        const partNotFinishedYet = this._progress.part < this.file.parts.length - 1;
+        const partNotFinishedYet = this._downloadStatus !== DownloadStatus.Finished;
         const chunksBytes = (partNotFinishedYet ? activeDownloadBytes : 0) + previousPartsBytes;
 
         return Math.min(chunksBytes + streamingBytes, this.downloadSize);
