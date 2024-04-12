@@ -147,9 +147,12 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         }
         if (this._closed) return;
 
+        // All parts are downloaded, we can clear the progress
+        this._activeStreamBytes = {};
+        this._progress.chunks = [];
+
         this._progressStatus.finished();
         this._downloadStatus = DownloadStatus.Finished;
-        await this._saveProgress();
         this.emit("finished");
         await this.options.onFinishAsync?.();
     }
