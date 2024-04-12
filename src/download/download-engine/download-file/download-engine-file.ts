@@ -58,6 +58,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     protected _activeStreamBytes: { [key: number]: number } = {};
     protected _activeProgram?: BaseDownloadProgram;
     protected _downloadStatus = DownloadStatus.Active;
+    private _latestProgressDate = 0;
 
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
         super();
@@ -87,9 +88,11 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         const activeDownloadBytes = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE).length * this._progress.chunkSize;
         const previousPartsBytes = this.file.parts.slice(0, this._progress.part)
             .reduce((acc, part) => acc + part.size, 0);
-        const chunksBytes = activeDownloadBytes + previousPartsBytes;
         const streamingBytes = Object.values(this._activeStreamBytes)
             .reduce((acc, bytes) => acc + bytes, 0);
+
+        const partNotFinishedYet = this._progress.part < this.file.parts.length - 1;
+        const chunksBytes = (partNotFinishedYet ? activeDownloadBytes : 0) + previousPartsBytes;
 
         return Math.min(chunksBytes + streamingBytes, this.downloadSize);
     }
@@ -145,11 +148,11 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             );
             await this._activeProgram.download();
         }
-        if (this._closed) return;
-
         // All parts are downloaded, we can clear the progress
         this._activeStreamBytes = {};
-        this._progress.chunks = [];
+        this._latestProgressDate = 0;
+
+        if (this._closed) return;
 
         this._progressStatus.finished();
         this._downloadStatus = DownloadStatus.Finished;
@@ -211,10 +214,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected _saveProgress() {
-        this.emit("save", this._progress);
+        const thisProgress = this._latestProgressDate = Date.now();
         this._sendProgressDownloadPart();
+
+        this.emit("save", this._progress);
         return withLock(this, "_saveLock", async () => {
-            await this.options.onSaveProgressAsync?.(this._progress);
+            if (thisProgress === this._latestProgressDate) {
+                await this.options.onSaveProgressAsync?.(this._progress);
+            }
         });
     }
 

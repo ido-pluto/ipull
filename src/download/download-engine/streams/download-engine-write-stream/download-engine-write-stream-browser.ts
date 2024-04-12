@@ -1,6 +1,8 @@
 import retry from "async-retry";
 import {DownloadFile} from "../../types.js";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
+import WriterIsClosedError from "./errors/writer-is-closed-error.js";
+import WriterNotDefineError from "./errors/writer-not-define-error.js";
 
 type DownloadEngineWriteStreamOptionsBrowser = {
     retry?: retry.Options
@@ -32,7 +34,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
         }
 
         if (!this.options.file) {
-            throw new Error("Writer & file is not defined, please provide a writer or file");
+            throw new WriterNotDefineError("Writer & file is not defined, please provide a writer or file");
         }
 
         return this._memory = new Uint8Array(this.options.file.totalSize);
@@ -40,7 +42,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
 
     public write(cursor: number, buffer: Uint8Array) {
         if (this.writerClosed) {
-            throw new Error("Writer is closed");
+            throw new WriterIsClosedError();
         }
 
         if (!this._writer) {

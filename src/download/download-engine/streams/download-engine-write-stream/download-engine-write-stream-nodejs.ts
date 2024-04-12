@@ -3,6 +3,7 @@ import fsExtra from "fs-extra";
 import retry from "async-retry";
 import {withLock} from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
+import WriterIsClosedError from "./errors/writer-is-closed-error.js";
 
 export type DownloadEngineWriteStreamOptionsNodeJS = {
     retry?: retry.Options
@@ -15,6 +16,7 @@ const DEFAULT_OPTIONS: DownloadEngineWriteStreamOptionsNodeJS = {
 
 export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineWriteStream {
     private _fd: FileHandle | null = null;
+    private _fileWriteFinished = false;
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
     public fileSize = 0;
 
@@ -43,6 +45,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     async ftruncate(size = this.fileSize) {
+        this._fileWriteFinished = true;
         await retry(async () => {
             const fd = await this._ensureFileOpen();
             await fd.truncate(size);
@@ -50,6 +53,10 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     async saveMedataAfterFile(data: any) {
+        if (this._fileWriteFinished) {
+            throw new WriterIsClosedError();
+        }
+
         const jsonString = JSON.stringify(data);
 
         const encoder = new TextEncoder();
