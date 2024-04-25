@@ -34,9 +34,10 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
 
     protected override async fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> {
         const file = await this._ensureFileOpen(this.state.url);
+
         const stream = file.createReadStream({
             start: this._startSize,
-            end: this._endSize,
+            end: this._endSize - 1,
             autoClose: true
         });
 

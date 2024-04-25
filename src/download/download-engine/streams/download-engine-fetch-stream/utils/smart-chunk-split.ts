@@ -28,7 +28,7 @@ export default class SmartChunkSplit {
     }
 
     public sendLeftovers() {
-        if (this.savedLength >= this._options.chunkSize) {
+        if (this.savedLength > 0) {
             this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++);
         }
     }
@@ -45,7 +45,9 @@ export default class SmartChunkSplit {
             for (let i = 0; i < this._chunks.length; i++) {
                 sendLength += this._chunks[i].byteLength;
                 if (sendLength >= this._options.chunkSize) {
-                    this._callback(this._chunks.splice(0, i + 1), this._bytesWriteLocation, this._options.startChunk++);
+                    const sendChunks = this._chunks.splice(0, i + 1);
+
+                    this._callback(sendChunks, this._bytesWriteLocation, this._options.startChunk++);
                     this._bytesWriteLocation += sendLength - this._bytesLeftovers;
                     this._bytesLeftovers = sendLength - this._options.chunkSize;
                     break;

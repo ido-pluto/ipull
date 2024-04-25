@@ -168,7 +168,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             chunkSize: this._progress.chunkSize,
             startChunk,
             endChunk,
-            totalSize: this.downloadSize,
+            totalSize: this._activePart.size,
             url: this._activePart.downloadURL!,
             rangeSupport: this._activePart.acceptRange,
             onProgress: (length: number) => {
@@ -177,10 +177,11 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             }
         });
 
+
         const downloadedPartsSize = this._downloadedPartsSize;
         this._progress.chunks[startChunk] = ChunkStatus.IN_PROGRESS;
         return (async () => {
-            const allWrites: (Promise<any> | void)[] = [];
+            const allWrites = new Set<Promise<any>>();
 
             await fetchState.fetchChunks((chunks, writePosition, index) => {
                 if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
@@ -191,8 +192,9 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                     const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunk);
                     writePosition += chunk.length;
                     if (writePromise) {
+                        allWrites.add(writePromise);
                         writePromise.then(() => {
-                            allWrites.splice(allWrites.indexOf(writePromise), 1);
+                            allWrites.delete(writePromise);
                         });
                     }
                 }
