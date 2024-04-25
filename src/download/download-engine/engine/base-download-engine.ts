@@ -10,7 +10,7 @@ import {createFormattedStatus} from "../../transfer-visualize/format-transfer-st
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
 import InvalidContentLengthError from "./error/invalid-content-length-error.js";
 
-export type InputURLOptions = { partsURL: string[] } | { url: string };
+export type InputURLOptions = { partURLs: string[] } | { url: string };
 
 export type BaseDownloadEngineOptions = InputURLOptions & BaseDownloadEngineFetchStreamOptions & {
     chunkSize?: number;
@@ -157,11 +157,11 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     protected static _validateURL(options: InputURLOptions) {
-        if ("partsURL" in options && "url" in options) {
-            throw new UrlInputError("Either `partsURL` or `url` should be provided, not both");
+        if ("partURLs" in options && "url" in options) {
+            throw new UrlInputError("Either `partURLs` or `url` should be provided, not both");
         }
-        if (!("partsURL" in options) && !("url" in options)) {
-            throw new UrlInputError("Either `partsURL` or `url` should be provided");
+        if (!("partURLs" in options) && !("url" in options)) {
+            throw new UrlInputError("Either `partURLs` or `url` should be provided");
         }
     }
 }

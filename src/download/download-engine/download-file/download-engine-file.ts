@@ -84,15 +84,18 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         return this.file.parts[this._progress.part];
     }
 
+    private get _downloadedPartsSize() {
+        return this.file.parts.slice(0, this._progress.part)
+            .reduce((acc, part) => acc + part.size, 0);
+    }
+
     public get transferredBytes() {
         const activeDownloadBytes = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE).length * this._progress.chunkSize;
-        const previousPartsBytes = this.file.parts.slice(0, this._progress.part)
-            .reduce((acc, part) => acc + part.size, 0);
         const streamingBytes = Object.values(this._activeStreamBytes)
             .reduce((acc, bytes) => acc + bytes, 0);
 
         const partNotFinishedYet = this._downloadStatus !== DownloadStatus.Finished;
-        const chunksBytes = (partNotFinishedYet ? activeDownloadBytes : 0) + previousPartsBytes;
+        const chunksBytes = (partNotFinishedYet ? activeDownloadBytes : 0) + this._downloadedPartsSize;
 
         return Math.min(chunksBytes + streamingBytes, this.downloadSize);
     }
@@ -174,6 +177,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             }
         });
 
+        const downloadedPartsSize = this._downloadedPartsSize;
         this._progress.chunks[startChunk] = ChunkStatus.IN_PROGRESS;
         return (async () => {
             const allWrites: (Promise<any> | void)[] = [];
@@ -184,11 +188,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 }
 
                 for (const chunk of chunks) {
-                    const writePromise = this.options.writeStream.write(writePosition, chunk);
+                    const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunk);
                     writePosition += chunk.length;
                     if (writePromise) {
-                        allWrites.push(writePromise);
-                        writePromise?.then(() => {
+                        writePromise.then(() => {
                             allWrites.splice(allWrites.indexOf(writePromise), 1);
                         });
                     }

@@ -129,7 +129,7 @@ const downloadParts = [
 ];
 
 const downloader = await downloadFile({
-    partsURL: downloadParts,
+    partURLs: downloadParts,
     directory: './this/path',
     filename: 'file.large'
 });

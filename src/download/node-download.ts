@@ -5,12 +5,21 @@ import CliAnimationWrapper, {CliProgressDownloadEngineOptions} from "./transfer-
 import {CLI_LEVEL} from "./transfer-visualize/transfer-cli/transfer-cli.js";
 
 const DEFAULT_PARALLEL_STREAMS_FOR_NODEJS = 3;
-export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions;
+export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions & {
+    /** @deprecated use partURLs instead */
+    partsURL?: string[];
+};
 
 /**
  * Download one file with CLI progress
  */
 export async function downloadFile(options: DownloadFileOptions) {
+    // TODO: Remove in the next major version
+    if (!("url" in options) && options.partsURL) {
+        options.partURLs ??= options.partsURL;
+    }
+
+
     options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_NODEJS;
 
     const downloader = DownloadEngineNodejs.createFromOptions(options);

@@ -19,7 +19,7 @@ export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOption
 };
 
 export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
-    partsURL: string[];
+    partURLs: string[];
     fetchStream: BaseDownloadEngineFetchStream
 };
 
@@ -77,18 +77,18 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
      */
     public static async createFromOptions(options: DownloadEngineOptionsNodejs) {
         DownloadEngineNodejs._validateOptions(options);
-        const partsURL = "partsURL" in options ? options.partsURL : [options.url];
+        const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 
-        options.fetchStrategy ??= DownloadEngineNodejs._guessFetchStrategy(partsURL[0]);
+        options.fetchStrategy ??= DownloadEngineNodejs._guessFetchStrategy(partURLs[0]);
         const fetchStream = options.fetchStrategy === "localFile" ?
             new DownloadEngineFetchStreamLocalFile(options) :
             new DownloadEngineFetchStreamFetch(options);
 
-        return DownloadEngineNodejs._createFromOptionsWithCustomFetch({...options, partsURL, fetchStream});
+        return DownloadEngineNodejs._createFromOptionsWithCustomFetch({...options, partURLs, fetchStream});
     }
 
     protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsNodejsCustomFetch) {
-        const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partsURL, options.fetchStream);
+        const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partURLs, options.fetchStream);
         const downloadLocation = DownloadEngineNodejs._createDownloadLocation(downloadFile, options);
         downloadFile.localFileName = path.basename(downloadLocation);
 

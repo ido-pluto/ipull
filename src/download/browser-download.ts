@@ -3,12 +3,20 @@ import DownloadEngineMultiDownload from "./download-engine/engine/download-engin
 
 const DEFAULT_PARALLEL_STREAMS_FOR_BROWSER = 3;
 
-export type DownloadFileBrowserOptions = DownloadEngineOptionsBrowser;
+export type DownloadFileBrowserOptions = DownloadEngineOptionsBrowser & {
+    /** @deprecated use partURLs instead */
+    partsURL?: string[];
+};
 
 /**
  * Download one file in the browser environment.
  */
 export async function downloadFileBrowser(options: DownloadFileBrowserOptions) {
+    // TODO: Remove in the next major version
+    if (!("url" in options) && options.partsURL) {
+        options.partURLs ??= options.partsURL;
+    }
+
     options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_BROWSER;
     return await DownloadEngineBrowser.createFromOptions(options);
 }

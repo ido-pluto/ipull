@@ -14,7 +14,7 @@ export type DownloadEngineOptionsBrowser = BaseDownloadEngineOptions & {
 };
 
 export type DownloadEngineOptionsCustomFetchBrowser = DownloadEngineOptionsBrowser & {
-    partsURL: string[];
+    partURLs: string[];
     fetchStream: BaseDownloadEngineFetchStream
 };
 
@@ -45,17 +45,17 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
      */
     public static async createFromOptions(options: DownloadEngineOptionsBrowser) {
         DownloadEngineBrowser._validateOptions(options);
-        const partsURL = "partsURL" in options ? options.partsURL : [options.url];
+        const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 
         const fetchStream = options.fetchStrategy === "xhr" ?
             new DownloadEngineFetchStreamXhr(options) : new DownloadEngineFetchStreamFetch(options);
 
-        return DownloadEngineBrowser._createFromOptionsWithCustomFetch({...options, partsURL, fetchStream});
+        return DownloadEngineBrowser._createFromOptionsWithCustomFetch({...options, partURLs, fetchStream});
     }
 
 
     protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsCustomFetchBrowser) {
-        const downloadFile = await DownloadEngineBrowser._createDownloadFile(options.partsURL, options.fetchStream);
+        const downloadFile = await DownloadEngineBrowser._createDownloadFile(options.partURLs, options.fetchStream);
         downloadFile.downloadProgress = options.progress;
 
         const writeStream = new DownloadEngineWriteStreamBrowser(options.onWrite, {
