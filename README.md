@@ -93,13 +93,16 @@ Arguments:
   files                         Files to pull/copy
 
 Options:
-  -V, --version                 output the version number
   -s --save [path]              Save location (directory/file)
-  -f --full-name                Show full name of the file while downloading, even if it long
+  -c --connections [number]     Number of parallel connections (default: "4")
+  -p --program [type]           The download strategy (choices: "stream", "chunks")
+  -t --truncate-name            Truncate file names in the CLI status to make them appear shorter
+  -V, --version                 output the version number
   -h, --help                    display help for command
 
 Commands:
   set [options] [path] <value>  Set download locations
+
 ```
 
 ### Set custom save directory
