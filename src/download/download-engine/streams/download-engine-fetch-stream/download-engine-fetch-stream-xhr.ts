@@ -25,11 +25,14 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
     protected fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array> {
         return new Promise((resolve, reject) => {
-            const headers = {
+            const headers: { [key: string]: any } = {
                 accept: "*/*",
-                ...this.options.headers,
-                range: `bytes=${start}-${end - 1}` // get the range up to end-1. Length 2: 0-1
+                ...this.options.headers
             };
+
+            if (this.state.rangeSupport) {
+                headers.range = `bytes=${start}-${end - 1}`;
+            }
 
             const xhr = new XMLHttpRequest();
             xhr.responseType = "arraybuffer";
@@ -38,9 +41,9 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
-            xhr.onload = function () {
+            xhr.onload = () => {
                 const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
-                if (contentLength !== end - start) {
+                if (this.state.rangeSupport && contentLength !== end - start) {
                     throw new InvalidContentLengthError(end - start, contentLength);
                 }
 
@@ -56,11 +59,11 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 }
             };
 
-            xhr.onerror = function () {
+            xhr.onerror = () => {
                 reject(new XhrError(`Failed to fetch ${url}`));
             };
 
-            xhr.onprogress = function (event) {
+            xhr.onprogress = (event) => {
                 if (event.lengthComputable) {
                     onProgress?.(event.loaded);
                 }

@@ -56,9 +56,9 @@ export function createFormattedStatus(status: ProgressStatus | FormattedStatus):
     const fullStatus = {...DEFAULT_CLI_INFO_STATUS, ...status};
     const formattedSpeed = formatSpeed(fullStatus.speed);
     const formatTransferred = prettyBytes(fullStatus.transferredBytes, PRETTY_BYTES_OPTIONS);
-    const formatTotal = prettyBytes(fullStatus.totalBytes, PRETTY_BYTES_OPTIONS);
+    const formatTotal = fullStatus.totalBytes === 0 ? "???" : prettyBytes(fullStatus.totalBytes, PRETTY_BYTES_OPTIONS);
     const formatTransferredOfTotal = `${formatTransferred}/${formatTotal}`;
-    const formatTimeLeft = prettyMilliseconds(fullStatus.timeLeft, PRETTY_MS_OPTIONS);
+    const formatTimeLeft = fullStatus.totalBytes === 0 ? "unknown time" : prettyMilliseconds(fullStatus.timeLeft, PRETTY_MS_OPTIONS);
     const formattedPercentage = fullStatus.percentage.toLocaleString(DEFAULT_LOCALIZATION, {
         minimumIntegerDigits: 1,
         minimumFractionDigits: 4

@@ -48,7 +48,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         };
 
         this._engine.options.onFinishAsync = async () => {
-            await this.options.writeStream.ftruncate();
+            await this.options.writeStream.ftruncate(this.downloadSize);
         };
 
         this._engine.options.onCloseAsync = async () => {

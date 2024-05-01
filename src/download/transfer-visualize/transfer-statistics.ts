@@ -53,7 +53,7 @@ export default class TransferStatistics {
     }
 
     updateProgress(transferred: number, total: number): TransferProgressInfo {
-        const speed = clamp(this._calculateSpeed(transferred), 0);
+        const speed = clamp(this._calculateSpeed(transferred));
         const timeLeft = (total - transferred) / speed;
         const timeLeftFinalNumber = clamp((timeLeft || 0) * 1000, 0, MAX_TIME_LEFT);
         const percentage = clamp(((transferred / total) * 100), 0, 100);

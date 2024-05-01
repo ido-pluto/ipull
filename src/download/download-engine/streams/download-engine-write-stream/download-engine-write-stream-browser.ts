@@ -19,7 +19,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
     protected _bytesWritten = 0;
 
     public get writerClosed() {
-        return this._bytesWritten === this.options.file?.totalSize;
+        return this.options.file?.totalSize && this._bytesWritten === this.options.file.totalSize;
     }
 
     public constructor(_writer?: DownloadEngineWriteStreamBrowserWriter, options: DownloadEngineWriteStreamOptionsBrowser = {}) {
@@ -28,8 +28,8 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
         this._writer = _writer;
     }
 
-    protected _ensureBuffer() {
-        if (this._memory.length > 0) {
+    protected _ensureBuffer(length: number) {
+        if (this._memory.length >= length) {
             return this._memory;
         }
 
@@ -37,7 +37,11 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
             throw new WriterNotDefineError("Writer & file is not defined, please provide a writer or file");
         }
 
-        return this._memory = new Uint8Array(this.options.file.totalSize);
+        const newSize = Math.max(length, this.options.file.totalSize);
+        const newMemory = new Uint8Array(newSize);
+        newMemory.set(this._memory);
+
+        return this._memory = newMemory;
     }
 
     public write(cursor: number, buffer: Uint8Array) {
@@ -46,7 +50,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
         }
 
         if (!this._writer) {
-            this._ensureBuffer()
+            this._ensureBuffer(cursor + buffer.byteLength)
                 .set(buffer, cursor);
             this._bytesWritten += buffer.byteLength;
             return;

@@ -9,3 +9,4 @@ node_modules
 /.env
 /.eslintcache
 /test/utils/files/big-image.jpg
+/test/utils/files/big-file.jpg

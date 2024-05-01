@@ -20,7 +20,6 @@ export enum DownloadStatus {
 }
 
 export default class ProgressStatusFile {
-    public readonly totalBytes: number;
     public readonly totalDownloadParts: number;
     public readonly fileName: string;
     public readonly comment?: string;
@@ -28,11 +27,11 @@ export default class ProgressStatusFile {
     public readonly transferredBytes: number;
     public readonly transferAction: string;
     public readonly downloadStatus: DownloadStatus = DownloadStatus.Active;
+    public totalBytes: number = 0;
     public startTime: number = 0;
     public endTime: number = 0;
 
     public constructor(
-        totalBytes: number,
         totalDownloadParts: number,
         fileName: string,
         comment?: string,
@@ -47,7 +46,6 @@ export default class ProgressStatusFile {
         this.comment = comment;
         this.fileName = fileName;
         this.totalDownloadParts = totalDownloadParts;
-        this.totalBytes = totalBytes;
         this.downloadStatus = downloadStatus;
     }
 
@@ -59,9 +57,8 @@ export default class ProgressStatusFile {
         this.endTime = Date.now();
     }
 
-    public createStatus(downloadPart: number, transferredBytes: number, downloadStatus = DownloadStatus.Active): ProgressStatusFile {
+    public createStatus(downloadPart: number, transferredBytes: number, totalBytes = this.totalBytes, downloadStatus = DownloadStatus.Active): ProgressStatusFile {
         const newStatus = new ProgressStatusFile(
-            this.totalBytes,
             this.totalDownloadParts,
             this.fileName,
             this.comment,
@@ -71,6 +68,7 @@ export default class ProgressStatusFile {
             downloadStatus
         );
 
+        newStatus.totalBytes = totalBytes;
         newStatus.startTime = this.startTime;
         newStatus.endTime = this.endTime;
 

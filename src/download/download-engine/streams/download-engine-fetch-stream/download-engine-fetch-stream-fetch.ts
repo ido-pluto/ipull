@@ -14,11 +14,14 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected override async fetchWithoutRetryChunks(callback: WriteCallback) {
-        const headers = {
+        const headers: { [key: string]: any } = {
             accept: "*/*",
-            ...this.options.headers,
-            range: `bytes=${this._startSize}-${this._endSize - 1}`
+            ...this.options.headers
         };
+
+        if (this.state.rangeSupport) {
+            headers.range = `bytes=${this._startSize}-${this._endSize - 1}`;
+        }
 
         const controller = new AbortController();
         const response = await fetch(this.appendToURL(this.state.url), {
@@ -32,7 +35,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         const contentLength = parseInt(response.headers.get("content-length")!);
         const expectedContentLength = this._endSize - this._startSize;
-        if (contentLength !== expectedContentLength) {
+        if (this.state.rangeSupport && contentLength !== expectedContentLength) {
             throw new InvalidContentLengthError(expectedContentLength, contentLength);
         }
 

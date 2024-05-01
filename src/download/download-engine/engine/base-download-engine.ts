@@ -9,7 +9,9 @@ import retry from "async-retry";
 import {createFormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
 import InvalidContentLengthError from "./error/invalid-content-length-error.js";
+import StatusCodeError from "../streams/download-engine-fetch-stream/errors/status-code-error.js";
 
+const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
 export type InputURLOptions = { partURLs: string[] } | { url: string };
 
 export type BaseDownloadEngineOptions = InputURLOptions & BaseDownloadEngineFetchStreamOptions & {
@@ -51,7 +53,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     public get downloadSize() {
-        return this.file.totalSize;
+        return this._engine.downloadSize;
     }
 
     public get fileName() {
@@ -134,22 +136,35 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
         let counter = 0;
         for (const part of parts) {
-            const {length, acceptRange, newURL, fileName} = await fetchStream.fetchDownloadInfo(part);
+            try {
+                const {length, acceptRange, newURL, fileName} = await fetchStream.fetchDownloadInfo(part);
 
-            const downloadURL = newURL ?? part;
-            if (isNaN(length)) {
-                throw new InvalidContentLengthError(downloadURL);
-            }
+                const downloadURL = newURL ?? part;
+                if (acceptRange && isNaN(length)) {
+                    throw new InvalidContentLengthError(downloadURL);
+                }
 
-            downloadFile.totalSize += length;
-            downloadFile.parts.push({
-                downloadURL,
-                size: length,
-                acceptRange
-            });
+                downloadFile.totalSize += length || 0;
+                downloadFile.parts.push({
+                    downloadURL,
+                    size: length || 0,
+                    acceptRange
+                });
 
-            if (counter++ === 0 && fileName) {
-                downloadFile.localFileName = fileName;
+                if (counter++ === 0 && fileName) {
+                    downloadFile.localFileName = fileName;
+                }
+            } catch (error: any) {
+                if (error instanceof StatusCodeError && IGNORE_HEAD_STATUS_CODES.includes(error.statusCode)) {
+                    // if the server does not support HEAD request, we will skip that step
+                    downloadFile.parts.push({
+                        downloadURL: part,
+                        size: 0,
+                        acceptRange: false
+                    });
+                    continue;
+                }
+                throw error;
             }
         }
 
