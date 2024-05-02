@@ -8,7 +8,6 @@ import DownloadAlreadyStartedError from "./error/download-already-started-error.
 import retry from "async-retry";
 import {createFormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
-import InvalidContentLengthError from "./error/invalid-content-length-error.js";
 import StatusCodeError from "../streams/download-engine-fetch-stream/errors/status-code-error.js";
 
 const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
@@ -138,17 +137,14 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         for (const part of parts) {
             try {
                 const {length, acceptRange, newURL, fileName} = await fetchStream.fetchDownloadInfo(part);
-
                 const downloadURL = newURL ?? part;
-                if (acceptRange && isNaN(length)) {
-                    throw new InvalidContentLengthError(downloadURL);
-                }
+                const size = length || 0;
 
-                downloadFile.totalSize += length || 0;
+                downloadFile.totalSize += length;
                 downloadFile.parts.push({
                     downloadURL,
-                    size: length || 0,
-                    acceptRange
+                    size,
+                    acceptRange: size > 0 && acceptRange
                 });
 
                 if (counter++ === 0 && fileName) {
