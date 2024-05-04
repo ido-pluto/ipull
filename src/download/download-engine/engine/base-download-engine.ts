@@ -140,7 +140,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
                 const downloadURL = newURL ?? part;
                 const size = length || 0;
 
-                downloadFile.totalSize += length;
+                downloadFile.totalSize += size;
                 downloadFile.parts.push({
                     downloadURL,
                     size,

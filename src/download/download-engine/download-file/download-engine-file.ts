@@ -196,6 +196,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         return (async () => {
             const allWrites = new Set<Promise<any>>();
 
+            let lastChunkSize = 0;
             await fetchState.fetchChunks((chunks, writePosition, index) => {
                 if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
                     return;
@@ -218,6 +219,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 }
 
                 this._progress.chunks[index] = ChunkStatus.COMPLETE;
+                lastChunkSize = this._activeStreamBytes[startChunk];
                 delete this._activeStreamBytes[startChunk];
                 void this._saveProgress();
 
@@ -232,8 +234,9 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 }
             });
 
+            // On dynamic content length, we need to adjust the last chunk size
             if (this._activePart.size === 0) {
-                this._activePart.size = this._activeDownloadedChunkSize;
+                this._activePart.size = this._activeDownloadedChunkSize - this.options.chunkSize + lastChunkSize;
                 this._progress.chunks = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE);
             }
 
