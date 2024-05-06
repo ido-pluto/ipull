@@ -9,6 +9,7 @@ export type ProgressStatus = {
     endTime: number,
     transferAction: string
     downloadStatus: DownloadStatus
+    downloadFlags: DownloadFlags[]
 };
 
 export enum DownloadStatus {
@@ -19,6 +20,10 @@ export enum DownloadStatus {
     Error = "Error"
 }
 
+export enum DownloadFlags {
+    Existing = "Existing",
+}
+
 export default class ProgressStatusFile {
     public readonly totalDownloadParts: number;
     public readonly fileName: string;
@@ -27,6 +32,7 @@ export default class ProgressStatusFile {
     public readonly transferredBytes: number;
     public readonly transferAction: string;
     public readonly downloadStatus: DownloadStatus = DownloadStatus.Active;
+    public downloadFlags: DownloadFlags[] = [];
     public totalBytes: number = 0;
     public startTime: number = 0;
     public endTime: number = 0;
@@ -34,8 +40,9 @@ export default class ProgressStatusFile {
     public constructor(
         totalDownloadParts: number,
         fileName: string,
-        comment?: string,
         transferAction = "Transferring",
+        downloadFlags: DownloadFlags[] = [],
+        comment?: string,
         downloadPart = 0,
         transferredBytes = 0,
         downloadStatus = DownloadStatus.Active
@@ -46,6 +53,7 @@ export default class ProgressStatusFile {
         this.comment = comment;
         this.fileName = fileName;
         this.totalDownloadParts = totalDownloadParts;
+        this.downloadFlags = downloadFlags;
         this.downloadStatus = downloadStatus;
     }
 
@@ -57,12 +65,13 @@ export default class ProgressStatusFile {
         this.endTime = Date.now();
     }
 
-    public createStatus(downloadPart: number, transferredBytes: number, totalBytes = this.totalBytes, downloadStatus = DownloadStatus.Active): ProgressStatusFile {
+    public createStatus(downloadPart: number, transferredBytes: number, totalBytes = this.totalBytes, downloadStatus = DownloadStatus.Active, comment = this.comment): ProgressStatusFile {
         const newStatus = new ProgressStatusFile(
             this.totalDownloadParts,
             this.fileName,
-            this.comment,
             this.transferAction,
+            this.downloadFlags,
+            comment,
             downloadPart,
             transferredBytes,
             downloadStatus

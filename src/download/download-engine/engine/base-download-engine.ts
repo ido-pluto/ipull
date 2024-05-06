@@ -6,7 +6,6 @@ import {EventEmitter} from "eventemitter3";
 import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer-visualize/progress-statistics-builder.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 import retry from "async-retry";
-import {createFormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
 import StatusCodeError from "../streams/download-engine-fetch-stream/errors/status-code-error.js";
 
@@ -37,7 +36,6 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     protected readonly _engine: DownloadEngineFile;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
     protected _downloadStarted = false;
-    protected _latestStatus?: ProgressStatusWithIndex;
 
     protected constructor(engine: DownloadEngineFile, options: DownloadEngineFileOptions) {
         super();
@@ -60,7 +58,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     public get status() {
-        return this._latestStatus ?? createFormattedStatus(this._engine.status);
+        return ProgressStatisticsBuilder.oneStatistics(this._engine);
     }
 
     public get downloadStatues() {
@@ -94,7 +92,6 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
             return this.emit("resumed");
         });
         this._progressStatisticsBuilder.on("progress", (status) => {
-            this._latestStatus = status;
             return this.emit("progress", status);
         });
     }

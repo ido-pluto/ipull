@@ -16,6 +16,7 @@ type PathOptions = { directory: string } | { savePath: string };
 export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOptions & {
     fileName?: string;
     fetchStrategy?: "localFile" | "fetch";
+    skipExisting?: boolean;
 };
 
 export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
@@ -44,24 +45,30 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         super._initEvents();
 
         this._engine.options.onSaveProgressAsync = async (progress) => {
+            if (this.options.skipExisting) return;
             await this.options.writeStream.saveMedataAfterFile(progress);
         };
 
         this._engine.options.onFinishAsync = async () => {
+            if (this.options.skipExisting) return;
             await this.options.writeStream.ftruncate(this.downloadSize);
         };
 
         this._engine.options.onCloseAsync = async () => {
-            if (this.status.ended) {
+            if (this.status.ended && !this.options.skipExisting) {
                 const closedFileName = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
                 await fs.rename(this.options.writeStream.path, closedFileName);
                 this.options.writeStream.path = closedFileName;
             }
         };
+
+        if (this.options.skipExisting) {
+            this.options.writeStream.path = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
+        }
     }
 
     public get fileAbsolutePath() {
-        return this.options.writeStream.path;
+        return path.resolve(this.options.writeStream.path);
     }
 
     /**
@@ -101,6 +108,18 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         writeStream.fileSize = downloadFile.totalSize;
 
         downloadFile.downloadProgress = await writeStream.loadMetadataAfterFileWithoutRetry();
+
+        if (options.skipExisting && !downloadFile.downloadProgress) {
+            options.skipExisting = false;
+            if (downloadFile.totalSize > 0) {
+                try {
+                    const stat = await fs.stat(downloadLocation);
+                    if (stat.isFile() && stat.size === downloadFile.totalSize) {
+                        options.skipExisting = true;
+                    }
+                } catch {}
+            }
+        }
 
         const allOptions: DownloadEngineOptionsNodejsConstructor = {...options, writeStream};
         const engine = new DownloadEngineFile(downloadFile, allOptions);

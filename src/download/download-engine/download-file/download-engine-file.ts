@@ -1,4 +1,4 @@
-import ProgressStatusFile, {DownloadStatus, ProgressStatus} from "./progress-status-file.js";
+import ProgressStatusFile, {DownloadFlags, DownloadStatus, ProgressStatus} from "./progress-status-file.js";
 import {ChunkStatus, DownloadFile, SaveProgressInfo} from "../types.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
@@ -7,18 +7,22 @@ import {EventEmitter} from "eventemitter3";
 import {withLock} from "lifecycle-utils";
 import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
+import {pushComment} from "./utils/push-comment.js";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
     parallelStreams?: number;
     retry?: retry.Options
-    comment?: string;
+    comment?: string
     fetchStream: BaseDownloadEngineFetchStream,
     writeStream: BaseDownloadEngineWriteStream,
     onFinishAsync?: () => Promise<void>
     onCloseAsync?: () => Promise<void>
     onSaveProgressAsync?: (progress: SaveProgressInfo) => Promise<void>
     programType?: AvailablePrograms
+
+    /** @internal */
+    skipExisting?: boolean;
 };
 
 export type DownloadEngineFileOptionsWithDefaults = DownloadEngineFileOptions & {
@@ -63,9 +67,19 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
         super();
         this.file = file;
-        this._progressStatus = new ProgressStatusFile(file.parts.length, file.localFileName, options.comment, options.fetchStream.transferAction);
         this.options = {...DEFAULT_OPTIONS, ...options};
+        this._progressStatus = new ProgressStatusFile(file.parts.length, file.localFileName, options.fetchStream.transferAction, this._createProgressFlags());
         this._initProgress();
+    }
+
+    private _createProgressFlags() {
+        const flags: DownloadFlags[] = [];
+
+        if (this.options.skipExisting) {
+            flags.push(DownloadFlags.Existing);
+        }
+
+        return flags;
     }
 
     public get downloadSize() {
@@ -77,7 +91,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public get status(): ProgressStatus {
-        return this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus);
+        return this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus, this.options.comment);
     }
 
     protected get _activePart() {
@@ -94,18 +108,18 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public get transferredBytes() {
+        if (this._downloadStatus === DownloadStatus.Finished) {
+            return this.downloadSize;
+        }
+
         const streamingBytes = Object.values(this._activeStreamBytes)
             .reduce((acc, bytes) => acc + bytes, 0);
 
-        const partNotFinishedYet = this._downloadStatus !== DownloadStatus.Finished;
-        const chunksBytes = (partNotFinishedYet ? this._activeDownloadedChunkSize : 0) + this._downloadedPartsSize;
+        const streamBytes = this._activeDownloadedChunkSize + streamingBytes;
+        const streamBytesMin = Math.min(streamBytes, this._activePart.size || streamBytes);
 
-        const allBytes = chunksBytes + streamingBytes;
-        if (this._activePart.size === 0) {
-            return allBytes;
-        }
-
-        return Math.min(allBytes, this.downloadSize);
+        const allBytes = streamBytesMin + this._downloadedPartsSize;
+        return Math.min(allBytes, this.downloadSize || allBytes);
     }
 
     protected _emptyChunksForPart(part: number) {
@@ -119,7 +133,11 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     private _initProgress() {
-        if (this.file.downloadProgress) {
+        if (this.options.skipExisting) {
+            this._progress.part = this.file.parts.length - 1;
+            this._downloadStatus = DownloadStatus.Finished;
+            this.options.comment = pushComment("Skipping existing", this.options.comment);
+        } else if (this.file.downloadProgress) {
             this._progress = this.file.downloadProgress;
         } else {
             this._progress = {
@@ -132,9 +150,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public async download() {
-        this.emit("start");
         this._progressStatus.started();
-        for (let i = this._progress.part; i < this.file.parts.length; i++) {
+        this.emit("start");
+
+        for (let i = this._progress.part; i < this.file.parts.length && this._downloadStatus !== DownloadStatus.Finished; i++) {
             if (this._closed) return;
             // If we are starting a new part, we need to reset the progress
             if (i > this._progress.part || !this._activePart.acceptRange) {
@@ -162,8 +181,8 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             } else {
                 await this._downloadSlice(0, Infinity);
             }
-
         }
+
         // All parts are downloaded, we can clear the progress
         this._activeStreamBytes = {};
         this._latestProgressDate = 0;

@@ -59,4 +59,14 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             this._transferredBytes += engine.downloadSize;
         });
     }
+
+    static oneStatistics(engine: DownloadEngineFile) {
+        const progress = engine.status;
+        const statistics = TransferStatistics.oneStatistics(progress.transferredBytes, progress.totalBytes);
+
+        return createFormattedStatus({
+            ...progress,
+            ...statistics
+        });
+    }
 }

@@ -67,4 +67,8 @@ export default class TransferStatistics {
             ended: percentage == 100
         };
     }
+
+    static oneStatistics(transferred: number, total: number): TransferProgressInfo {
+        return new TransferStatistics().updateProgress(transferred, total);
+    }
 }
