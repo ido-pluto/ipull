@@ -117,6 +117,20 @@ ipull set .zip ~/Downloads/zips
 
 ## Advanced usage
 
+### Skip existing files
+
+Skip downloading files that already exist in the save location and have the same size.
+
+```ts
+import {downloadFile} from 'ipull';
+
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
+    directory: './this/path',
+    skipExisting: true
+});
+```
+
 ### Download file from parts
 
 Consolidate multiple files parts into one file.
@@ -276,6 +290,7 @@ const downloader = await downloadSequence(
     }),
 );
 
+console.log(`Downloading ${downloader.downloads.length} files...`);
 await downloader.download();
 ```
 
