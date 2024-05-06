@@ -2,10 +2,9 @@ import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engi
 import {EventEmitter} from "eventemitter3";
 import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer-visualize/progress-statistics-builder.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
-import DownloadEngineFile from "../download-file/download-engine-file.js";
 import {createFormattedStatus, FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 
-type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineFile;
+type DownloadEngineMultiAllowedEngines = BaseDownloadEngine;
 
 type DownloadEngineMultiDownloadEvents<Engine = DownloadEngineMultiAllowedEngines> = BaseDownloadEngineEvents & {
     childDownloadStarted: (engine: Engine) => void
@@ -13,7 +12,7 @@ type DownloadEngineMultiDownloadEvents<Engine = DownloadEngineMultiAllowedEngine
 };
 
 export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMultiAllowedEngines = DownloadEngineMultiAllowedEngines> extends EventEmitter<DownloadEngineMultiDownloadEvents> {
-    protected readonly _engines: Engine[];
+    public readonly downloads: Engine[];
     protected _aborted = false;
     protected _activeEngine?: Engine;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
@@ -23,7 +22,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
 
     protected constructor(engines: (DownloadEngineMultiAllowedEngines | DownloadEngineMultiDownload)[]) {
         super();
-        this._engines = DownloadEngineMultiDownload._extractEngines(engines);
+        this.downloads = DownloadEngineMultiDownload._extractEngines(engines);
         this._init();
     }
 
@@ -32,12 +31,12 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     public get downloadSize(): number {
-        return this._engines.reduce((acc, engine) => acc + engine.downloadSize, 0);
+        return this.downloads.reduce((acc, engine) => acc + engine.downloadSize, 0);
     }
 
     protected _init() {
         this._changeEngineFinishDownload();
-        for (const [index, engine] of Object.entries(this._engines)) {
+        for (const [index, engine] of Object.entries(this.downloads)) {
             const numberIndex = Number(index);
             this._downloadStatues[numberIndex] = createFormattedStatus(engine.status);
             engine.on("progress", (progress) => {
@@ -45,7 +44,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             });
         }
 
-        this._progressStatisticsBuilder.add(...this._engines);
+        this._progressStatisticsBuilder.add(...this.downloads);
         this._progressStatisticsBuilder.on("progress", progress => {
             this.emit("progress", progress);
         });
@@ -57,7 +56,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         }
 
         this.emit("start");
-        for (const engine of this._engines) {
+        for (const engine of this.downloads) {
             if (this._aborted) return;
             this._activeEngine = engine;
 
@@ -71,8 +70,8 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     private _changeEngineFinishDownload() {
-        for (const engine of this._engines) {
-            const options = engine instanceof BaseDownloadEngine ? engine._fileEngineOptions : engine.options;
+        for (const engine of this.downloads) {
+            const options = engine._fileEngineOptions;
             const onFinishAsync = options.onFinishAsync;
             const onCloseAsync = options.onCloseAsync;
 
@@ -109,7 +108,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     protected static _extractEngines<Engine>(engines: Engine[]) {
         return engines.map(engine => {
             if (engine instanceof DownloadEngineMultiDownload) {
-                return engine._engines;
+                return engine.downloads;
             }
             return engine;
         })
