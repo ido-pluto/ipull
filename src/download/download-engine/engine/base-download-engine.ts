@@ -36,6 +36,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     protected readonly _engine: DownloadEngineFile;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
     protected _downloadStarted = false;
+    protected _latestStatus?: ProgressStatusWithIndex;
 
     protected constructor(engine: DownloadEngineFile, options: DownloadEngineFileOptions) {
         super();
@@ -58,7 +59,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     public get status() {
-        return ProgressStatisticsBuilder.oneStatistics(this._engine);
+        return this._latestStatus ?? ProgressStatisticsBuilder.oneStatistics(this._engine);
     }
 
     public get downloadStatues() {
@@ -92,6 +93,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
             return this.emit("resumed");
         });
         this._progressStatisticsBuilder.on("progress", (status) => {
+            this._latestStatus = status;
             return this.emit("progress", status);
         });
     }
