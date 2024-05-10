@@ -14,6 +14,8 @@ const DEFAULT_OPTIONS: DownloadEngineWriteStreamOptionsNodeJS = {
     mode: "r+"
 };
 
+const NOT_ENOUGH_SPACE_ERROR_CODE = "ENOSPC";
+
 export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineWriteStream {
     private _fd: FileHandle | null = null;
     private _fileWriteFinished = false;
@@ -39,9 +41,23 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     async write(cursor: number, buffer: Uint8Array) {
+        let throwError: Error | false = false;
+
         await retry(async () => {
-            return await this._writeWithoutRetry(cursor, buffer);
+            try {
+                return await this._writeWithoutRetry(cursor, buffer);
+            } catch (error: any) {
+                if (error?.code === NOT_ENOUGH_SPACE_ERROR_CODE) {
+                    throwError = error;
+                    return;
+                }
+                throw error;
+            }
         }, this.options.retry);
+
+        if (throwError) {
+            throw throwError;
+        }
     }
 
     async ftruncate(size = this.fileSize) {
