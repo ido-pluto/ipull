@@ -92,6 +92,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         this._engine.on("resumed", () => {
             return this.emit("resumed");
         });
+
         this._progressStatisticsBuilder.on("progress", (status) => {
             this._latestStatus = status;
             return this.emit("progress", status);

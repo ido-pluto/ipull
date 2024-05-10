@@ -27,6 +27,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
         return new Promise((resolve, reject) => {
             const headers: { [key: string]: any } = {
                 accept: "*/*",
+                "Accept-Encoding": "identity",
                 ...this.options.headers
             };
 
@@ -124,14 +125,23 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("HEAD", url, true);
-            for (const [key, value] of Object.entries(this.options.headers ??= {})) {
+
+            const allHeaders = {
+                "Accept-Encoding": "identity",
+                ...this.options.headers
+            };
+            for (const [key, value] of Object.entries(allHeaders)) {
                 xhr.setRequestHeader(key, value);
             }
 
             xhr.onload = () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    const length = xhr.getResponseHeader("Content-Length") || "-";
+                    let length = xhr.getResponseHeader("Content-Length") || "-";
                     const fileName = parseContentDisposition(xhr.getResponseHeader("content-disposition"));
+
+                    if (xhr.getResponseHeader("Content-Encoding")) {
+                        length = "0";
+                    }
 
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
                     resolve({

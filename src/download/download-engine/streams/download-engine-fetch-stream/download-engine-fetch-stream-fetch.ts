@@ -16,6 +16,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     protected override async fetchWithoutRetryChunks(callback: WriteCallback) {
         const headers: { [key: string]: any } = {
             accept: "*/*",
+            "Accept-Encoding": "identity",
             ...this.options.headers
         };
 
@@ -50,14 +51,21 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     protected override async fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse> {
         const response = await fetch(url, {
             method: "HEAD",
-            headers: this.options.headers
+            headers: {
+                "Accept-Encoding": "identity",
+                ...this.options.headers
+            }
         });
 
         if (response.status < 200 || response.status >= 300) {
             throw new StatusCodeError(url, response.status, response.statusText, this.options.headers);
         }
 
-        const length = parseInt(response.headers.get("content-length")!);
+        let length = parseInt(response.headers.get("content-length")!);
+        if (response.headers.get("content-encoding")) {
+            length = 0;
+        }
+
         const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
         const fileName = parseContentDisposition(response.headers.get("content-disposition"));
 

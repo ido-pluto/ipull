@@ -191,6 +191,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         this._progressStatus.finished();
         this._downloadStatus = DownloadStatus.Finished;
+        this._sendProgressDownloadPart();
         this.emit("finished");
         await this.options.onFinishAsync?.();
     }
@@ -310,7 +311,6 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         if (this._downloadStatus !== DownloadStatus.Finished) {
             this._downloadStatus = DownloadStatus.Cancelled;
         }
-        this._sendProgressDownloadPart();
         this._closed = true;
         this._activeProgram?.abort();
         await this.options.onCloseAsync?.();
