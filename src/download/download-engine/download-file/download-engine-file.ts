@@ -239,7 +239,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 }
 
                 this._progress.chunks[index] = ChunkStatus.COMPLETE;
-                lastChunkSize = this._activeStreamBytes[startChunk];
+                lastChunkSize = chunks.reduce((last, current) => last + current.length, 0);
                 delete this._activeStreamBytes[startChunk];
                 void this._saveProgress();
 

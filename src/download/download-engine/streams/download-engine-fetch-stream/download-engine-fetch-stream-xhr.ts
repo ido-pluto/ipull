@@ -1,4 +1,4 @@
-import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, MIN_LENGTH_FOR_MORE_INFO_REQUEST, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
@@ -6,6 +6,7 @@ import InvalidContentLengthError from "./errors/invalid-content-length-error.js"
 import retry from "async-retry";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
+import {parseHttpContentRange} from "./utils/httpRange.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
@@ -43,6 +44,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             xhr.onload = () => {
                 const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
+
                 if (this.state.rangeSupport && contentLength !== end - start) {
                     throw new InvalidContentLengthError(end - start, contentLength);
                 }
@@ -102,7 +104,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
     protected async _fetchChunksWithoutRange(callback: WriteCallback) {
         const relevantContent = await (async (): Promise<Uint8Array> => {
             const result = await this.fetchBytes(this.state.url, 0, this._endSize, this.state.onProgress);
-            return result.slice(this._startSize, this._endSize);
+            return result.slice(this._startSize, this._endSize || result.length);
         })();
 
         let totalReceivedLength = 0;
@@ -132,18 +134,15 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
-            xhr.onload = () => {
+            xhr.onload = async () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    let length = xhr.getResponseHeader("Content-Length") || "-";
+                    const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
+                    const length = MIN_LENGTH_FOR_MORE_INFO_REQUEST < contentLength ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
                     const fileName = parseContentDisposition(xhr.getResponseHeader("content-disposition"));
-
-                    if (xhr.getResponseHeader("Content-Encoding")) {
-                        length = "0";
-                    }
-
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
+
                     resolve({
-                        length: parseInt(length),
+                        length,
                         acceptRange,
                         newURL: xhr.responseURL,
                         fileName
@@ -154,6 +153,33 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.onerror = function () {
+                reject(new XhrError(`Failed to fetch ${url}`));
+            };
+
+            xhr.send();
+        });
+    }
+
+    protected fetchDownloadInfoWithoutRetryContentRange(url: string) {
+        return new Promise<number>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", url, true);
+
+            const allHeaders = {
+                accept: "*/*",
+                ...this.options.headers,
+                range: "bytes=0-0"
+            };
+            for (const [key, value] of Object.entries(allHeaders)) {
+                xhr.setRequestHeader(key, value);
+            }
+
+            xhr.onload = () => {
+                const contentRange = xhr.getResponseHeader("Content-Range");
+                resolve(parseHttpContentRange(contentRange)?.size || 0);
+            };
+
+            xhr.onerror = () => {
                 reject(new XhrError(`Failed to fetch ${url}`));
             };
 

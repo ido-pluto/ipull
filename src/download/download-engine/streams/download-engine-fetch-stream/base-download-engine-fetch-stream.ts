@@ -4,6 +4,8 @@ import {EventEmitter} from "eventemitter3";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import HttpError from "./errors/http-error.js";
 
+export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
+
 export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
     headers?: Record<string, string>,

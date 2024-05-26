@@ -1,8 +1,10 @@
-import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, MIN_LENGTH_FOR_MORE_INFO_REQUEST, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
 import StatusCodeError from "./errors/status-code-error.js";
+import {parseHttpContentRange} from "./utils/httpRange.js";
+import {browserCheck} from "./utils/browserCheck.js";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
@@ -16,7 +18,6 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     protected override async fetchWithoutRetryChunks(callback: WriteCallback) {
         const headers: { [key: string]: any } = {
             accept: "*/*",
-            "Accept-Encoding": "identity",
             ...this.options.headers
         };
 
@@ -34,7 +35,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             throw new StatusCodeError(this.state.url, response.status, response.statusText, headers);
         }
 
-        const contentLength = parseInt(response.headers.get("content-length")!);
+        const contentLength = parseHttpContentRange(response.headers.get("content-range"))?.length ?? parseInt(response.headers.get("content-length")!);
         const expectedContentLength = this._endSize - this._startSize;
         if (this.state.rangeSupport && contentLength !== expectedContentLength) {
             throw new InvalidContentLengthError(expectedContentLength, contentLength);
@@ -61,13 +62,13 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             throw new StatusCodeError(url, response.status, response.statusText, this.options.headers);
         }
 
-        let length = parseInt(response.headers.get("content-length")!);
-        if (response.headers.get("content-encoding")) {
-            length = 0;
-        }
-
         const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
         const fileName = parseContentDisposition(response.headers.get("content-disposition"));
+
+        let length = parseInt(response.headers.get("content-length")!);
+        if (response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
+            length = acceptRange ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
+        }
 
         return {
             length,
@@ -75,6 +76,20 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             newURL: response.url,
             fileName
         };
+    }
+
+    protected async fetchDownloadInfoWithoutRetryContentRange(url: string) {
+        const responseGet = await fetch(url, {
+            method: "GET",
+            headers: {
+                accept: "*/*",
+                ...this.options.headers,
+                range: "bytes=0-0"
+            }
+        });
+
+        const contentRange = responseGet.headers.get("content-range");
+        return parseHttpContentRange(contentRange)?.size || 0;
     }
 
     async chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
