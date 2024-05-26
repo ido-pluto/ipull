@@ -1,6 +1,6 @@
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download-engine/engine/download-engine-nodejs.js";
 import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js";
-import DownloadEngineMultiDownload from "./download-engine/engine/download-engine-multi-download.js";
+import DownloadEngineMultiDownload, {DownloadEngineMultiDownloadOptions} from "./download-engine/engine/download-engine-multi-download.js";
 import CliAnimationWrapper, {CliProgressDownloadEngineOptions} from "./transfer-visualize/transfer-cli/cli-animation-wrapper.js";
 import {CLI_LEVEL} from "./transfer-visualize/transfer-cli/transfer-cli.js";
 
@@ -29,7 +29,7 @@ export async function downloadFile(options: DownloadFileOptions) {
     return await downloader;
 }
 
-export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & {
+export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & DownloadEngineMultiDownloadOptions & {
     fetchStrategy?: "localFile" | "fetch";
 };
 
@@ -45,7 +45,7 @@ export async function downloadSequence(options: DownloadSequenceOptions | Downlo
     }
 
     downloadOptions.cliLevel = CLI_LEVEL.HIGH;
-    const downloader = DownloadEngineMultiDownload.fromEngines(downloads);
+    const downloader = DownloadEngineMultiDownload.fromEngines(downloads, downloadOptions);
     const wrapper = new CliAnimationWrapper(downloader, downloadOptions);
 
     await wrapper.attachAnimation();

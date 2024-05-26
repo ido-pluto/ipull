@@ -279,6 +279,7 @@ import {downloadFile, downloadSequence} from "ipull";
 const downloader = await downloadSequence(
     {
         cliProgress: true,
+        // parallelDownloads: 2, download 2 files in parallel, default is 1
     },
     downloadFile({
         url: "https://example.com/file1.large",
