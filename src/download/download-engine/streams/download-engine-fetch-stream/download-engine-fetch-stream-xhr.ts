@@ -27,7 +27,6 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
         return new Promise((resolve, reject) => {
             const headers: { [key: string]: any } = {
                 accept: "*/*",
-                "Accept-Encoding": "identity",
                 ...this.options.headers
             };
 
@@ -127,7 +126,6 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             xhr.open("HEAD", url, true);
 
             const allHeaders = {
-                "Accept-Encoding": "identity",
                 ...this.options.headers
             };
             for (const [key, value] of Object.entries(allHeaders)) {
