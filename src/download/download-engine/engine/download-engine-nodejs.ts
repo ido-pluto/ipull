@@ -49,6 +49,17 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
             await this.options.writeStream.saveMedataAfterFile(progress);
         };
 
+        // Try to clone the file if it's a single part download
+        this._engine.options.onStartedAsync = async () => {
+            if (this.options.skipExisting || this.options.fetchStrategy !== "localFile" || this.options.partURLs.length !== 1) return;
+
+            try {
+                await fs.remove(this.options.writeStream.path);
+                await fs.copyFile(this.options.partURLs[0], this.options.writeStream.path, fs.constants.COPYFILE_FICLONE_FORCE);
+                this._engine.finished("cloned");
+            } catch {}
+        };
+
         this._engine.options.onFinishAsync = async () => {
             if (this.options.skipExisting) return;
             await this.options.writeStream.ftruncate(this.downloadSize);

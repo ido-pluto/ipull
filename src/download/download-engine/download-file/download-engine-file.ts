@@ -17,6 +17,7 @@ export type DownloadEngineFileOptions = {
     fetchStream: BaseDownloadEngineFetchStream,
     writeStream: BaseDownloadEngineWriteStream,
     onFinishAsync?: () => Promise<void>
+    onStartedAsync?: () => Promise<void>
     onCloseAsync?: () => Promise<void>
     onSaveProgressAsync?: (progress: SaveProgressInfo) => Promise<void>
     programType?: AvailablePrograms
@@ -152,6 +153,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public async download() {
         this._progressStatus.started();
         this.emit("start");
+        await this.options.onStartedAsync?.();
 
         for (let i = this._progress.part; i < this.file.parts.length && this._downloadStatus !== DownloadStatus.Finished; i++) {
             if (this._closed) return;
@@ -317,6 +319,13 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         await this.options.writeStream.close();
         await this.options.fetchStream.close();
         this.emit("closed");
+    }
+
+    public finished(comment?: string) {
+        if (comment) {
+            this.options.comment = pushComment(comment, this.options.comment);
+        }
+        this._downloadStatus = DownloadStatus.Finished;
     }
 
     public [Symbol.dispose]() {
