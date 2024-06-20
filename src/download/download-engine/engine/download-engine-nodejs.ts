@@ -54,8 +54,10 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
             if (this.options.skipExisting || this.options.fetchStrategy !== "localFile" || this.options.partURLs.length !== 1) return;
 
             try {
+                const {reflinkFile} = await import("@reflink/reflink");
+
                 await fs.remove(this.options.writeStream.path);
-                await fs.copyFile(this.options.partURLs[0], this.options.writeStream.path, fs.constants.COPYFILE_FICLONE_FORCE);
+                await reflinkFile(this.options.partURLs[0], this.options.writeStream.path);
                 this._engine.finished("cloned");
             } catch {}
         };
