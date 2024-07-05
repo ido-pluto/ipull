@@ -125,7 +125,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
     protected _emptyChunksForPart(part: number) {
         const partInfo = this.file.parts[part];
-        if (!partInfo.acceptRange) {
+        if (partInfo.size === 0) {
             return [ChunkStatus.NOT_STARTED];
         }
 

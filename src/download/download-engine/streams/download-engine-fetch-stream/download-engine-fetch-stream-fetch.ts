@@ -65,7 +65,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
         const fileName = parseContentDisposition(response.headers.get("content-disposition"));
 
-        let length = parseInt(response.headers.get("content-length")!);
+        let length = parseInt(response.headers.get("content-length")!) || 0;
         if (response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
             length = acceptRange ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
         }
