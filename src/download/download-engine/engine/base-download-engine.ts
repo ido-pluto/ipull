@@ -125,8 +125,8 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     protected static async _createDownloadFile(parts: string[], fetchStream: BaseDownloadEngineFetchStream) {
-        const localFileName = new URL(parts[0], "https://example").pathname.split("/")
-            .pop() || "";
+        const localFileName = decodeURIComponent(new URL(parts[0], "https://example").pathname.split("/")
+            .pop() || "");
         const downloadFile: DownloadFile = {
             totalSize: 0,
             parts: [],
