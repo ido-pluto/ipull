@@ -3,11 +3,16 @@ import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
 import {EventEmitter} from "eventemitter3";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import HttpError from "./errors/http-error.js";
+import StatusCodeError from "./errors/status-code-error.js";
 
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 
 export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
+    /**
+     * If true, the engine will retry the request if the server returns a status code between 500 and 599
+     */
+    retryOnServerError?: boolean
     headers?: Record<string, string>,
     /**
      * If true, parallel download will be enabled even if the server does not return `accept-range` header, this is good when using cross-origin requests
@@ -44,6 +49,7 @@ export type BaseDownloadEngineFetchStreamEvents = {
 export type WriteCallback = (data: Uint8Array[], position: number, index: number) => void;
 
 const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
+    retryOnServerError: true,
     retry: {
         retries: 150,
         factor: 1.5,
@@ -115,7 +121,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
             try {
                 return await this.fetchDownloadInfoWithoutRetry(url);
             } catch (error: any) {
-                if (error instanceof HttpError) {
+                if (error instanceof HttpError && !this.retryOnServerError(error)) {
                     throwErr = error;
                     return null;
                 }
@@ -144,7 +150,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 return await this.fetchWithoutRetryChunks(callback);
             } catch (error: any) {
                 if (error?.name === "AbortError") return;
-                if (error instanceof HttpError) {
+                if (error instanceof HttpError && !this.retryOnServerError(error)) {
                     throw error;
                 }
 
@@ -174,5 +180,9 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         }
 
         return parsed.href;
+    }
+
+    protected retryOnServerError(error: Error) {
+        return this.options.retryOnServerError && error instanceof StatusCodeError && error.statusCode >= 500;
     }
 }
