@@ -148,7 +148,9 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         return path.join(options.directory, filenamify(fileName));
     }
 
-    protected static _validateOptions(options: DownloadEngineOptionsNodejs) {
+    protected static override _validateOptions(options: DownloadEngineOptionsNodejs) {
+        super._validateOptions(options);
+
         if (!("directory" in options) && !("savePath" in options)) {
             throw new SavePathError("Either `directory` or `savePath` must be provided");
         }

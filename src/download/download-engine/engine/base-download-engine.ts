@@ -8,6 +8,7 @@ import DownloadAlreadyStartedError from "./error/download-already-started-error.
 import retry from "async-retry";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
 import StatusCodeError from "../streams/download-engine-fetch-stream/errors/status-code-error.js";
+import {InvalidOptionError} from "./error/InvalidOptionError.js";
 
 const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
 export type InputURLOptions = { partURLs: string[] } | { url: string };
@@ -173,6 +174,12 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         }
         if (!("partURLs" in options) && !("url" in options)) {
             throw new UrlInputError("Either `partURLs` or `url` should be provided");
+        }
+    }
+
+    protected static _validateOptions(options: BaseDownloadEngineOptions) {
+        if ("tryHeaders" in options && options.tryHeaders?.length && "defaultFetchDownloadInfo" in options) {
+            throw new InvalidOptionError("Cannot use `tryHeaders` with `defaultFetchDownloadInfo`");
         }
     }
 }

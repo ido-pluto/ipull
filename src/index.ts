@@ -13,6 +13,7 @@ import {FormattedStatus} from "./download/transfer-visualize/format-transfer-sta
 import DownloadEngineMultiDownload from "./download/download-engine/engine/download-engine-multi-download.js";
 import HttpError from "./download/download-engine/streams/download-engine-fetch-stream/errors/http-error.js";
 import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
+import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
 
 
 export {
@@ -26,7 +27,8 @@ export {
     InvalidContentLengthError,
     FetchStreamError,
     IpullError,
-    EngineError
+    EngineError,
+    InvalidOptionError
 };
 
 

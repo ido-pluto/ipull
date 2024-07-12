@@ -77,7 +77,8 @@ If you know the server accepts range requests, you can set "acceptRangeIsKnown" 
         return new DownloadEngineBrowser(engine, allOptions);
     }
 
-    protected static _validateOptions(options: DownloadEngineOptionsBrowser) {
+    protected static override _validateOptions(options: DownloadEngineOptionsBrowser) {
+        super._validateOptions(options);
         DownloadEngineBrowser._validateURL(options);
     }
 }

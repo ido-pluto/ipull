@@ -1,6 +1,6 @@
-import EngineError from "./engine-error.js";
+import {InvalidOptionError} from "./InvalidOptionError.js";
 
-export default class SavePathError extends EngineError {
+export default class SavePathError extends InvalidOptionError {
     constructor(message: string) {
         super(message);
     }

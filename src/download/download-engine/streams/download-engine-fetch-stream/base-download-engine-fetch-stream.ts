@@ -4,6 +4,7 @@ import {EventEmitter} from "eventemitter3";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
+import sleep from "sleep-promise";
 
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 
@@ -13,14 +14,26 @@ export type BaseDownloadEngineFetchStreamOptions = {
      * If true, the engine will retry the request if the server returns a status code between 500 and 599
      */
     retryOnServerError?: boolean
-    headers?: Record<string, string>,
+    headers?: Record<string, string>
     /**
      * If true, parallel download will be enabled even if the server does not return `accept-range` header, this is good when using cross-origin requests
      */
     acceptRangeIsKnown?: boolean
-    defaultFetchDownloadInfo?: { length: number, acceptRange: boolean }
     ignoreIfRangeWithQueryParams?: boolean
-};
+} & (
+    {
+        defaultFetchDownloadInfo?: { length: number, acceptRange: boolean }
+    } |
+    {
+        /**
+         * Try different headers to see if any authentication is needed
+         */
+        tryHeaders?: Record<string, string>[]
+        /**
+         * Delay between trying different headers
+         */
+        tryHeadersDelay?: number
+    });
 
 export type DownloadInfoResponse = {
     length: number,
@@ -55,7 +68,8 @@ const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
         factor: 1.5,
         minTimeout: 200,
         maxTimeout: 5_000
-    }
+    },
+    tryHeadersDelay: 50
 };
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
@@ -117,11 +131,18 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
 
     public async fetchDownloadInfo(url: string): Promise<DownloadInfoResponse> {
         let throwErr: Error | null = null;
-        const response = this.options.defaultFetchDownloadInfo ?? await retry(async () => {
+
+        const fetchDownloadInfoCallback = async (): Promise<DownloadInfoResponse | null> => {
             try {
                 return await this.fetchDownloadInfoWithoutRetry(url);
             } catch (error: any) {
                 if (error instanceof HttpError && !this.retryOnServerError(error)) {
+                    if ("tryHeaders" in this.options && this.options.tryHeaders?.length) {
+                        this.options.headers = this.options.tryHeaders.shift();
+                        await sleep(this.options.tryHeadersDelay ?? 0);
+                        return await fetchDownloadInfoCallback();
+                    }
+
                     throwErr = error;
                     return null;
                 }
@@ -129,8 +150,10 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 this.emit("errorCountIncreased", this.errorCount.value, error);
                 throw error;
             }
-        }, this.options.retry);
+        };
 
+
+        const response = ("defaultFetchDownloadInfo" in this.options && this.options.defaultFetchDownloadInfo) || await retry(fetchDownloadInfoCallback, this.options.retry);
         if (throwErr) {
             throw throwErr;
         }
