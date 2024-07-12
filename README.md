@@ -252,10 +252,14 @@ In some edge cases, the re-try mechanism may give the illusion that the download
 
 To debug this, disable the re-try mechanism:
 
-```json
-retry: {
-retries: 0
-}
+```js
+const downloader = await downloadFile({
+    url: 'https://example.com/file.large',
+    directory: './this/path',
+    retry: {
+        retries: 0
+    }
+});
 ```
 ### Listening to events
 
