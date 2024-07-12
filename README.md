@@ -167,8 +167,14 @@ const downloader = await downloadFile({
     url: 'https://example.com/file.large',
     savePath: './this/path/file.large',
     headers: {
-        'Authorization': 'Bearer token'
-    }
+        'Authorization': 'Bearer token 1'
+    },
+    // You can also add alternative headers in case of an 400-499 error
+    tryHeaders: [
+        {
+            Authorization: 'Bearer token 2'
+        }
+    ]
 });
 
 await downloader.download();
