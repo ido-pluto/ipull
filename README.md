@@ -240,6 +240,17 @@ try {
 }
 ```
 
+### Download Stuck
+
+In some edge cases, the re-try mechanism may give the illusion that the download is stuck.
+
+To debug this, disable the re-try mechanism:
+
+```json
+retry: {
+retries: 0
+}
+```
 ### Listening to events
 
 Events are emitted using the `EventEmitter` pattern and can be listened to using the `on` method
