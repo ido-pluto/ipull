@@ -3,7 +3,7 @@ import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.j
 import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer-visualize/progress-statistics-builder.js";
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
-import {PromisePool} from "@supercharge/promise-pool";
+import {concurrency} from "./utils/concurrency.js";
 
 const DEFAULT_PARALLEL_DOWNLOADS = 1;
 
@@ -65,19 +65,18 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         }
 
         this.emit("start");
-        await PromisePool
-            .withConcurrency(this.options.parallelDownloads ?? DEFAULT_PARALLEL_DOWNLOADS)
-            .for(this.downloads)
-            .process(async (engine) => {
-                if (this._aborted) return;
-                this._activeEngines.add(engine);
 
-                this.emit("childDownloadStarted", engine);
-                await engine.download();
-                this.emit("childDownloadClosed", engine);
+        const concurrencyCount = this.options.parallelDownloads ?? DEFAULT_PARALLEL_DOWNLOADS;
+        await concurrency(this.downloads, concurrencyCount, async (engine) => {
+            if (this._aborted) return;
+            this._activeEngines.add(engine);
 
-                this._activeEngines.delete(engine);
-            });
+            this.emit("childDownloadStarted", engine);
+            await engine.download();
+            this.emit("childDownloadClosed", engine);
+
+            this._activeEngines.delete(engine);
+        });
 
         this.emit("finished");
         await this._finishEnginesDownload();
