@@ -148,7 +148,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                         fileName
                     });
                 } else {
-                    reject(new StatusCodeError(url, xhr.status, xhr.statusText, this.options.headers));
+                    reject(new StatusCodeError(url, xhr.status, xhr.statusText, this.options.headers, DownloadEngineFetchStreamXhr.convertXHRHeadersToRecord(xhr)));
                 }
             };
 
@@ -187,4 +187,21 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
         });
     }
 
+    protected static convertXHRHeadersToRecord(xhr: XMLHttpRequest): Record<string, string> {
+        const headersString = xhr.getAllResponseHeaders();
+        const headersArray = headersString.trim()
+            .split(/[\r\n]+/);
+        const headersObject: { [key: string]: string } = {};
+
+        headersArray.forEach(line => {
+            const parts = line.split(": ");
+            const key = parts.shift();
+            const value = parts.join(": ");
+            if (key) {
+                headersObject[key] = value;
+            }
+        });
+
+        return headersObject;
+    }
 }

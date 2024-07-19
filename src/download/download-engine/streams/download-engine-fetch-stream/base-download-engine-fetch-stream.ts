@@ -146,8 +146,15 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     throwErr = error;
                     return null;
                 }
+
                 this.errorCount.value++;
                 this.emit("errorCountIncreased", this.errorCount.value, error);
+
+                if (error instanceof StatusCodeError && error.retryAfter) {
+                    await sleep(error.retryAfter * 1000);
+                    return await fetchDownloadInfoCallback();
+                }
+
                 throw error;
             }
         };
@@ -177,12 +184,19 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     throw error;
                 }
 
+                this.errorCount.value++;
+                this.emit("errorCountIncreased", this.errorCount.value, error);
+
+                if (error instanceof StatusCodeError && error.retryAfter) {
+                    await sleep(error.retryAfter * 1000);
+                    continue;
+                }
+
                 if (lastStartLocation !== this.state.startChunk) {
                     lastStartLocation = this.state.startChunk;
                     retryResolvers = retryAsyncStatementSimple(this.options.retry);
                 }
-                this.errorCount.value++;
-                this.emit("errorCountIncreased", this.errorCount.value, error);
+
                 await retryResolvers(error);
             }
         }
@@ -205,7 +219,8 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         return parsed.href;
     }
 
-    protected retryOnServerError(error: Error) {
-        return this.options.retryOnServerError && error instanceof StatusCodeError && error.statusCode >= 500;
+    protected retryOnServerError(error: Error): error is StatusCodeError {
+        return Boolean(this.options.retryOnServerError) && error instanceof StatusCodeError &&
+            (error.statusCode >= 500 || error.statusCode === 429);
     }
 }

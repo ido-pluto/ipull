@@ -59,7 +59,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         });
 
         if (response.status < 200 || response.status >= 300) {
-            throw new StatusCodeError(url, response.status, response.statusText, this.options.headers);
+            throw new StatusCodeError(url, response.status, response.statusText, this.options.headers, DownloadEngineFetchStreamFetch.convertHeadersToRecord(response.headers));
         }
 
         const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
@@ -106,5 +106,13 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         }
 
         smartSplit.sendLeftovers();
+    }
+
+    protected static convertHeadersToRecord(headers: Headers): { [key: string]: string } {
+        const headerObj: { [key: string]: string } = {};
+        headers.forEach((value, key) => {
+            headerObj[key] = value;
+        });
+        return headerObj;
     }
 }
