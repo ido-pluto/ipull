@@ -2,6 +2,7 @@ import chalk from "chalk";
 import {centerPad, TRUNCATE_TEXT_MAX_LENGTH, truncateText} from "../../utils/cli-text.js";
 import {clamp} from "../../utils/numbers.js";
 import {FormattedStatus} from "../../format-transfer-status.js";
+import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
 
 export type CliFormattedStatus = FormattedStatus & {
     transferAction: string
@@ -40,7 +41,7 @@ ${chalk.green(formattedPercentage.padEnd(7))
     }
 
     protected transferEnded() {
-        const status = this.status.percentage === 100 ? chalk.green("✓") : chalk.red("✗");
+        const status = this.status.downloadStatus === DownloadStatus.Finished ? chalk.green("✓") : chalk.red("✗");
         return `${status} ${this.getFileName()} ${this.status.formatTransferred} ${chalk.dim(this.status.formattedComment)}`;
     }
 
@@ -61,11 +62,11 @@ ${chalk.green(formattedPercentage.padEnd(7))
     }
 
     public createStatusLine(): string {
-        if (this.status.ended) {
+        if ([DownloadStatus.Finished, DownloadStatus.Error, DownloadStatus.Cancelled].includes(this.status.downloadStatus)) {
             return this.transferEnded();
         }
 
-        if (this.status.transferredBytes === 0) {
+        if (this.status.downloadStatus === DownloadStatus.NotStarted) {
             return this.transferNotStarted();
         }
 

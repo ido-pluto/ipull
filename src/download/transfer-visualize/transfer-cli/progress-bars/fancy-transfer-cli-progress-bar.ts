@@ -155,7 +155,7 @@ export default class FancyTransferCliProgressBar {
     }
 
     protected renderFinishedLine() {
-        const wasSuccessful = this.status.percentage === 100;
+        const wasSuccessful = this.status.downloadStatus === DownloadStatus.Finished;
         const {endTime, startTime} = this.status;
 
         const downloadTime = (endTime || Date.now()) - startTime;
@@ -217,11 +217,11 @@ export default class FancyTransferCliProgressBar {
     }
 
     public renderStatusLine(): string {
-        if (this.status.downloadStatus === DownloadStatus.Finished || this.status.downloadStatus === DownloadStatus.Error) {
+        if ([DownloadStatus.Finished, DownloadStatus.Error, DownloadStatus.Cancelled].includes(this.status.downloadStatus)) {
             return this.renderFinishedLine();
         }
 
-        if (this.status.transferredBytes === 0) {
+        if (this.status.downloadStatus === DownloadStatus.NotStarted) {
             return this.renderPendingLine();
         }
 
