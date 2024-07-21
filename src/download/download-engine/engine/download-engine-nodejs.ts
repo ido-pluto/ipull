@@ -68,20 +68,29 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         };
 
         this._engine.options.onCloseAsync = async () => {
-            if (this.status.ended && this.options.writeStream.path.endsWith(PROGRESS_FILE_EXTENSION)) {
-                const closedFileName = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
-                await fs.rename(this.options.writeStream.path, closedFileName);
-                this.options.writeStream.path = closedFileName;
+            if (this.status.ended && this.options.writeStream.path != this.options.writeStream.finalPath) {
+                await fs.rename(this.options.writeStream.path, this.options.writeStream.finalPath);
+                this.options.writeStream.path = this.options.writeStream.finalPath;
             }
         };
 
         if (this.options.skipExisting) {
-            this.options.writeStream.path = this.options.writeStream.path.slice(0, -PROGRESS_FILE_EXTENSION.length);
+            this.options.writeStream.path = this.options.writeStream.finalPath;
         }
     }
 
+    /**
+     * The file path with the progress extension or the final file path if the download is finished
+     */
     public get fileAbsolutePath() {
         return path.resolve(this.options.writeStream.path);
+    }
+
+    /**
+     * The final file path (without the progress extension)
+     */
+    public get finalFileAbsolutePath() {
+        return path.resolve(this.options.writeStream.finalPath);
     }
 
     /**
@@ -117,14 +126,14 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         const downloadLocation = DownloadEngineNodejs._createDownloadLocation(downloadFile, options);
         downloadFile.localFileName = path.basename(downloadLocation);
 
-        const writeStream = new DownloadEngineWriteStreamNodejs(downloadLocation + PROGRESS_FILE_EXTENSION, options);
+        const writeStream = new DownloadEngineWriteStreamNodejs(downloadLocation + PROGRESS_FILE_EXTENSION, downloadLocation, options);
         writeStream.fileSize = downloadFile.totalSize;
 
         downloadFile.downloadProgress = await writeStream.loadMetadataAfterFileWithoutRetry();
 
-        if (options.skipExisting && !downloadFile.downloadProgress) {
+        if (options.skipExisting) {
             options.skipExisting = false;
-            if (downloadFile.totalSize > 0) {
+            if (downloadFile.totalSize > 0 && !downloadFile.downloadProgress) {
                 try {
                     const stat = await fs.stat(downloadLocation);
                     if (stat.isFile() && stat.size === downloadFile.totalSize) {

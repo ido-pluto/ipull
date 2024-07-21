@@ -62,7 +62,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     protected _progressStatus: ProgressStatusFile;
     protected _activeStreamBytes: { [key: number]: number } = {};
     protected _activeProgram?: BaseDownloadProgram;
-    protected _downloadStatus = DownloadStatus.Active;
+    protected _downloadStatus = DownloadStatus.NotStarted;
     private _latestProgressDate = 0;
 
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
@@ -133,6 +133,12 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         return new Array(chunksCount).fill(ChunkStatus.NOT_STARTED);
     }
 
+    private _initEventReloadStatus() {
+        if (this._progress.part === this.file.parts.length - 1 && this._progress.chunks.every(c => c === ChunkStatus.COMPLETE)) {
+            this._downloadStatus = DownloadStatus.Finished;
+        }
+    }
+
     private _initProgress() {
         if (this.options.skipExisting) {
             this._progress.part = this.file.parts.length - 1;
@@ -140,6 +146,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             this.options.comment = pushComment("Skipping existing", this.options.comment);
         } else if (this.file.downloadProgress) {
             this._progress = this.file.downloadProgress;
+            this._initEventReloadStatus();
         } else {
             this._progress = {
                 part: 0,
@@ -151,6 +158,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public async download() {
+        if (this._downloadStatus === DownloadStatus.NotStarted) {
+            this._downloadStatus = DownloadStatus.Active;
+        }
+
         this._progressStatus.started();
         this.emit("start");
         await this.options.onStartedAsync?.();

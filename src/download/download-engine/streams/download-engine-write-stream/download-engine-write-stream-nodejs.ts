@@ -22,7 +22,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
     public fileSize = 0;
 
-    constructor(public path: string, options: Partial<DownloadEngineWriteStreamOptionsNodeJS> = {}) {
+    constructor(public path: string, public finalPath: string, options: Partial<DownloadEngineWriteStreamOptionsNodeJS> = {}) {
         super();
         this.options = {...DEFAULT_OPTIONS, ...options};
     }

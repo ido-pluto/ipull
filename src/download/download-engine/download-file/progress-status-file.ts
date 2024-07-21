@@ -15,6 +15,7 @@ export type ProgressStatus = {
 export enum DownloadStatus {
     Active = "Active",
     Paused = "Paused",
+    NotStarted = "NotStarted",
     Finished = "Finished",
     Cancelled = "Cancelled",
     Error = "Error"
