@@ -33,14 +33,15 @@ export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & Downloa
     fetchStrategy?: "localFile" | "fetch";
 };
 
+
 /**
  * Download multiple files with CLI progress
  */
-export async function downloadSequence(options: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
+export async function downloadSequence(options?: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
     let downloadOptions: DownloadSequenceOptions = {};
     if (options instanceof BaseDownloadEngine || options instanceof Promise) {
         downloads.unshift(options);
-    } else {
+    } else if (options) {
         downloadOptions = options;
     }
 

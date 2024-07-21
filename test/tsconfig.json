@@ -1,11 +1,11 @@
 {
     "compilerOptions": {
         "lib": [
-            "es2022",
+            "esNext",
             "DOM"
         ],
-        "module": "es2022",
-        "target": "es2022",
+        "module": "nodeNext",
+        "target": "esNext",
         "esModuleInterop": true,
         "noImplicitAny": true,
         "noImplicitReturns": true,
