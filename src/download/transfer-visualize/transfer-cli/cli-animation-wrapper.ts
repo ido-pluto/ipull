@@ -3,6 +3,7 @@ import DownloadEngineMultiDownload from "../../download-engine/engine/download-e
 import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./progress-bars/switch-cli-progress-style.js";
 import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import TransferCli, {CLI_LEVEL, TransferCliOptions} from "./transfer-cli.js";
+import {BaseMultiProgressBar} from "./multiProgressBars/baseMultiProgressBar.js";
 
 const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "fancy";
 type AllowedDownloadEngines = DownloadEngineNodejs | DownloadEngineMultiDownload;
@@ -10,6 +11,8 @@ type AllowedDownloadEngines = DownloadEngineNodejs | DownloadEngineMultiDownload
 export type CliProgressDownloadEngineOptions = {
     truncateName?: boolean | number;
     cliProgress?: boolean;
+    maxViewDownloads?: number;
+    createMultiProgressBar?: typeof BaseMultiProgressBar,
     cliStyle?: AvailableCLIProgressStyle | ((status: CliFormattedStatus) => string)
     cliName?: string;
     cliAction?: string;

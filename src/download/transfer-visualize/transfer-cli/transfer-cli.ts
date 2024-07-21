@@ -5,25 +5,30 @@ import cliSpinners from "cli-spinners";
 import CliSpinnersLoadingAnimation from "./loading-animation/cli-spinners-loading-animation.js";
 import {FormattedStatus} from "../format-transfer-status.js";
 import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
+import {BaseMultiProgressBar} from "./multiProgressBars/baseMultiProgressBar.js";
 
 export type TransferCliOptions = {
     action?: string,
     name?: string,
+    maxViewDownloads: number;
     truncateName: boolean | number;
     debounceWait: number;
     maxDebounceWait: number;
     createProgressBar: (status: CliFormattedStatus) => string;
+    createMultiProgressBar: typeof BaseMultiProgressBar,
     loadingAnimation: cliSpinners.SpinnerName,
     loadingText?: string;
 };
 
 export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
+    maxViewDownloads: 10,
     truncateName: true,
     debounceWait: 20,
     maxDebounceWait: 100,
     createProgressBar: switchCliProgressStyle("basic", {truncateName: true}),
     loadingAnimation: "dots",
-    loadingText: "Gathering information"
+    loadingText: "Gathering information",
+    createMultiProgressBar: BaseMultiProgressBar
 };
 
 export enum CLI_LEVEL {
@@ -41,6 +46,7 @@ export default class TransferCli {
     protected latestProgress: FormattedStatus[] = [];
     private _cliStopped = true;
     private readonly _updateStatuesDebounce: () => void;
+    private _multiProgressBar: BaseMultiProgressBar;
 
     public constructor(options: Partial<TransferCliOptions>, myCLILevel = CLI_LEVEL.LOW) {
         TransferCli.activeCLILevel = this.myCLILevel = myCLILevel;
@@ -54,6 +60,8 @@ export default class TransferCli {
             loadingText: this.options.loadingText
         });
         this._processExit = this._processExit.bind(this);
+
+        this._multiProgressBar = new this.options.createMultiProgressBar(this.options);
     }
 
     start() {
@@ -85,12 +93,9 @@ export default class TransferCli {
         if (this._cliStopped || this.myCLILevel !== TransferCli.activeCLILevel) {
             return; // Do not update if there is a higher level CLI, meaning that this CLI is sub-CLI
         }
-        const newLog = this.latestProgress.map((status) => {
-            status.transferAction = this.options.action ?? status.transferAction;
-            return this.options.createProgressBar(status);
-        })
-            .join("\n");
-        this._logUpdate(newLog);
+
+        const printLog = this._multiProgressBar.createMultiProgressBar(this.latestProgress);
+        this._logUpdate(printLog);
     }
 
     protected _logUpdate(text: string) {
