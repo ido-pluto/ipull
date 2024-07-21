@@ -17,5 +17,5 @@
     "githubPages": true,
     "hideGenerator": true,
     "jsDocCompatibility": true,
-    "htmlLang": "en"
+    "lang": "en"
 }
