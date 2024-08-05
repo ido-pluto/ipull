@@ -44,8 +44,6 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
      * Download file
      */
     public static async createFromOptions(options: DownloadEngineOptionsBrowser) {
-        options = structuredClone(options);
-
         DownloadEngineBrowser._validateOptions(options);
         const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 

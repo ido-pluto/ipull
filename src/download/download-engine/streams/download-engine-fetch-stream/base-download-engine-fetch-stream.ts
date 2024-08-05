@@ -132,13 +132,15 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public async fetchDownloadInfo(url: string): Promise<DownloadInfoResponse> {
         let throwErr: Error | null = null;
 
+        const tryHeaders = "tryHeaders" in this.options && this.options.tryHeaders ? this.options.tryHeaders.slice() : [];
+
         const fetchDownloadInfoCallback = async (): Promise<DownloadInfoResponse | null> => {
             try {
                 return await this.fetchDownloadInfoWithoutRetry(url);
             } catch (error: any) {
                 if (error instanceof HttpError && !this.retryOnServerError(error)) {
-                    if ("tryHeaders" in this.options && this.options.tryHeaders?.length) {
-                        this.options.headers = this.options.tryHeaders.shift();
+                    if ("tryHeaders" in this.options && tryHeaders.length) {
+                        this.options.headers = tryHeaders.shift();
                         await sleep(this.options.tryHeadersDelay ?? 0);
                         return await fetchDownloadInfoCallback();
                     }
