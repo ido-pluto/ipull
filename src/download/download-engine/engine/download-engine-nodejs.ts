@@ -110,6 +110,8 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
      * By default, it will guess the strategy based on the URL
      */
     public static async createFromOptions(options: DownloadEngineOptionsNodejs) {
+        options = structuredClone(options);
+
         DownloadEngineNodejs._validateOptions(options);
         const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 
