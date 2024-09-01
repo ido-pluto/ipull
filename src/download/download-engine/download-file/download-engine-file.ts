@@ -317,12 +317,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this._downloadStatus = DownloadStatus.Active;
         this.options.fetchStream.emit("resumed");
         this.emit("resumed");
+        this._sendProgressDownloadPart();
     }
 
     public async close() {
         if (this._closed) return;
         if (this._downloadStatus !== DownloadStatus.Finished) {
             this._downloadStatus = DownloadStatus.Cancelled;
+            this._sendProgressDownloadPart();
         }
         this._closed = true;
         this._activeProgram?.abort();
