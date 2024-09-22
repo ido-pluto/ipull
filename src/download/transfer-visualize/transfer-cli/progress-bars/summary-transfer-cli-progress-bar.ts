@@ -51,6 +51,7 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
 
     protected renderDownloadSequence(): string {
         const {formatTransferredOfTotal, formattedSpeed, formatTimeLeft, comment, formattedPercentage} = this.status;
+        const progressBar = `(${formatTransferredOfTotal})`;
         const dataLine: DataLine = [
             {
                 type: "status",
@@ -78,8 +79,8 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
             },
             {
                 type: "progressBar",
-                fullText: `(${formatTransferredOfTotal})`,
-                size: 19,
+                fullText: progressBar,
+                size: progressBar.length,
                 formatter: (text) => text
             },
             {

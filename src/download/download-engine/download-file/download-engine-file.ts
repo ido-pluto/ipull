@@ -323,6 +323,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public async close() {
         if (this._closed) return;
         if (this._downloadStatus !== DownloadStatus.Finished) {
+            this._progressStatus.finished();
             this._downloadStatus = DownloadStatus.Cancelled;
             this._sendProgressDownloadPart();
         }

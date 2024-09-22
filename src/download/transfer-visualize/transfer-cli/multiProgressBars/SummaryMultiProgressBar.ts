@@ -1,6 +1,6 @@
 import {BaseMultiProgressBar, CLIProgressPrintType} from "./BaseMultiProgressBar.js";
 import {FormattedStatus} from "../../format-transfer-status.js";
-import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
+import {DownloadFlags, DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
 
 export class SummaryMultiProgressBar extends BaseMultiProgressBar {
     public override readonly printType: CLIProgressPrintType = "update";
@@ -9,6 +9,9 @@ export class SummaryMultiProgressBar extends BaseMultiProgressBar {
     private _lastStatuses: FormattedStatus[] = [];
 
     override createMultiProgressBar(statuses: FormattedStatus[], oneStatus: FormattedStatus) {
+        oneStatus = structuredClone(oneStatus);
+        oneStatus.downloadFlags.push(DownloadFlags.DownloadSequence);
+
         const linesToPrint: FormattedStatus[] = [];
 
         let index = 0;
@@ -28,7 +31,9 @@ export class SummaryMultiProgressBar extends BaseMultiProgressBar {
         const {allStatusesSorted} = this.recorderStatusByImportance(linesToPrint);
         const filterStatusesSliced = allStatusesSorted.slice(0, this.options.maxViewDownloads);
 
-        filterStatusesSliced.push(oneStatus);
+        if (statuses.length > 1 || oneStatus.downloadStatus === DownloadStatus.Active) {
+            filterStatusesSliced.push(oneStatus);
+        }
 
         const activeDownloads = statuses.filter((status) => status.downloadStatus === DownloadStatus.Active).length;
         this._parallelDownloads ||= activeDownloads;

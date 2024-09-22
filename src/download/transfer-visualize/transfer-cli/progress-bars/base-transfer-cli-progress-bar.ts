@@ -187,7 +187,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "speed",
                 fullText: formattedSpeed,
-                size: "00.00kB/s".length
+                size: Math.max("00.00kB/s".length, formattedSpeed.length)
             },
             ...this.getETA()
         ]);
