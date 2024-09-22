@@ -20,17 +20,14 @@ export function renderDataPart(dataPart: DataPart) {
     let text = dataPart.fullText;
 
     if (dataPart.cropper != null) {
-        text = padEqually(
-            dataPart
-                .cropper(text, dataPart.size)
-                .slice(0, dataPart.size),
-            dataPart.size
-        );
+        text = dataPart
+            .cropper(text, dataPart.size)
+            .slice(0, dataPart.size)
+            .padEnd(dataPart.size);
     } else {
-        text = padEqually(
-            text.slice(0, dataPart.size),
-            dataPart.size
-        );
+        text = text
+            .slice(0, dataPart.size)
+            .padEnd(dataPart.size);
     }
 
     if (dataPart.formatter != null) {
@@ -95,18 +92,4 @@ export function resizeDataLine(dataLine: DataLine, lineLength: number) {
     }
 
     return res;
-}
-
-
-function padEqually(text: string, size: number) {
-    const padAmount = Math.max(0, size - text.length);
-    for (let i = 0; i < padAmount; i++) {
-        if (i % 2 == 0) {
-            text = " " + text;
-        } else {
-            text = text + " ";
-        }
-    }
-
-    return text;
 }

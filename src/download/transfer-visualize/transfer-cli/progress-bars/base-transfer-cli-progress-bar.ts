@@ -95,6 +95,8 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
 
 
     protected getETA(spacer = " | "): DataLine {
+        const formatedTimeLeft = this.status.timeLeft < 1_000 ? "0s" : this.status.formatTimeLeft;
+        const timeLeft = `${formatedTimeLeft.padStart("10s".length)} left`;
         if (this.showETA) {
             return [{
                 type: "spacer",
@@ -103,12 +105,8 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 formatter: (text) => text
             }, {
                 type: "timeLeft",
-                fullText: this.status.formatTimeLeft,
-                size: Math.max("100ms".length, this.status.formatTimeLeft.length)
-            }, {
-                type: "timeLeft",
-                fullText: " left",
-                size: " left".length
+                fullText: timeLeft,
+                size: timeLeft.length
             }];
         }
 
@@ -189,7 +187,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "speed",
                 fullText: formattedSpeed,
-                size: "000.00kB/s".length
+                size: "00.00kB/s".length
             },
             ...this.getETA()
         ]);

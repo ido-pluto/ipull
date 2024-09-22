@@ -59,7 +59,7 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
         }, {
             type: "speed",
             fullText: formattedSpeed,
-            size: "000.00kB/s".length
+            size: "00.00kB/s".length
         }, ...this.getETA(" ")]);
     }
 
