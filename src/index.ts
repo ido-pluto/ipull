@@ -15,9 +15,12 @@ import HttpError from "./download/download-engine/streams/download-engine-fetch-
 import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
 import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
 import {BaseMultiProgressBar, MultiProgressBarOptions} from "./download/transfer-visualize/transfer-cli/multiProgressBars/BaseMultiProgressBar.js";
+import {DownloadFlags, DownloadStatus} from "./download/download-engine/download-file/progress-status-file.js";
 
 
 export {
+    DownloadFlags,
+    DownloadStatus,
     downloadFile,
     downloadSequence,
     BaseMultiProgressBar,

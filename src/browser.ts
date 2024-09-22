@@ -13,8 +13,11 @@ import DownloadEngineMultiDownload from "./download/download-engine/engine/downl
 import HttpError from "./download/download-engine/streams/download-engine-fetch-stream/errors/http-error.js";
 import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
 import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
+import {DownloadFlags, DownloadStatus} from "./download/download-engine/download-file/progress-status-file.js";
 
 export {
+    DownloadFlags,
+    DownloadStatus,
     downloadFileBrowser,
     downloadSequenceBrowser,
     EmptyResponseError,
