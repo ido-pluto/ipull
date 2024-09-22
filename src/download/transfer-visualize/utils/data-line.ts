@@ -1,5 +1,5 @@
 export type DataPart = {
-    type: "status" | "name" | "nameComment" | "progressBar" | "speed" | "timeLeft" | "spacer" | "description",
+    type: "status" | "name" | "nameComment" | "progressBar" | "percentage" | "transferred" | "speed" | "timeLeft" | "spacer" | "description",
     fullText: string,
     size: number,
     addEndPadding?: number,
@@ -20,14 +20,17 @@ export function renderDataPart(dataPart: DataPart) {
     let text = dataPart.fullText;
 
     if (dataPart.cropper != null) {
-        text = dataPart
-            .cropper(text, dataPart.size)
-            .slice(0, dataPart.size)
-            .padEnd(dataPart.size);
+        text = padEqually(
+            dataPart
+                .cropper(text, dataPart.size)
+                .slice(0, dataPart.size),
+            dataPart.size
+        );
     } else {
-        text = text
-            .slice(0, dataPart.size)
-            .padEnd(dataPart.size);
+        text = padEqually(
+            text.slice(0, dataPart.size),
+            dataPart.size
+        );
     }
 
     if (dataPart.formatter != null) {
@@ -92,4 +95,18 @@ export function resizeDataLine(dataLine: DataLine, lineLength: number) {
     }
 
     return res;
+}
+
+
+function padEqually(text: string, size: number) {
+    const padAmount = Math.max(0, size - text.length);
+    for (let i = 0; i < padAmount; i++) {
+        if (i % 2 == 0) {
+            text = " " + text;
+        } else {
+            text = text + " ";
+        }
+    }
+
+    return text;
 }

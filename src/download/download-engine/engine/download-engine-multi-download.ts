@@ -4,6 +4,7 @@ import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
 import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 import {concurrency} from "./utils/concurrency.js";
+import {DownloadFlags, DownloadStatus} from "../download-file/progress-status-file.js";
 
 const DEFAULT_PARALLEL_DOWNLOADS = 1;
 
@@ -44,6 +45,8 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     protected _init() {
+        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.NotStarted;
+
         this._changeEngineFinishDownload();
         for (const [index, engine] of Object.entries(this.downloads)) {
             const numberIndex = Number(index);
@@ -55,6 +58,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
 
         this._progressStatisticsBuilder.add(...this.downloads);
         this._progressStatisticsBuilder.on("progress", progress => {
+            progress.downloadFlags = progress.downloadFlags.concat([DownloadFlags.DownloadSequence]);
             this.emit("progress", progress);
         });
     }
@@ -64,7 +68,9 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             throw new DownloadAlreadyStartedError();
         }
 
+        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
         this.emit("start");
+
 
         const concurrencyCount = this.options.parallelDownloads ?? DEFAULT_PARALLEL_DOWNLOADS;
         await concurrency(this.downloads, concurrencyCount, async (engine) => {
@@ -78,6 +84,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             this._activeEngines.delete(engine);
         });
 
+        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
         this.emit("finished");
         await this._finishEnginesDownload();
         await this.close();
@@ -104,10 +111,12 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     public pause(): void {
+        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Paused;
         this._activeEngines.forEach(engine => engine.pause());
     }
 
     public resume(): void {
+        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
         this._activeEngines.forEach(engine => engine.resume());
     }
 
@@ -115,11 +124,15 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         if (this._aborted) return;
         this._aborted = true;
 
+        if (this._progressStatisticsBuilder.downloadStatus !== DownloadStatus.Finished) {
+            this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Cancelled;
+        }
+
         const closePromises = Array.from(this._activeEngines)
             .map(engine => engine.close());
         await Promise.all(closePromises);
-        this.emit("closed");
 
+        this.emit("closed");
     }
 
     protected static _extractEngines<Engine>(engines: Engine[]) {

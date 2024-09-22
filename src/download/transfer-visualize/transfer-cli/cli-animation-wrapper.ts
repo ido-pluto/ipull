@@ -3,9 +3,9 @@ import DownloadEngineMultiDownload from "../../download-engine/engine/download-e
 import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./progress-bars/switch-cli-progress-style.js";
 import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import TransferCli, {CLI_LEVEL, TransferCliOptions} from "./transfer-cli.js";
-import {BaseMultiProgressBar} from "./multiProgressBars/baseMultiProgressBar.js";
+import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
 
-const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "fancy";
+const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "auto";
 type AllowedDownloadEngines = DownloadEngineNodejs | DownloadEngineMultiDownload;
 
 export type CliProgressDownloadEngineOptions = {
@@ -47,7 +47,10 @@ export default class CliAnimationWrapper {
         }
 
         cliOptions.createProgressBar = typeof this._options.cliStyle === "function" ?
-            this._options.cliStyle :
+            {
+                createStatusLine: this._options.cliStyle,
+                multiProgressBar: this._options.createMultiProgressBar ?? BaseMultiProgressBar
+            } :
             switchCliProgressStyle(this._options.cliStyle ?? DEFAULT_CLI_STYLE, {truncateName: this._options.truncateName});
 
         this._activeCLI = new TransferCli(cliOptions, this._options.cliLevel);
@@ -64,8 +67,8 @@ export default class CliAnimationWrapper {
         engine.once("start", () => {
             this._activeCLI?.start();
 
-            engine.on("progress", () => {
-                this._activeCLI?.updateStatues(engine.downloadStatues);
+            engine.on("progress", (progress) => {
+                this._activeCLI?.updateStatues(engine.downloadStatues, progress);
             });
 
             engine.on("closed", () => {

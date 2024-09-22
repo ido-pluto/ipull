@@ -23,6 +23,7 @@ export enum DownloadStatus {
 
 export enum DownloadFlags {
     Existing = "Existing",
+    DownloadSequence = "DownloadSequence"
 }
 
 export default class ProgressStatusFile {

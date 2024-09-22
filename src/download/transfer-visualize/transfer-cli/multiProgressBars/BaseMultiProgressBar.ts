@@ -1,4 +1,4 @@
-import {CliFormattedStatus} from "../progress-bars/base-transfer-cli-progress-bar.js";
+import {TransferCliProgressBar} from "../progress-bars/base-transfer-cli-progress-bar.js";
 import {FormattedStatus} from "../../format-transfer-status.js";
 import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
 import chalk from "chalk";
@@ -6,18 +6,23 @@ import prettyBytes from "pretty-bytes";
 
 export type MultiProgressBarOptions = {
     maxViewDownloads: number;
-    createProgressBar: (status: CliFormattedStatus) => string
+    createProgressBar: TransferCliProgressBar
     action?: string;
 };
 
+export type CLIProgressPrintType = "update" | "log";
+
 export class BaseMultiProgressBar {
+    public readonly updateIntervalMs: null | number = null;
+    public readonly printType: CLIProgressPrintType = "update";
+
     public constructor(protected options: MultiProgressBarOptions) {
     }
 
     protected createProgresses(statuses: FormattedStatus[]): string {
         return statuses.map((status) => {
             status.transferAction = this.options.action ?? status.transferAction;
-            return this.options.createProgressBar(status);
+            return this.options.createProgressBar.createStatusLine(status);
         })
             .join("\n");
     }
@@ -41,7 +46,8 @@ export class BaseMultiProgressBar {
         };
     }
 
-    createMultiProgressBar(statuses: FormattedStatus[]) {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    createMultiProgressBar(statuses: FormattedStatus[], oneStatus: FormattedStatus) {
         if (statuses.length < this.options.maxViewDownloads) {
             return this.createProgresses(statuses);
         }

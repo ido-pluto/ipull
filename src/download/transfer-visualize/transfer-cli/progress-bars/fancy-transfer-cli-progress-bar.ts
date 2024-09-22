@@ -1,58 +1,28 @@
 import chalk from "chalk";
-import {truncateText} from "../../utils/cli-text.js";
-import {FormattedStatus, PRETTY_MS_OPTIONS} from "../../format-transfer-status.js";
-import isUnicodeSupported from "is-unicode-supported";
-import {DataPart, renderDataLine} from "../../utils/data-line.js";
+import {PRETTY_MS_OPTIONS} from "../../format-transfer-status.js";
+import {renderDataLine} from "../../utils/data-line.js";
 import prettyMilliseconds from "pretty-ms";
 import sliceAnsi from "slice-ansi";
 import stripAnsi from "strip-ansi";
 import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
-
-export type FancyCliOptions = {
-    truncateName?: boolean | number
-};
-
-const minNameLength = 20;
-const minCommentLength = 15;
-
-const statusIcons = isUnicodeSupported()
-    ? {
-        activeDownload: chalk.blue("⏵"),
-        done: chalk.green("✔"),
-        failed: chalk.red("✖"),
-        pending: chalk.yellow("\u25f7")
-    }
-    : {
-        activeDownload: chalk.blue.bold(">"),
-        done: chalk.green("√"),
-        failed: chalk.red("×"),
-        pending: chalk.yellow.bold("-")
-    };
+import BaseTransferCliProgressBar from "./base-transfer-cli-progress-bar.js";
+import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
 
 /**
  * A class to display transfer progress in the terminal, with a progress bar and other information.
  */
-export default class FancyTransferCliProgressBar {
-    protected status: FormattedStatus;
-    protected options: FancyCliOptions;
-
-    protected constructor(status: FormattedStatus, options: FancyCliOptions = {}) {
-        this.status = status;
-        this.options = options;
-    }
-
-    protected renderProgressLine(): string {
-        const {formattedSpeed, formatTimeLeft, formatTransferred, formatTotal, formattedPercentage, percentage} = this.status;
+export default class FancyTransferCliProgressBar extends BaseTransferCliProgressBar {
+    protected override renderProgressLine(): string {
+        const {formattedSpeed, formatTransferred, formatTotal, formattedPercentage, percentage} = this.status;
 
         const formattedPercentageWithPadding = formattedPercentage.padEnd(6, " ");
         const progressBarText = ` ${formattedPercentageWithPadding} (${formatTransferred}/${formatTotal}) `;
-        const etaText = formatTimeLeft + " left";
 
         return renderDataLine([{
             type: "status",
             fullText: "",
             size: 1,
-            formatter: () => statusIcons.activeDownload
+            formatter: () => STATUS_ICONS.activeDownload
         }, {
             type: "spacer",
             fullText: " ",
@@ -89,72 +59,11 @@ export default class FancyTransferCliProgressBar {
         }, {
             type: "speed",
             fullText: formattedSpeed,
-            size: formattedSpeed.length
-        }, {
-            type: "spacer",
-            fullText: " | ",
-            size: " | ".length,
-            formatter: (text) => chalk.dim(text)
-        }, {
-            type: "timeLeft",
-            fullText: etaText,
-            size: etaText.length,
-            formatter: (text) => chalk.dim(text)
-        }]);
+            size: "000.00kB/s".length
+        }, ...this.getETA(" ")]);
     }
 
-    protected getNameAndCommentDataParts(): DataPart[] {
-        const {fileName, comment, downloadStatus} = this.status;
-
-        let fullComment = comment;
-        if (downloadStatus === DownloadStatus.Cancelled || downloadStatus === DownloadStatus.Paused) {
-            if (fullComment) {
-                fullComment += " | " + downloadStatus;
-            } else {
-                fullComment = downloadStatus;
-            }
-        }
-
-        return [{
-            type: "name",
-            fullText: fileName,
-            size: this.options.truncateName === false
-                ? fileName.length
-                : typeof this.options.truncateName === "number"
-                    ? this.options.truncateName
-                    : Math.min(fileName.length, minNameLength),
-            flex: typeof this.options.truncateName === "number"
-                ? undefined
-                : 1,
-            maxSize: fileName.length,
-            cropper: truncateText,
-            formatter: (text) => chalk.bold(text)
-        }, ...(
-            (fullComment == null || fullComment.length === 0)
-                ? []
-                : [{
-                    type: "spacer",
-                    fullText: " (",
-                    size: " (".length,
-                    formatter: (text) => chalk.dim(text)
-                }, {
-                    type: "nameComment",
-                    fullText: fullComment,
-                    size: Math.min(fullComment.length, minCommentLength),
-                    maxSize: fullComment.length,
-                    flex: 1,
-                    cropper: truncateText,
-                    formatter: (text) => chalk.dim(text)
-                }, {
-                    type: "spacer",
-                    fullText: ")",
-                    size: ")".length,
-                    formatter: (text) => chalk.dim(text)
-                }] satisfies DataPart[]
-        )];
-    }
-
-    protected renderFinishedLine() {
+    protected override renderFinishedLine() {
         const wasSuccessful = this.status.downloadStatus === DownloadStatus.Finished;
         const {endTime, startTime} = this.status;
 
@@ -169,8 +78,8 @@ export default class FancyTransferCliProgressBar {
             size: 1,
             formatter: () => (
                 wasSuccessful
-                    ? statusIcons.done
-                    : statusIcons.failed
+                    ? STATUS_ICONS.done
+                    : STATUS_ICONS.failed
             )
         }, {
             type: "spacer",
@@ -190,14 +99,14 @@ export default class FancyTransferCliProgressBar {
         }]);
     }
 
-    protected renderPendingLine() {
+    protected override renderPendingLine() {
         const pendingText = `will download ${this.status.formatTotal}`;
 
         return renderDataLine([{
             type: "status",
             fullText: "",
             size: 1,
-            formatter: () => statusIcons.pending
+            formatter: () => STATUS_ICONS.pending
         }, {
             type: "spacer",
             fullText: " ",
@@ -214,24 +123,6 @@ export default class FancyTransferCliProgressBar {
             size: pendingText.length,
             formatter: (text) => chalk.dim(text)
         }]);
-    }
-
-    public renderStatusLine(): string {
-        if ([DownloadStatus.Finished, DownloadStatus.Error, DownloadStatus.Cancelled].includes(this.status.downloadStatus)) {
-            return this.renderFinishedLine();
-        }
-
-        if (this.status.downloadStatus === DownloadStatus.NotStarted) {
-            return this.renderPendingLine();
-        }
-
-        return this.renderProgressLine();
-    }
-
-    public static createLineRenderer(options: FancyCliOptions) {
-        return (status: FormattedStatus) => {
-            return new FancyTransferCliProgressBar(status, options).renderStatusLine();
-        };
     }
 }
 

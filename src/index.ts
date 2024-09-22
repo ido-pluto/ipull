@@ -14,7 +14,7 @@ import DownloadEngineMultiDownload from "./download/download-engine/engine/downl
 import HttpError from "./download/download-engine/streams/download-engine-fetch-stream/errors/http-error.js";
 import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
 import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
-import {BaseMultiProgressBar, MultiProgressBarOptions} from "./download/transfer-visualize/transfer-cli/multiProgressBars/baseMultiProgressBar.js";
+import {BaseMultiProgressBar, MultiProgressBarOptions} from "./download/transfer-visualize/transfer-cli/multiProgressBars/BaseMultiProgressBar.js";
 
 
 export {

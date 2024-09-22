@@ -1,13 +1,16 @@
 import UpdateManager from "stdout-update";
 import sleep from "sleep-promise";
+import {CLIProgressPrintType} from "../multiProgressBars/BaseMultiProgressBar.js";
 
 export type BaseLoadingAnimationOptions = {
-    updateIntervalMs?: number;
+    updateIntervalMs?: number | null;
     loadingText?: string;
+    logType: CLIProgressPrintType
 };
 
 export const DEFAULT_LOADING_ANIMATION_OPTIONS: BaseLoadingAnimationOptions = {
-    loadingText: "Gathering information"
+    loadingText: "Gathering information",
+    logType: "update"
 };
 
 const DEFAULT_UPDATE_INTERVAL_MS = 300;
@@ -24,7 +27,13 @@ export default abstract class BaseLoadingAnimation {
     }
 
     protected _render(): void {
-        this.stdoutManager.update([this.createFrame()]);
+        const frame = this.createFrame();
+
+        if (this.options.logType === "update") {
+            this.stdoutManager.update([frame]);
+        } else {
+            console.log(frame);
+        }
     }
 
     protected abstract createFrame(): string;
@@ -32,7 +41,9 @@ export default abstract class BaseLoadingAnimation {
     async start() {
         process.on("SIGINT", this._processExit);
 
-        this.stdoutManager.hook();
+        if (this.options.logType === "update") {
+            this.stdoutManager.hook();
+        }
 
         this._animationActive = true;
         while (this._animationActive) {
@@ -47,8 +58,11 @@ export default abstract class BaseLoadingAnimation {
         }
 
         this._animationActive = false;
-        this.stdoutManager.erase();
-        this.stdoutManager.unhook(false);
+
+        if (this.options.logType === "update") {
+            this.stdoutManager.erase();
+            this.stdoutManager.unhook(false);
+        }
 
         process.off("SIGINT", this._processExit);
     }

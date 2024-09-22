@@ -5,6 +5,7 @@ import {packageJson} from "../const.js";
 import {downloadFile, downloadSequence} from "../download/node-download.js";
 import {setCommand} from "./commands/set.js";
 import findDownloadDir, {downloadToDirectory, findFileName} from "./utils/find-download-dir.js";
+import {AvailableCLIProgressStyle} from "../download/transfer-visualize/transfer-cli/progress-bars/switch-cli-progress-style.js";
 
 
 const pullCommand = new Command();
@@ -13,9 +14,16 @@ pullCommand
     .argument("[files...]", "Files to pull/copy")
     .option("-s --save [path]", "Save location (directory/file)")
     .option("-c --connections [number]", "Number of parallel connections", "4")
+    .addOption(new Option("-st --style [type]", "The style of the CLI progress bar").choices(["basic", "fancy", "ci", "summary"]))
     .addOption(new Option("-p --program [type]", "The download strategy").choices(["stream", "chunks"]))
     .option("-t --truncate-name", "Truncate file names in the CLI status to make them appear shorter")
-    .action(async (files: string[] = [], {save: saveLocation, truncateName, number, program}: { save?: string, truncateName?: boolean, number: string, program: string }) => {
+    .action(async (files: string[] = [], {save: saveLocation, truncateName, number, program, style}: {
+        save?: string,
+        truncateName?: boolean,
+        number: string,
+        program: string,
+        style: AvailableCLIProgressStyle
+    }) => {
         if (files.length === 0) {
             pullCommand.outputHelp();
             process.exit(0);
@@ -41,7 +49,7 @@ pullCommand
         const downloader = await downloadSequence({
             truncateName,
             cliProgress: true,
-            cliStyle: "fancy"
+            cliStyle: style
         }, ...fileDownloads);
         await downloader.download();
     })

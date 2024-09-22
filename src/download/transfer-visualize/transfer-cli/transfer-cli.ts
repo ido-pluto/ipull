@@ -1,11 +1,11 @@
 import UpdateManager from "stdout-update";
 import debounce from "lodash.debounce";
-import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
+import {TransferCliProgressBar} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
 import CliSpinnersLoadingAnimation from "./loading-animation/cli-spinners-loading-animation.js";
 import {FormattedStatus} from "../format-transfer-status.js";
 import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
-import {BaseMultiProgressBar} from "./multiProgressBars/baseMultiProgressBar.js";
+import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
 
 export type TransferCliOptions = {
     action?: string,
@@ -14,7 +14,7 @@ export type TransferCliOptions = {
     truncateName: boolean | number;
     debounceWait: number;
     maxDebounceWait: number;
-    createProgressBar: (status: CliFormattedStatus) => string;
+    createProgressBar: TransferCliProgressBar;
     createMultiProgressBar: typeof BaseMultiProgressBar,
     loadingAnimation: cliSpinners.SpinnerName,
     loadingText?: string;
@@ -25,7 +25,7 @@ export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
     truncateName: true,
     debounceWait: 20,
     maxDebounceWait: 100,
-    createProgressBar: switchCliProgressStyle("basic", {truncateName: true}),
+    createProgressBar: switchCliProgressStyle("auto", {truncateName: true}),
     loadingAnimation: "dots",
     loadingText: "Gathering information",
     createMultiProgressBar: BaseMultiProgressBar
@@ -43,31 +43,38 @@ export default class TransferCli {
     protected options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
     protected myCLILevel: number;
-    protected latestProgress: FormattedStatus[] = [];
+    protected latestProgress: [FormattedStatus[], FormattedStatus] = null!;
     private _cliStopped = true;
     private readonly _updateStatuesDebounce: () => void;
     private _multiProgressBar: BaseMultiProgressBar;
+    private _isFirstPrint = true;
 
     public constructor(options: Partial<TransferCliOptions>, myCLILevel = CLI_LEVEL.LOW) {
         TransferCli.activeCLILevel = this.myCLILevel = myCLILevel;
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
+        this._multiProgressBar = new this.options.createProgressBar.multiProgressBar(this.options);
 
-        this._updateStatuesDebounce = debounce(this._updateStatues.bind(this), this.options.debounceWait, {
-            maxWait: this.options.maxDebounceWait
+        const maxDebounceWait = this._multiProgressBar.updateIntervalMs || this.options.maxDebounceWait;
+        this._updateStatuesDebounce = debounce(this._updateStatues.bind(this), maxDebounceWait, {
+            maxWait: maxDebounceWait
         });
 
         this.loadingAnimation = new CliSpinnersLoadingAnimation(cliSpinners[this.options.loadingAnimation], {
-            loadingText: this.options.loadingText
+            loadingText: this.options.loadingText,
+            updateIntervalMs: this._multiProgressBar.updateIntervalMs,
+            logType: this._multiProgressBar.printType
         });
         this._processExit = this._processExit.bind(this);
 
-        this._multiProgressBar = new this.options.createMultiProgressBar(this.options);
+
     }
 
     start() {
         if (this.myCLILevel !== TransferCli.activeCLILevel) return;
         this._cliStopped = false;
-        this.stdoutManager.hook();
+        if (this._multiProgressBar.printType === "update") {
+            this.stdoutManager.hook();
+        }
         process.on("SIGINT", this._processExit);
     }
 
@@ -75,7 +82,9 @@ export default class TransferCli {
         if (this._cliStopped || this.myCLILevel !== TransferCli.activeCLILevel) return;
         this._updateStatues();
         this._cliStopped = true;
-        this.stdoutManager.unhook(false);
+        if (this._multiProgressBar.printType === "update") {
+            this.stdoutManager.unhook(false);
+        }
         process.off("SIGINT", this._processExit);
     }
 
@@ -84,9 +93,15 @@ export default class TransferCli {
         process.exit(0);
     }
 
-    updateStatues(statues: FormattedStatus[]) {
-        this.latestProgress = statues;
-        this._updateStatuesDebounce();
+    updateStatues(statues: FormattedStatus[], oneStatus: FormattedStatus) {
+        this.latestProgress = [statues, oneStatus];
+
+        if (this._isFirstPrint) {
+            this._isFirstPrint = false;
+            this._updateStatues();
+        } else {
+            this._updateStatuesDebounce();
+        }
     }
 
     private _updateStatues() {
@@ -94,11 +109,17 @@ export default class TransferCli {
             return; // Do not update if there is a higher level CLI, meaning that this CLI is sub-CLI
         }
 
-        const printLog = this._multiProgressBar.createMultiProgressBar(this.latestProgress);
-        this._logUpdate(printLog);
+        const printLog = this._multiProgressBar.createMultiProgressBar(...this.latestProgress);
+        if (printLog) {
+            this._logUpdate(printLog);
+        }
     }
 
     protected _logUpdate(text: string) {
-        this.stdoutManager.update(text.split("\n"));
+        if (this._multiProgressBar.printType === "update") {
+            this.stdoutManager.update(text.split("\n"));
+        } else {
+            console.log(text);
+        }
     }
 }
