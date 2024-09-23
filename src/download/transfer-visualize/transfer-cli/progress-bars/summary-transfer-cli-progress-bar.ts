@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import {SummaryMultiProgressBar} from "../multiProgressBars/SummaryMultiProgressBar.js";
-import {DataLine, renderDataLine} from "../../utils/data-line.js";
+import {renderDataLine} from "../../utils/data-line.js";
 import FancyTransferCliProgressBar from "./fancy-transfer-cli-progress-bar.js";
 import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
 import {DownloadFlags} from "../../../download-engine/download-file/progress-status-file.js";
@@ -50,9 +50,9 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
     }
 
     protected renderDownloadSequence(): string {
-        const {formatTransferredOfTotal, formattedSpeed, formatTimeLeft, comment, formattedPercentage} = this.status;
+        const {formatTransferredOfTotal, formattedSpeed, comment, formattedPercentage} = this.status;
         const progressBar = `(${formatTransferredOfTotal})`;
-        const dataLine: DataLine = [
+        return renderDataLine([
             {
                 type: "status",
                 fullText: "",
@@ -105,26 +105,8 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
                 type: "speed",
                 fullText: formattedSpeed,
                 size: formattedSpeed.length
-            }
-        ];
-
-        if (this.showETA) {
-            dataLine.push(
-                {
-                    type: "spacer",
-                    fullText: " | ",
-                    size: " | ".length,
-                    formatter: (text) => chalk.dim(text)
-                },
-                {
-                    type: "timeLeft",
-                    fullText: formatTimeLeft,
-                    size: formatTimeLeft.length,
-                    formatter: (text) => text
-                }
-            );
-        }
-
-        return renderDataLine(dataLine);
+            },
+            ...this.getETA(" | ")
+        ]);
     }
 }
