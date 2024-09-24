@@ -102,8 +102,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             return [{
                 type: "spacer",
                 fullText: spacer,
-                size: spacer.length,
-                formatter: (text) => text
+                size: spacer.length
             }, {
                 type: "timeLeft",
                 fullText: timeLeft,
@@ -135,15 +134,13 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             ...this.getNameAndCommentDataParts(),
             {
                 type: "spacer",
                 fullText: "\n",
-                size: 1,
-                formatter: (text) => text
+                size: 1
             },
             {
                 type: "percentage",
@@ -154,8 +151,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             {
                 type: "progressBar",
@@ -171,8 +167,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             {
                 type: "transferred",
@@ -182,8 +177,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "spacer",
                 fullText: " | ",
-                size: " | ".length,
-                formatter: (text) => text
+                size: " | ".length
             },
             {
                 type: "speed",
@@ -207,8 +201,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             ...this.getNameAndCommentDataParts()
         ]);
@@ -225,15 +218,13 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             ...this.getNameAndCommentDataParts(),
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             {
                 type: "description",

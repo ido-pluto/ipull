@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import {PRETTY_MS_OPTIONS} from "../../format-transfer-status.js";
-import {renderDataLine} from "../../utils/data-line.js";
+import {DataLine, renderDataLine} from "../../utils/data-line.js";
 import prettyMilliseconds from "pretty-ms";
 import sliceAnsi from "slice-ansi";
 import stripAnsi from "strip-ansi";
@@ -18,6 +18,9 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
         const formattedPercentageWithPadding = formattedPercentage.padEnd(6, " ");
         const progressBarText = ` ${formattedPercentageWithPadding} (${formatTransferred}/${formatTotal}) `;
 
+        const dimEta: DataLine = this.getETA(" | ")
+            .map(x => ({...x, formatter: text => chalk.dim(text)}));
+
         return renderDataLine([{
             type: "status",
             fullText: "",
@@ -26,13 +29,11 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
         }, {
             type: "spacer",
             fullText: " ",
-            size: " ".length,
-            formatter: (text) => text
+            size: " ".length
         }, ...this.getNameAndCommentDataParts(), {
             type: "spacer",
             fullText: " ",
-            size: " ".length,
-            formatter: (text) => text
+            size: " ".length
         }, {
             type: "progressBar",
             fullText: progressBarText,
@@ -54,13 +55,12 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
         }, {
             type: "spacer",
             fullText: " ",
-            size: " ".length,
-            formatter: (text) => text
+            size: " ".length
         }, {
             type: "speed",
             fullText: formattedSpeed,
             size: Math.max("00.00kB/s".length, formattedSpeed.length)
-        }, ...this.getETA(" ")]);
+        }, ...dimEta]);
     }
 
     protected override renderFinishedLine() {

@@ -34,13 +34,11 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
         }, {
             type: "spacer",
             fullText: " ",
-            size: " ".length,
-            formatter: (text) => text
+            size: " ".length
         }, ...this.getNameAndCommentDataParts(), {
             type: "spacer",
             fullText: " ",
-            size: " ".length,
-            formatter: (text) => text
+            size: " ".length
         }, {
             type: "description",
             fullText: pendingText,
@@ -62,8 +60,7 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             {
                 type: "percentage",
@@ -74,14 +71,12 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
             {
                 type: "spacer",
                 fullText: " ",
-                size: " ".length,
-                formatter: (text) => text
+                size: " ".length
             },
             {
                 type: "progressBar",
                 fullText: progressBar,
-                size: progressBar.length,
-                formatter: (text) => text
+                size: progressBar.length
             },
             {
                 type: "spacer",
@@ -92,8 +87,7 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
             {
                 type: "nameComment",
                 fullText: comment || "",
-                size: (comment || "").length,
-                formatter: (text) => text
+                size: (comment || "").length
             },
             {
                 type: "spacer",
