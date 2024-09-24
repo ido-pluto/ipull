@@ -39,8 +39,29 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         this.options = options;
     }
 
+    switchTransferToShortText() {
+        switch (this.status.transferAction) {
+            case "Downloading":
+                return "Pull";
+            case "Copying":
+                return "Copy";
+        }
+
+        return this.status.transferAction;
+    }
+
     protected get showETA(): boolean {
         return this.status.startTime < Date.now() - SKIP_ETA_START_TIME;
+    }
+
+    protected get nameSize() {
+        const {fileName} = this.status;
+
+        return this.options.truncateName === false
+            ? fileName.length
+            : typeof this.options.truncateName === "number"
+                ? this.options.truncateName
+                : Math.min(fileName.length, this.minNameLength);
     }
 
     protected getNameAndCommentDataParts(): DataPart[] {
@@ -58,11 +79,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         return [{
             type: "name",
             fullText: fileName,
-            size: this.options.truncateName === false
-                ? fileName.length
-                : typeof this.options.truncateName === "number"
-                    ? this.options.truncateName
-                    : Math.min(fileName.length, this.minNameLength),
+            size: this.nameSize,
             flex: typeof this.options.truncateName === "number"
                 ? undefined
                 : 1,
@@ -95,18 +112,24 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
     }
 
 
-    protected getETA(spacer = " | "): DataLine {
+    protected getETA(spacer = " | ", formatter: (text: string, size: number, type: "spacer" | "time") => string = text => text): DataLine {
         const formatedTimeLeft = this.status.timeLeft < 1_000 ? "0s" : this.status.formatTimeLeft;
         const timeLeft = `${formatedTimeLeft.padStart("10s".length)} left`;
         if (this.showETA) {
             return [{
                 type: "spacer",
                 fullText: spacer,
-                size: spacer.length
+                size: spacer.length,
+                formatter(text: string, size: number): string {
+                    return formatter(text, size, "spacer");
+                }
             }, {
                 type: "timeLeft",
                 fullText: timeLeft,
-                size: timeLeft.length
+                size: timeLeft.length,
+                formatter(text: string, size: number): string {
+                    return formatter(text, size, "time");
+                }
             }];
         }
 
@@ -114,33 +137,29 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
     }
 
     protected createProgressBarLine(length: number) {
+        const fileName = truncateText(this.status.fileName, length);
         const percentage = clamp(this.status.transferredBytes / this.status.totalBytes, 0, 1);
         const fullLength = Math.floor(percentage * length);
         const emptyLength = length - fullLength;
 
-        return `${"=".repeat(fullLength)}>${" ".repeat(emptyLength)}`;
+        return chalk.cyan(fileName.slice(0, fullLength)) + chalk.dim(fileName.slice(fullLength, fullLength + emptyLength));
     }
 
     protected renderProgressLine(): string {
         const {formattedPercentage, formattedSpeed, formatTransferredOfTotal, formatTotal} = this.status;
 
+        const status = this.switchTransferToShortText();
         return renderDataLine([
             {
                 type: "status",
-                fullText: this.status.transferAction,
-                size: this.status.transferAction.length,
+                fullText: status,
+                size: status.length,
                 formatter: (text) => chalk.cyan(text)
             },
             {
                 type: "spacer",
                 fullText: " ",
                 size: " ".length
-            },
-            ...this.getNameAndCommentDataParts(),
-            {
-                type: "spacer",
-                fullText: "\n",
-                size: 1
             },
             {
                 type: "percentage",
@@ -155,13 +174,13 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             },
             {
                 type: "progressBar",
-                size: "[=====>]".length,
-                fullText: this.createProgressBarLine(10),
+                size: this.nameSize,
+                fullText: "",
                 flex: 4,
                 addEndPadding: 4,
                 maxSize: 40,
                 formatter: (_, size) => {
-                    return `[${chalk.cyan(this.createProgressBarLine(size))}]`;
+                    return `[${this.createProgressBarLine(size)}]`;
                 }
             },
             {
@@ -172,19 +191,25 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             {
                 type: "transferred",
                 fullText: formatTransferredOfTotal,
-                size: `1024.00MB/${formatTotal}`.length
+                size: `999.99MB/${formatTotal}`.length
             },
             {
                 type: "spacer",
-                fullText: " | ",
-                size: " | ".length
+                fullText: " (",
+                size: " (".length
             },
             {
                 type: "speed",
                 fullText: formattedSpeed,
-                size: Math.max("00.00kB/s".length, formattedSpeed.length)
+                size: Math.max("00.00kB/s".length, formattedSpeed.length),
+                formatter: text => chalk.ansi256(31)(text)
             },
-            ...this.getETA()
+            {
+                type: "spacer",
+                fullText: ")",
+                size: ")".length
+            },
+            ...this.getETA(" ~ ", text => chalk.dim(text))
         ]);
     }
 
