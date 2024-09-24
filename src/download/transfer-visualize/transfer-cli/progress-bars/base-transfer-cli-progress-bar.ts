@@ -32,6 +32,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
     public multiProgressBar = BaseMultiProgressBar;
     protected status: CliFormattedStatus = null!;
     protected options: BaseCliOptions;
+    protected minNameLength = MIN_NAME_LENGTH;
 
 
     public constructor(options: BaseCliOptions) {
@@ -61,7 +62,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 ? fileName.length
                 : typeof this.options.truncateName === "number"
                     ? this.options.truncateName
-                    : Math.min(fileName.length, MIN_NAME_LENGTH),
+                    : Math.min(fileName.length, this.minNameLength),
             flex: typeof this.options.truncateName === "number"
                 ? undefined
                 : 1,
