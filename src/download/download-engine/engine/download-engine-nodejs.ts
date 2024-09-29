@@ -95,24 +95,26 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     }
 
     /**
-     * Abort the download & delete the file, **even if** the download is **finished**
+     * Abort the download & delete the file (**even if** the download is finished)
+     * @deprecated use `close` with flag `deleteFile` instead
+     *
+     * TODO: remove in the next major version
      */
     public async closeAndDeleteFile() {
-        await this.close();
-        try {
-            await fs.unlink(this.fileAbsolutePath);
-        } catch {}
+        await this.close({deleteFile: true});
     }
 
     /**
-     * Abort the download & delete the file, **if** the download is **not finished**
+     * Close the download engine
+     * @param deleteTempFile {boolean} - delete the temp file (when the download is **not finished**).
+     * @param deleteFile {boolean} - delete the **temp** or **final file** (clean everything up).
      */
-    public async closeAndDeleteIncompleteFile() {
-        await this.close();
+    override async close({deleteTempFile, deleteFile}: { deleteTempFile?: boolean, deleteFile?: boolean } = {}): Promise<void> {
+        await super.close();
 
-        if (this.status.downloadStatus != DownloadStatus.Finished) {
+        if (deleteFile || deleteTempFile && this.status.downloadStatus != DownloadStatus.Finished) {
             try {
-                await fs.unlink(this.options.writeStream.path);
+                await fs.unlink(this.fileAbsolutePath);
             } catch {}
         }
     }
