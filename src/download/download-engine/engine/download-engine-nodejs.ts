@@ -9,6 +9,7 @@ import SavePathError from "./error/save-path-error.js";
 import fs from "fs-extra";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import filenamify from "filenamify";
+import {DownloadStatus} from "../download-file/progress-status-file.js";
 
 export const PROGRESS_FILE_EXTENSION = ".ipull";
 
@@ -94,13 +95,26 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     }
 
     /**
-     * Abort the download & delete the file (if it exists)
+     * Abort the download & delete the file, **even if** the download is **finished**
      */
     public async closeAndDeleteFile() {
         await this.close();
         try {
             await fs.unlink(this.fileAbsolutePath);
         } catch {}
+    }
+
+    /**
+     * Abort the download & delete the file, **if** the download is **not finished**
+     */
+    public async closeAndDeleteIncompleteFile() {
+        await this.close();
+
+        if (this.status.downloadStatus != DownloadStatus.Finished) {
+            try {
+                await fs.unlink(this.options.writeStream.path);
+            } catch {}
+        }
     }
 
     /**
