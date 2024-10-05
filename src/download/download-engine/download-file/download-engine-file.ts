@@ -192,7 +192,8 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 );
                 await this._activeProgram.download();
             } else {
-                await this._downloadSlice(0, Infinity);
+                const chunksToRead = this._activePart.size > 0 ? this._progress.chunks.length : Infinity;
+                await this._downloadSlice(0, chunksToRead);
             }
         }
 
