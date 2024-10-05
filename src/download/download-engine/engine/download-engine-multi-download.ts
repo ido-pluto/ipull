@@ -58,7 +58,10 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
 
         this._progressStatisticsBuilder.add(...this.downloads);
         this._progressStatisticsBuilder.on("progress", progress => {
-            progress.downloadFlags = progress.downloadFlags.concat([DownloadFlags.DownloadSequence]);
+            progress = {
+                ...progress,
+                downloadFlags: progress.downloadFlags.concat([DownloadFlags.DownloadSequence])
+            };
             this.emit("progress", progress);
         });
     }
