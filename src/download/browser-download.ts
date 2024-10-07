@@ -1,5 +1,6 @@
 import DownloadEngineBrowser, {DownloadEngineOptionsBrowser} from "./download-engine/engine/download-engine-browser.js";
 import DownloadEngineMultiDownload from "./download-engine/engine/download-engine-multi-download.js";
+import {NoDownloadEngineProvidedError} from "./download-engine/engine/error/no-download-engine-provided-error.js";
 
 const DEFAULT_PARALLEL_STREAMS_FOR_BROWSER = 3;
 
@@ -25,5 +26,9 @@ export async function downloadFileBrowser(options: DownloadFileBrowserOptions) {
  * Download multiple files in the browser environment.
  */
 export async function downloadSequenceBrowser(...downloads: (DownloadEngineBrowser | Promise<DownloadEngineBrowser>)[]) {
+    if (downloads.length === 0) {
+        throw new NoDownloadEngineProvidedError();
+    }
+
     return await DownloadEngineMultiDownload.fromEngines(downloads);
 }

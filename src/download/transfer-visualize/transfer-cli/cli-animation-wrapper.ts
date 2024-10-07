@@ -4,6 +4,7 @@ import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./progress-bars
 import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import TransferCli, {CLI_LEVEL, TransferCliOptions} from "./transfer-cli.js";
 import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
+import cliSpinners from "cli-spinners";
 
 const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "auto";
 type AllowedDownloadEngines = DownloadEngineNodejs | DownloadEngineMultiDownload;
@@ -17,6 +18,7 @@ export type CliProgressDownloadEngineOptions = {
     cliName?: string;
     cliAction?: string;
     fetchStrategy?: "localFile" | "fetch";
+    loadingAnimation?: cliSpinners.SpinnerName;
     /** @internal */
     cliLevel?: CLI_LEVEL;
 };
@@ -51,7 +53,10 @@ export default class CliAnimationWrapper {
                 createStatusLine: this._options.cliStyle,
                 multiProgressBar: this._options.createMultiProgressBar ?? BaseMultiProgressBar
             } :
-            switchCliProgressStyle(this._options.cliStyle ?? DEFAULT_CLI_STYLE, {truncateName: this._options.truncateName});
+            switchCliProgressStyle(this._options.cliStyle ?? DEFAULT_CLI_STYLE, {
+                truncateName: this._options.truncateName,
+                loadingSpinner: this._options.loadingAnimation
+            });
 
         this._activeCLI = new TransferCli(cliOptions, this._options.cliLevel);
     }

@@ -20,6 +20,10 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
         return this.status.transferAction;
     }
 
+    override getSpinnerText() {
+        return STATUS_ICONS.pending;
+    }
+
     override renderProgressLine(): string {
         if (this.status.downloadFlags.includes(DownloadFlags.DownloadSequence)) {
             return this.renderDownloadSequence();

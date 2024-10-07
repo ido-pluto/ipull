@@ -24,7 +24,7 @@ export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
     maxViewDownloads: 10,
     truncateName: true,
     debounceWait: 20,
-    maxDebounceWait: 100,
+    maxDebounceWait: process.platform === "win32" ? 500 : 100,
     createProgressBar: switchCliProgressStyle("auto", {truncateName: true}),
     loadingAnimation: "dots",
     loadingText: "Gathering information",

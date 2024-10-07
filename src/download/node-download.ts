@@ -3,6 +3,7 @@ import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js
 import DownloadEngineMultiDownload, {DownloadEngineMultiDownloadOptions} from "./download-engine/engine/download-engine-multi-download.js";
 import CliAnimationWrapper, {CliProgressDownloadEngineOptions} from "./transfer-visualize/transfer-cli/cli-animation-wrapper.js";
 import {CLI_LEVEL} from "./transfer-visualize/transfer-cli/transfer-cli.js";
+import {NoDownloadEngineProvidedError} from "./download-engine/engine/error/no-download-engine-provided-error.js";
 
 const DEFAULT_PARALLEL_STREAMS_FOR_NODEJS = 3;
 export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions & {
@@ -43,6 +44,10 @@ export async function downloadSequence(options?: DownloadSequenceOptions | Downl
         downloads.unshift(options);
     } else if (options) {
         downloadOptions = options;
+    }
+
+    if (downloads.length === 0) {
+        throw new NoDownloadEngineProvidedError();
     }
 
     downloadOptions.cliLevel = CLI_LEVEL.HIGH;

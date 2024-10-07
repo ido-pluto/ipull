@@ -16,7 +16,7 @@ import BaseDownloadEngine from "./download/download-engine/engine/base-download-
 import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
 import {BaseMultiProgressBar, MultiProgressBarOptions} from "./download/transfer-visualize/transfer-cli/multiProgressBars/BaseMultiProgressBar.js";
 import {DownloadFlags, DownloadStatus} from "./download/download-engine/download-file/progress-status-file.js";
-
+import {NoDownloadEngineProvidedError} from "./download/download-engine/engine/error/no-download-engine-provided-error.js";
 
 export {
     DownloadFlags,
@@ -33,7 +33,8 @@ export {
     FetchStreamError,
     IpullError,
     EngineError,
-    InvalidOptionError
+    InvalidOptionError,
+    NoDownloadEngineProvidedError
 };
 
 

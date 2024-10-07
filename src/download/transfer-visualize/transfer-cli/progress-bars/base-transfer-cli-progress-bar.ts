@@ -6,10 +6,12 @@ import {DownloadStatus} from "../../../download-engine/download-file/progress-st
 import {BaseMultiProgressBar} from "../multiProgressBars/BaseMultiProgressBar.js";
 import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
 import {DataLine, DataPart, renderDataLine} from "../../utils/data-line.js";
+import cliSpinners, {Spinner} from "cli-spinners";
 
 const SKIP_ETA_START_TIME = 1000 * 2;
 const MIN_NAME_LENGTH = 20;
 const MIN_COMMENT_LENGTH = 15;
+const DEFAULT_SPINNER_UPDATE_INTERVAL_MS = 10;
 
 export type CliFormattedStatus = FormattedStatus & {
     transferAction: string
@@ -17,6 +19,7 @@ export type CliFormattedStatus = FormattedStatus & {
 
 export type BaseCliOptions = {
     truncateName?: boolean | number
+    loadingSpinner?: cliSpinners.SpinnerName
 };
 
 export interface TransferCliProgressBar {
@@ -30,6 +33,12 @@ export interface TransferCliProgressBar {
  */
 export default class BaseTransferCliProgressBar implements TransferCliProgressBar {
     public multiProgressBar = BaseMultiProgressBar;
+    public downloadLoadingSpinner: Spinner;
+    private _spinnerState = {
+        step: 0,
+        lastChanged: 0
+    };
+
     protected status: CliFormattedStatus = null!;
     protected options: BaseCliOptions;
     protected minNameLength = MIN_NAME_LENGTH;
@@ -37,6 +46,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
 
     public constructor(options: BaseCliOptions) {
         this.options = options;
+        this.downloadLoadingSpinner = cliSpinners[options.loadingSpinner ?? "dots"];
     }
 
     switchTransferToShortText() {
@@ -54,14 +64,26 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         return this.status.startTime < Date.now() - SKIP_ETA_START_TIME;
     }
 
-    protected get nameSize() {
-        const {fileName} = this.status;
-
+    protected getNameSize(fileName = this.status.fileName) {
         return this.options.truncateName === false
             ? fileName.length
             : typeof this.options.truncateName === "number"
                 ? this.options.truncateName
                 : Math.min(fileName.length, this.minNameLength);
+    }
+
+    protected getSpinnerText() {
+        const spinner = this.downloadLoadingSpinner.frames[this._spinnerState.step];
+
+        if (this._spinnerState.lastChanged + DEFAULT_SPINNER_UPDATE_INTERVAL_MS < Date.now()) {
+            this._spinnerState.step++;
+            if (this._spinnerState.step >= this.downloadLoadingSpinner.frames.length) {
+                this._spinnerState.step = 0;
+            }
+            this._spinnerState.lastChanged = Date.now();
+        }
+
+        return spinner;
     }
 
     protected getNameAndCommentDataParts(): DataPart[] {
@@ -79,7 +101,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         return [{
             type: "name",
             fullText: fileName,
-            size: this.nameSize,
+            size: this.getNameSize(),
             flex: typeof this.options.truncateName === "number"
                 ? undefined
                 : 1,
@@ -110,7 +132,6 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 }] satisfies DataPart[]
         )];
     }
-
 
     protected getETA(spacer = " | ", formatter: (text: string, size: number, type: "spacer" | "time") => string = text => text): DataLine {
         const formatedTimeLeft = this.status.timeLeft < 1_000 ? "0s" : this.status.formatTimeLeft;
@@ -174,7 +195,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
             },
             {
                 type: "progressBar",
-                size: this.nameSize,
+                size: this.getNameSize(),
                 fullText: "",
                 flex: 4,
                 addEndPadding: 4,
@@ -260,6 +281,36 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         ]);
     }
 
+    protected renderLoadingLine() {
+        const spinner = this.getSpinnerText();
+        const showText = "Gathering information";
+
+        return renderDataLine([
+            {
+                type: "status",
+                fullText: spinner,
+                size: spinner.length,
+                formatter: (text) => chalk.cyan(text)
+            },
+            {
+                type: "spacer",
+                fullText: " ",
+                size: " ".length
+            },
+            {
+                type: "name",
+                fullText: showText,
+                size: this.getNameSize(showText),
+                flex: typeof this.options.truncateName === "number"
+                    ? undefined
+                    : 1,
+                maxSize: showText.length,
+                cropper: truncateText,
+                formatter: (text) => chalk.bold(text)
+            }
+        ]);
+    }
+
     public createStatusLine(status: CliFormattedStatus): string {
         this.status = status;
 
@@ -269,6 +320,10 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
 
         if (this.status.downloadStatus === DownloadStatus.NotStarted) {
             return this.renderPendingLine();
+        }
+
+        if (this.status.downloadStatus === DownloadStatus.Loading) {
+            return this.renderLoadingLine();
         }
 
         return this.renderProgressLine();

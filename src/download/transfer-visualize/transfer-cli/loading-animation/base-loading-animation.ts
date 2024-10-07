@@ -48,7 +48,7 @@ export default abstract class BaseLoadingAnimation {
         this._animationActive = true;
         while (this._animationActive) {
             this._render();
-            await sleep(this.options.updateIntervalMs ?? DEFAULT_UPDATE_INTERVAL_MS);
+            await sleep(this.options.updateIntervalMs || DEFAULT_UPDATE_INTERVAL_MS);
         }
     }
 

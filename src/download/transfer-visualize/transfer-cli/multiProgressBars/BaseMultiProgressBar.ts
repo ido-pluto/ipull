@@ -32,16 +32,18 @@ export class BaseMultiProgressBar {
      */
     protected recorderStatusByImportance(statuses: FormattedStatus[]) {
         const activeTasks = statuses.filter(status => status.downloadStatus === DownloadStatus.Active);
-        const remaining = statuses.filter(status => status.downloadStatus === DownloadStatus.Paused || status.downloadStatus === DownloadStatus.NotStarted);
+        const remaining = statuses.filter(status => [DownloadStatus.Paused, DownloadStatus.NotStarted].includes(status.downloadStatus));
+        const loading = statuses.filter(status => status.downloadStatus === DownloadStatus.Loading);
         const finishedTasks = statuses.filter(status => status.downloadStatus === DownloadStatus.Finished)
             .sort((a, b) => b.endTime - a.endTime);
 
-        const showTotalTasks = activeTasks.concat(remaining);
+        const showTotalTasks = activeTasks.concat(remaining)
+            .concat(loading);
         const showTotalTasksWithFinished = showTotalTasks.concat(finishedTasks);
 
         return {
             notFinished: showTotalTasks.length > 0,
-            remaining: remaining.length,
+            remaining: remaining.length + loading.length,
             allStatusesSorted: showTotalTasksWithFinished
         };
     }

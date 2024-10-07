@@ -13,6 +13,7 @@ export type ProgressStatus = {
 };
 
 export enum DownloadStatus {
+    Loading = "Loading",
     Active = "Active",
     Paused = "Paused",
     NotStarted = "NotStarted",
@@ -33,7 +34,7 @@ export default class ProgressStatusFile {
     public readonly downloadPart: number;
     public readonly transferredBytes: number;
     public readonly transferAction: string;
-    public readonly downloadStatus: DownloadStatus = DownloadStatus.Active;
+    public downloadStatus: DownloadStatus = DownloadStatus.Active;
     public downloadFlags: DownloadFlags[] = [];
     public totalBytes: number = 0;
     public startTime: number = 0;
