@@ -66,19 +66,24 @@ export default class CliAnimationWrapper {
             return;
         }
         this._activeCLI.loadingAnimation.start();
-        const engine = await this._downloadEngine;
-        this._activeCLI.loadingAnimation.stop();
 
-        engine.once("start", () => {
-            this._activeCLI?.start();
+        try {
+            const engine = await this._downloadEngine;
+            this._activeCLI.loadingAnimation.stop();
 
-            engine.on("progress", (progress) => {
-                this._activeCLI?.updateStatues(engine.downloadStatues, progress);
+            engine.once("start", () => {
+                this._activeCLI?.start();
+
+                engine.on("progress", (progress) => {
+                    this._activeCLI?.updateStatues(engine.downloadStatues, progress);
+                });
+
+                engine.on("closed", () => {
+                    this._activeCLI?.stop();
+                });
             });
-
-            engine.on("closed", () => {
-                this._activeCLI?.stop();
-            });
-        });
+        } finally {
+            this._activeCLI.loadingAnimation.stop();
+        }
     }
 }
