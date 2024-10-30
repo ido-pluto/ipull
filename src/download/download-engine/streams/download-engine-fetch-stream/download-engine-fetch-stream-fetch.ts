@@ -8,6 +8,7 @@ import {browserCheck} from "./utils/browserCheck.js";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
+    private _fetchDownloadInfoWithHEAD = false;
     public override transferAction = "Downloading";
 
     withSubState(state: FetchSubState): this {
@@ -50,13 +51,29 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected override async fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse> {
+        if (this._fetchDownloadInfoWithHEAD) {
+            try {
+                return this.fetchDownloadInfoWithoutRetryByMethod(url, "HEAD");
+            } catch (error) {
+                if (!(error instanceof StatusCodeError)) {
+                    throw error;
+                }
+                this._fetchDownloadInfoWithHEAD = false;
+            }
+        }
+
+        return this.fetchDownloadInfoWithoutRetryByMethod(url, "GET");
+    }
+
+    protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
         const response = await fetch(url, {
-            method: "HEAD",
+            method: method,
             headers: {
                 "Accept-Encoding": "identity",
                 ...this.options.headers
             }
         });
+
 
         if (response.status < 200 || response.status >= 300) {
             throw new StatusCodeError(url, response.status, response.statusText, this.options.headers, DownloadEngineFetchStreamFetch.convertHeadersToRecord(response.headers));
@@ -66,7 +83,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         const fileName = parseContentDisposition(response.headers.get("content-disposition"));
 
         let length = parseInt(response.headers.get("content-length")!) || 0;
-        if (response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
+        if (method != "GET" && response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
             length = acceptRange ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
         }
 

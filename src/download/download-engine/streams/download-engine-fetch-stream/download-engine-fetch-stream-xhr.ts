@@ -10,6 +10,7 @@ import {parseHttpContentRange} from "./utils/httpRange.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
+    private _fetchDownloadInfoWithHEAD = true;
     public override readonly programType: AvailablePrograms = "chunks";
     public override transferAction = "Downloading";
 
@@ -123,9 +124,24 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
     }
 
     protected override fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse> {
+        if (this._fetchDownloadInfoWithHEAD) {
+            try {
+                return this.fetchDownloadInfoWithoutRetryByMethod(url, "HEAD");
+            } catch (error) {
+                if (!(error instanceof StatusCodeError)) {
+                    throw error;
+                }
+                this._fetchDownloadInfoWithHEAD = false;
+            }
+        }
+
+        return this.fetchDownloadInfoWithoutRetryByMethod(url, "GET");
+    }
+
+    protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
-            xhr.open("HEAD", url, true);
+            xhr.open(method, url, true);
 
             const allHeaders = {
                 ...this.options.headers
@@ -137,7 +153,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             xhr.onload = async () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
-                    const length = MIN_LENGTH_FOR_MORE_INFO_REQUEST < contentLength ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
+                    const length = MIN_LENGTH_FOR_MORE_INFO_REQUEST < contentLength && method != "GET" ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
                     const fileName = parseContentDisposition(xhr.getResponseHeader("content-disposition"));
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
 
@@ -158,6 +174,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             xhr.send();
         });
+
     }
 
     protected fetchDownloadInfoWithoutRetryContentRange(url: string) {
