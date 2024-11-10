@@ -153,7 +153,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             xhr.onload = async () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
-                    const length = MIN_LENGTH_FOR_MORE_INFO_REQUEST < contentLength && method != "GET" ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
+                    const length = MIN_LENGTH_FOR_MORE_INFO_REQUEST < contentLength ? await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? xhr : undefined) : 0;
                     const fileName = parseContentDisposition(xhr.getResponseHeader("content-disposition"));
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
 
@@ -177,7 +177,16 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
     }
 
-    protected fetchDownloadInfoWithoutRetryContentRange(url: string) {
+    protected fetchDownloadInfoWithoutRetryContentRange(url: string, xhrResponse?: XMLHttpRequest) {
+        const getSize = (xhr: XMLHttpRequest) => {
+            const contentRange = xhr.getResponseHeader("Content-Range");
+            return parseHttpContentRange(contentRange)?.size || 0;
+        };
+
+        if (xhrResponse) {
+            return getSize(xhrResponse);
+        }
+
         return new Promise<number>((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open("GET", url, true);
@@ -192,8 +201,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             }
 
             xhr.onload = () => {
-                const contentRange = xhr.getResponseHeader("Content-Range");
-                resolve(parseHttpContentRange(contentRange)?.size || 0);
+                resolve(getSize(xhr));
             };
 
             xhr.onerror = () => {

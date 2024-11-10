@@ -83,8 +83,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         const fileName = parseContentDisposition(response.headers.get("content-disposition"));
 
         let length = parseInt(response.headers.get("content-length")!) || 0;
-        if (method != "GET" && response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
-            length = acceptRange ? await this.fetchDownloadInfoWithoutRetryContentRange(url) : 0;
+        if (response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
+            length = acceptRange ? await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? response : undefined) : 0;
         }
 
         return {
@@ -95,8 +95,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         };
     }
 
-    protected async fetchDownloadInfoWithoutRetryContentRange(url: string) {
-        const responseGet = await fetch(url, {
+    protected async fetchDownloadInfoWithoutRetryContentRange(url: string, response?: Response) {
+        const responseGet = response ?? await fetch(url, {
             method: "GET",
             headers: {
                 accept: "*/*",
