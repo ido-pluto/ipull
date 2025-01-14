@@ -42,9 +42,12 @@ export type DownloadEngineFileEvents = {
     [key: string]: any
 };
 
+const DEFAULT_CHUNKS_SIZE_FOR_CHUNKS_PROGRAM = 1024 * 1024 * 5; // 5MB
+const DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM = 1024 * 1024; // 1MB
+
 const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {
-    chunkSize: 1024 * 1024 * 5,
-    parallelStreams: 1
+    chunkSize: 0,
+    parallelStreams: 3
 };
 
 export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileEvents> {
@@ -70,7 +73,23 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.file = file;
         this.options = {...DEFAULT_OPTIONS, ...options};
         this._progressStatus = new ProgressStatusFile(file.parts.length, file.localFileName, options.fetchStream.transferAction, this._createProgressFlags());
+        this._setDefaultByOptions();
         this._initProgress();
+
+    }
+
+    private _setDefaultByOptions() {
+        if (this.options.chunkSize === 0) {
+            switch (this._programType) {
+                case "chunks":
+                    this.options.chunkSize = DEFAULT_CHUNKS_SIZE_FOR_CHUNKS_PROGRAM;
+                    break;
+                case "stream":
+                default:
+                    this.options.chunkSize = DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM;
+                    break;
+            }
+        }
     }
 
     private _createProgressFlags() {
@@ -121,6 +140,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         const allBytes = streamBytesMin + this._downloadedPartsSize;
         return Math.min(allBytes, this.downloadSize || allBytes);
+    }
+
+    protected get _programType() {
+        return this.options.fetchStream.programType || this.options.programType;
     }
 
     protected _emptyChunksForPart(part: number) {
@@ -188,7 +211,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 this._activeProgram = switchProgram(
                     this._progress,
                     this._downloadSlice.bind(this),
-                    this.options.fetchStream.programType || this.options.programType
+                    this._programType
                 );
                 await this._activeProgram.download();
             } else {
