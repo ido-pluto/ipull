@@ -1,4 +1,5 @@
 export type ProgressStatus = {
+    downloadId: string,
     totalBytes: number,
     totalDownloadParts: number,
     fileName: string,
@@ -39,6 +40,7 @@ export default class ProgressStatusFile {
     public totalBytes: number = 0;
     public startTime: number = 0;
     public endTime: number = 0;
+    public downloadId: string = "";
 
     public constructor(
         totalDownloadParts: number,
@@ -83,6 +85,7 @@ export default class ProgressStatusFile {
         newStatus.totalBytes = totalBytes;
         newStatus.startTime = this.startTime;
         newStatus.endTime = this.endTime;
+        newStatus.downloadId = this.downloadId;
 
         return newStatus;
     }

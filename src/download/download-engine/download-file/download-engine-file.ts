@@ -8,6 +8,7 @@ import {withLock} from "lifecycle-utils";
 import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
 import {pushComment} from "./utils/push-comment.js";
+import {uid} from "uid";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
@@ -56,6 +57,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public options: DownloadEngineFileOptionsWithDefaults;
 
     protected _progress: SaveProgressInfo = {
+        downloadId: "",
         part: 0,
         chunks: [],
         chunkSize: 0,
@@ -174,10 +176,12 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         } else {
             this._progress = {
                 part: 0,
+                downloadId: uid(),
                 chunks: this._emptyChunksForPart(0),
                 chunkSize: this.options.chunkSize,
                 parallelStreams: this.options.parallelStreams
             };
+            this._progressStatus.downloadId = this._progress.downloadId;
         }
     }
 

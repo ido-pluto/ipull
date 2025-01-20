@@ -89,6 +89,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
         this._lastStatus = {
             ...createFormattedStatus({
                 ...progress,
+                downloadId: data.downloadId,
                 downloadPart: this._activeDownloadPart,
                 totalDownloadParts: this._totalDownloadParts,
                 startTime: this._startTime,

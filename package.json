@@ -147,6 +147,7 @@
     "sleep-promise": "^9.1.0",
     "slice-ansi": "^7.1.0",
     "stdout-update": "^4.0.1",
-    "strip-ansi": "^7.1.0"
+    "strip-ansi": "^7.1.0",
+    "uid": "^2.0.2"
   }
 }
