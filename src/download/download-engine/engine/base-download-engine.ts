@@ -9,6 +9,7 @@ import retry from "async-retry";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
 import StatusCodeError from "../streams/download-engine-fetch-stream/errors/status-code-error.js";
 import {InvalidOptionError} from "./error/InvalidOptionError.js";
+import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 
 const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
 export type InputURLOptions = { partURLs: string[] } | { url: string };
@@ -25,7 +26,7 @@ export type BaseDownloadEngineEvents = {
     start: () => void
     paused: () => void
     resumed: () => void
-    progress: (progress: ProgressStatusWithIndex) => void
+    progress: (progress: FormattedStatus) => void
     save: (progress: SaveProgressInfo) => void
     finished: () => void
     closed: () => void
@@ -36,7 +37,11 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     public readonly options: DownloadEngineFileOptions;
     protected readonly _engine: DownloadEngineFile;
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
-    protected _downloadStarted = false;
+
+    /**
+     * @internal
+     */
+    _downloadStarted?: Promise<void>;
     protected _latestStatus?: ProgressStatusWithIndex;
 
     protected constructor(engine: DownloadEngineFile, options: DownloadEngineFileOptions) {
@@ -106,8 +111,8 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         }
 
         try {
-            this._downloadStarted = true;
-            await this._engine.download();
+            this._downloadStarted = this._engine.download();
+            await this._downloadStarted;
         } finally {
             await this.close();
         }

@@ -15,10 +15,12 @@ describe("Dynamic content download", async () => {
     beforeAll(async () => {
         regularDownload = await ensureLocalFile(DYNAMIC_DOWNLOAD_FILE, ORIGINAL_FILE);
         originalFileHash = await fileHash(regularDownload);
-    });
+    }, 1000 * 30);
 
     afterAll(async () => {
-        await fs.remove(regularDownload);
+        if (regularDownload) {
+            await fs.remove(regularDownload);
+        }
     });
 
 

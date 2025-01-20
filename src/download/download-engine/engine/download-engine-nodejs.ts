@@ -18,6 +18,10 @@ export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOption
     fileName?: string;
     fetchStrategy?: "localFile" | "fetch";
     skipExisting?: boolean;
+    debounceWrite?: {
+        maxTime: number
+        maxSize: number
+    }
 };
 
 export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
@@ -48,6 +52,10 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         this._engine.options.onSaveProgressAsync = async (progress) => {
             if (this.options.skipExisting) return;
             await this.options.writeStream.saveMedataAfterFile(progress);
+        };
+
+        this._engine.options.onPausedAsync = async () => {
+            await this.options.writeStream.ensureBytesSynced();
         };
 
         // Try to clone the file if it's a single part download

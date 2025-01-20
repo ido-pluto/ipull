@@ -19,6 +19,7 @@ export type DownloadEngineFileOptions = {
     onFinishAsync?: () => Promise<void>
     onStartedAsync?: () => Promise<void>
     onCloseAsync?: () => Promise<void>
+    onPausedAsync?: () => Promise<void>
     onSaveProgressAsync?: (progress: SaveProgressInfo) => Promise<void>
     programType?: AvailablePrograms
 
@@ -322,14 +323,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.emit("progress", this.status);
     }
 
-    public pause() {
+    public async pause() {
         if (this.options.fetchStream.paused) {
             return;
         }
 
         this._downloadStatus = DownloadStatus.Paused;
         this.options.fetchStream.emit("paused");
-        this.emit("paused");
+        await this.options.onPausedAsync?.();
         this._sendProgressDownloadPart();
     }
 
