@@ -68,7 +68,9 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
                 type: "speed",
                 fullText: formattedSpeed,
                 size: Math.max("00.00kB/s".length, formattedSpeed.length)
-            }, ...dimEta]);
+            },
+            ...dimEta
+        ]);
     }
 
     protected override renderFinishedLine() {
