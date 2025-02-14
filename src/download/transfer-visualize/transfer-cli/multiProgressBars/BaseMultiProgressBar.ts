@@ -3,11 +3,12 @@ import {FormattedStatus} from "../../format-transfer-status.js";
 import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
 import chalk from "chalk";
 import prettyBytes from "pretty-bytes";
+import cliSpinners from "cli-spinners";
 
 export type MultiProgressBarOptions = {
     maxViewDownloads: number;
     createProgressBar: TransferCliProgressBar
-    action?: string;
+    loadingAnimation: cliSpinners.SpinnerName,
 };
 
 export type CLIProgressPrintType = "update" | "log";
@@ -16,14 +17,12 @@ export class BaseMultiProgressBar {
     public readonly updateIntervalMs: null | number = null;
     public readonly printType: CLIProgressPrintType = "update";
 
+
     public constructor(protected options: MultiProgressBarOptions) {
     }
 
     protected createProgresses(statuses: FormattedStatus[]): string {
-        return statuses.map((status) => {
-            status.transferAction = this.options.action ?? status.transferAction;
-            return this.options.createProgressBar.createStatusLine(status);
-        })
+        return statuses.map((status) => this.options.createProgressBar.createStatusLine(status))
             .join("\n");
     }
 
@@ -49,8 +48,8 @@ export class BaseMultiProgressBar {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    createMultiProgressBar(statuses: FormattedStatus[], oneStatus: FormattedStatus) {
-        if (statuses.length < this.options.maxViewDownloads) {
+    createMultiProgressBar(statuses: FormattedStatus[], oneStatus: FormattedStatus, loadingDownloads = 0) {
+        if (statuses.length < this.options.maxViewDownloads - Math.min(loadingDownloads, 1)) {
             return this.createProgresses(statuses);
         }
 
@@ -58,10 +57,10 @@ export class BaseMultiProgressBar {
         const tasksLogs = this.createProgresses(allStatusesSorted.slice(0, this.options.maxViewDownloads));
 
         if (notFinished) {
-            return tasksLogs + `\nand ${chalk.gray(remaining)} more out of ${chalk.blueBright(statuses.length)} downloads.`;
+            return tasksLogs + `\nand ${chalk.gray((remaining + loadingDownloads).toLocaleString())} more out of ${chalk.blueBright(statuses.length.toLocaleString())} downloads.`;
         }
 
         const totalSize = allStatusesSorted.reduce((acc, status) => acc + status.totalBytes, 0);
-        return tasksLogs + `\n${chalk.green(`All ${statuses.length} downloads (${prettyBytes(totalSize)}) finished.`)}`;
+        return tasksLogs + `\n${chalk.green(`All ${statuses.length.toLocaleString()} downloads (${prettyBytes(totalSize)}) finished.`)}`;
     }
 }

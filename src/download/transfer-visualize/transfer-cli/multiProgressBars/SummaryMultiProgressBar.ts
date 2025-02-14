@@ -8,15 +8,15 @@ export class SummaryMultiProgressBar extends BaseMultiProgressBar {
     private _parallelDownloads = 0;
     private _lastStatuses: FormattedStatus[] = [];
 
-    override createMultiProgressBar(statuses: FormattedStatus[], oneStatus: FormattedStatus) {
+    override createMultiProgressBar(statuses: FormattedStatus[], oneStatus: FormattedStatus, loadingDownloads = 0) {
         oneStatus = structuredClone(oneStatus);
         oneStatus.downloadFlags.push(DownloadFlags.DownloadSequence);
 
         const linesToPrint: FormattedStatus[] = [];
 
-        let index = 0;
         for (const status of statuses) {
-            const isStatusChanged = this._lastStatuses[index++]?.downloadStatus !== status.downloadStatus;
+            const lastStatus = this._lastStatuses.find(x => x.downloadId === status.downloadId);
+            const isStatusChanged = lastStatus?.downloadStatus !== status.downloadStatus;
             const copyStatus = structuredClone(status);
 
             if (isStatusChanged) {
@@ -38,7 +38,7 @@ export class SummaryMultiProgressBar extends BaseMultiProgressBar {
         const activeDownloads = statuses.filter((status) => status.downloadStatus === DownloadStatus.Active).length;
         this._parallelDownloads ||= activeDownloads;
         const finishedDownloads = statuses.filter((status) => status.downloadStatus === DownloadStatus.Finished).length;
-        oneStatus.comment = `${finishedDownloads}/${statuses.length} files done${this._parallelDownloads > 1 ? ` (${activeDownloads} active)` : ""}`;
+        oneStatus.comment = `${finishedDownloads.toLocaleString()}/${(statuses.length + loadingDownloads).toLocaleString()} files done${this._parallelDownloads > 1 ? ` (${activeDownloads.toLocaleString()} active)` : ""}`;
 
         return this.createProgresses(filterStatusesSliced);
     }

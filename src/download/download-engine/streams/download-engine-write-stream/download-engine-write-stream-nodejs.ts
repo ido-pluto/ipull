@@ -24,6 +24,7 @@ const DEFAULT_OPTIONS = {
 } satisfies DownloadEngineWriteStreamOptionsNodeJS;
 const MAX_AUTO_DEBOUNCE_SIZE = 1024 * 1024 * 100; // 100 MB
 const AUTO_DEBOUNCE_SIZE_PERCENT = 0.05;
+const MAX_META_SIZE = 10485760; // 10 MB
 
 const NOT_ENOUGH_SPACE_ERROR_CODE = "ENOSPC";
 
@@ -120,7 +121,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         }, this.options.retry);
     }
 
-    async saveMedataAfterFile(data: any) {
+    async saveMetadataAfterFile(data: any) {
         if (this._fileWriteFinished) {
             throw new WriterIsClosedError();
         }
@@ -142,7 +143,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         try {
             const state = await fd.stat();
             const metadataSize = state.size - this._fileSize;
-            if (metadataSize <= 0) {
+            if (metadataSize <= 0 || metadataSize >= MAX_META_SIZE) {
                 return;
             }
 

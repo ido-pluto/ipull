@@ -2,16 +2,15 @@ import {EventEmitter} from "eventemitter3";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
-import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
 import {concurrency} from "./utils/concurrency.js";
 import {DownloadFlags, DownloadStatus} from "../download-file/progress-status-file.js";
-import {NoDownloadEngineProvidedError} from "./error/no-download-engine-provided-error.js";
 
-type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineMultiDownload<any>;
+export type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineMultiDownload<any>;
 
 type DownloadEngineMultiDownloadEvents<Engine = DownloadEngineMultiAllowedEngines> = BaseDownloadEngineEvents & {
     childDownloadStarted: (engine: Engine) => void
     childDownloadClosed: (engine: Engine) => void
+    downloadAdded: (engine: Engine) => void
 };
 
 export type DownloadEngineMultiDownloadOptions = {
@@ -25,6 +24,15 @@ export type DownloadEngineMultiDownloadOptions = {
      * Finalize download (change .ipull file to original extension) after all downloads are settled
      */
     finalizeDownloadAfterAllSettled?: boolean
+
+    /**
+     * Do not start download automatically
+     * @internal
+     */
+    naturalDownloadStart?: boolean
+
+    downloadName?: string
+    downloadComment?: string
 };
 
 const DEFAULT_OPTIONS = {
@@ -34,30 +42,69 @@ const DEFAULT_OPTIONS = {
 } satisfies DownloadEngineMultiDownloadOptions;
 
 export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMultiAllowedEngines = DownloadEngineMultiAllowedEngines> extends EventEmitter<DownloadEngineMultiDownloadEvents> {
-    public readonly downloads: Engine[];
+    public readonly downloads: Engine[] = [];
     protected _options: DownloadEngineMultiDownloadOptions;
     protected _aborted = false;
     protected _activeEngines = new Set<Engine>();
     protected _progressStatisticsBuilder = new ProgressStatisticsBuilder();
     protected _downloadStatues: FormattedStatus[] | FormattedStatus[][] = [];
     protected _closeFiles: (() => Promise<void>)[] = [];
-    protected _lastStatus?: FormattedStatus;
+    protected _lastStatus: FormattedStatus = null!;
     protected _loadingDownloads = 0;
     protected _reloadDownloadParallelisms?: () => void;
+    protected _engineWaitPromises = new Set<Promise<Engine>>();
     /**
      * @internal
      */
-    _downloadStarted?: Promise<void>;
+    _downloadEndPromise = Promise.withResolvers<void>();
+    /**
+     * @internal
+     */
+    _downloadStarted = false;
 
-    protected constructor(engines: (DownloadEngineMultiAllowedEngines | DownloadEngineMultiDownload)[], options: DownloadEngineMultiDownloadOptions) {
+    /**
+     * @internal
+     */
+    constructor(options: DownloadEngineMultiDownloadOptions = {}) {
         super();
-        this.downloads = DownloadEngineMultiDownload._extractEngines(engines);
         this._options = {...DEFAULT_OPTIONS, ...options};
         this._init();
     }
 
+    public get activeDownloads() {
+        return Array.from(this._activeEngines);
+    }
+
     public get parallelDownloads() {
         return this._options.parallelDownloads;
+    }
+
+    public get loadingDownloads() {
+        if (!this._options.unpackInnerMultiDownloadsStatues) {
+            return this._loadingDownloads;
+        }
+
+        let totalLoading = this._loadingDownloads;
+        for (const download of this.downloads) {
+            if (download instanceof DownloadEngineMultiDownload) {
+                totalLoading += download.loadingDownloads;
+            }
+        }
+
+        return totalLoading;
+    }
+
+    /**
+     * @internal
+     */
+    public get _flatEngines(): Engine[] {
+        return this.downloads.map(engine => {
+            if (engine instanceof DownloadEngineMultiDownload) {
+                return engine._flatEngines;
+            }
+            return engine;
+        })
+            .flat();
     }
 
     public set parallelDownloads(value) {
@@ -67,13 +114,11 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     public get downloadStatues() {
-        return this._downloadStatues.flat();
+        const statues = this._downloadStatues.flat();
+        return statues.filter(((status, index) => statues.findIndex(x => x.downloadId === status.downloadId) === index));
     }
 
     public get status() {
-        if (!this._lastStatus) {
-            throw new NoDownloadEngineProvidedError();
-        }
         return this._lastStatus;
     }
 
@@ -86,24 +131,25 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         this._progressStatisticsBuilder.on("progress", progress => {
             progress = {
                 ...progress,
+                fileName: this._options.downloadName ?? progress.fileName,
+                comment: this._options.downloadComment ?? progress.comment,
                 downloadFlags: progress.downloadFlags.concat([DownloadFlags.DownloadSequence])
             };
             this._lastStatus = progress;
             this.emit("progress", progress);
         });
 
-        let index = 0;
-        for (const engine of this.downloads) {
-            this._addEngine(engine, index++);
-        }
-
-        // Prevent multiple progress events on adding engines
-        this._progressStatisticsBuilder.add(...this.downloads);
+        const originalProgress = this._progressStatisticsBuilder.status;
+        this._lastStatus = {
+            ...originalProgress,
+            downloadFlags: originalProgress.downloadFlags.concat([DownloadFlags.DownloadSequence])
+        };
     }
 
     private _addEngine(engine: Engine, index: number) {
+        this.emit("downloadAdded", engine);
         const getStatus = (defaultProgress = engine.status) =>
-            this._options.unpackInnerMultiDownloadsStatues && engine instanceof DownloadEngineMultiDownload ? engine.downloadStatues : defaultProgress;
+            (this._options.unpackInnerMultiDownloadsStatues && engine instanceof DownloadEngineMultiDownload ? engine.downloadStatues : defaultProgress);
 
         this._downloadStatues[index] = getStatus();
         engine.on("progress", (progress) => {
@@ -116,52 +162,80 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         this._reloadDownloadParallelisms?.();
     }
 
-    public async addDownload(engine: Engine | Promise<Engine>) {
+    public async _addDownloadNoStatisticUpdate(engine: Engine | Promise<Engine>) {
         const index = this.downloads.length + this._loadingDownloads;
         this._downloadStatues[index] = ProgressStatisticsBuilder.loadingStatusEmptyStatistics();
 
         this._loadingDownloads++;
         this._progressStatisticsBuilder._totalDownloadParts++;
-        const awaitEngine = engine instanceof Promise ? await engine : engine;
+        this._progressStatisticsBuilder._sendLatestProgress();
+
+        const isPromise = engine instanceof Promise;
+        if (isPromise) {
+            this._engineWaitPromises.add(engine);
+        }
+        const awaitEngine = isPromise ? await engine : engine;
+        if (isPromise) {
+            this._engineWaitPromises.delete(engine);
+        }
         this._progressStatisticsBuilder._totalDownloadParts--;
         this._loadingDownloads--;
 
         this._addEngine(awaitEngine, index);
         this.downloads.push(awaitEngine);
-        this._progressStatisticsBuilder.add(awaitEngine);
+        this._progressStatisticsBuilder.add(awaitEngine, true);
+
+        return awaitEngine;
+    }
+
+    public async addDownload(...engines: (Engine | Promise<Engine>)[]) {
+        await Promise.all(engines.map(this._addDownloadNoStatisticUpdate.bind(this)));
     }
 
     public async download(): Promise<void> {
-        if (this._activeEngines.size) {
-            throw new DownloadAlreadyStartedError();
+        if (this._downloadStarted) {
+            return this._downloadEndPromise.promise;
         }
 
-        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
-        this.emit("start");
+        try {
+            this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
+            this._downloadStarted = true;
+            this.emit("start");
 
-        const concurrencyCount = this._options.parallelDownloads ?? DEFAULT_OPTIONS.parallelDownloads;
-        const {reload, promise} = concurrency(this.downloads, concurrencyCount, async (engine) => {
-            if (this._aborted) return;
-            this._activeEngines.add(engine);
+            const concurrencyCount = this._options.parallelDownloads || DEFAULT_OPTIONS.parallelDownloads;
+            let continueIteration = true;
+            while (this._loadingDownloads > 0 || continueIteration) {
+                continueIteration = false;
+                const {reload, promise} = concurrency(this.downloads, concurrencyCount, async (engine) => {
+                    if (this._aborted) return;
+                    this._activeEngines.add(engine);
 
-            this.emit("childDownloadStarted", engine);
-            if (engine._downloadStarted) {
-                await engine._downloadStarted;
-            } else {
-                await engine.download();
+                    this.emit("childDownloadStarted", engine);
+                    if (engine._downloadStarted || this._options.naturalDownloadStart) {
+                        await engine._downloadEndPromise.promise;
+                    } else {
+                        await engine.download();
+                    }
+                    this.emit("childDownloadClosed", engine);
+
+                    this._activeEngines.delete(engine);
+                });
+                this._reloadDownloadParallelisms = reload;
+                await promise;
+                continueIteration = this._engineWaitPromises.size > 0;
+                await Promise.race(this._engineWaitPromises);
             }
-            this.emit("childDownloadClosed", engine);
 
-            this._activeEngines.delete(engine);
-        });
-        this._reloadDownloadParallelisms = reload;
-        this._downloadStarted = promise;
-
-        await promise;
-        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
-        this.emit("finished");
-        await this._finishEnginesDownload();
-        await this.close();
+            this._downloadEndPromise = Promise.withResolvers();
+            this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
+            this.emit("finished");
+            await this._finishEnginesDownload();
+            await this.close();
+            this._downloadEndPromise.resolve();
+        } catch (error) {
+            this._downloadEndPromise.reject(error);
+            throw error;
+        }
     }
 
     private _changeEngineFinishDownload(engine: Engine) {
@@ -213,19 +287,5 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         await Promise.all(closePromises);
 
         this.emit("closed");
-    }
-
-    protected static _extractEngines<Engine>(engines: Engine[]) {
-        return engines.map(engine => {
-            if (engine instanceof DownloadEngineMultiDownload) {
-                return engine.downloads;
-            }
-            return engine;
-        })
-            .flat();
-    }
-
-    public static async fromEngines<Engine extends DownloadEngineMultiAllowedEngines>(engines: (Engine | Promise<Engine>)[], options: DownloadEngineMultiDownloadOptions = {}) {
-        return new DownloadEngineMultiDownload(await Promise.all(engines), options);
     }
 }

@@ -1,32 +1,20 @@
 import DownloadEngineNodejs, {DownloadEngineOptionsNodejs} from "./download-engine/engine/download-engine-nodejs.js";
 import BaseDownloadEngine from "./download-engine/engine/base-download-engine.js";
 import DownloadEngineMultiDownload, {DownloadEngineMultiDownloadOptions} from "./download-engine/engine/download-engine-multi-download.js";
-import CliAnimationWrapper, {CliProgressDownloadEngineOptions} from "./transfer-visualize/transfer-cli/cli-animation-wrapper.js";
-import {CLI_LEVEL} from "./transfer-visualize/transfer-cli/transfer-cli.js";
-import {NoDownloadEngineProvidedError} from "./download-engine/engine/error/no-download-engine-provided-error.js";
+import {CliProgressDownloadEngineOptions, globalCLI} from "./transfer-visualize/transfer-cli/GlobalCLI.js";
 
 const DEFAULT_PARALLEL_STREAMS_FOR_NODEJS = 3;
-export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions & {
-    /** @deprecated use partURLs instead */
-    partsURL?: string[];
-};
+export type DownloadFileOptions = DownloadEngineOptionsNodejs & CliProgressDownloadEngineOptions;
 
 /**
  * Download one file with CLI progress
  */
 export async function downloadFile(options: DownloadFileOptions) {
-    // TODO: Remove in the next major version
-    if (!("url" in options) && options.partsURL) {
-        options.partURLs ??= options.partsURL;
-    }
-
-
     options.parallelStreams ??= DEFAULT_PARALLEL_STREAMS_FOR_NODEJS;
 
     const downloader = DownloadEngineNodejs.createFromOptions(options);
-    const wrapper = new CliAnimationWrapper(downloader, options);
+    globalCLI.addDownload(downloader, options);
 
-    await wrapper.attachAnimation();
     return await downloader;
 }
 
@@ -38,7 +26,7 @@ export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & Downloa
 /**
  * Download multiple files with CLI progress
  */
-export async function downloadSequence(options?: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
+export function downloadSequence(options?: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
     let downloadOptions: DownloadSequenceOptions = {};
     if (options instanceof BaseDownloadEngine || options instanceof Promise) {
         downloads.unshift(options);
@@ -46,14 +34,9 @@ export async function downloadSequence(options?: DownloadSequenceOptions | Downl
         downloadOptions = options;
     }
 
-    if (downloads.length === 0) {
-        throw new NoDownloadEngineProvidedError();
-    }
+    const downloader = new DownloadEngineMultiDownload(downloadOptions);
+    downloader.addDownload(...downloads);
+    globalCLI.addDownload(downloader, downloadOptions);
 
-    downloadOptions.cliLevel = CLI_LEVEL.HIGH;
-    const downloader = DownloadEngineMultiDownload.fromEngines(downloads, downloadOptions);
-    const wrapper = new CliAnimationWrapper(downloader, downloadOptions);
-
-    await wrapper.attachAnimation();
-    return await downloader;
+    return downloader;
 }

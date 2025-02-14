@@ -3,8 +3,7 @@ import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-file/do
 import BaseDownloadEngineFetchStream, {BaseDownloadEngineFetchStreamOptions} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
 import {EventEmitter} from "eventemitter3";
-import ProgressStatisticsBuilder, {ProgressStatusWithIndex} from "../../transfer-visualize/progress-statistics-builder.js";
-import DownloadAlreadyStartedError from "./error/download-already-started-error.js";
+import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import retry from "async-retry";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
 import StatusCodeError from "../streams/download-engine-fetch-stream/errors/status-code-error.js";
@@ -41,8 +40,12 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     /**
      * @internal
      */
-    _downloadStarted?: Promise<void>;
-    protected _latestStatus?: ProgressStatusWithIndex;
+    _downloadEndPromise = Promise.withResolvers<void>();
+    /**
+     * @internal
+     */
+    _downloadStarted = false;
+    protected _latestStatus?: FormattedStatus;
 
     protected constructor(engine: DownloadEngineFile, options: DownloadEngineFileOptions) {
         super();
@@ -101,18 +104,22 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
         this._progressStatisticsBuilder.on("progress", (status) => {
             this._latestStatus = status;
-            return this.emit("progress", status);
+            this.emit("progress", status);
         });
     }
 
     async download() {
         if (this._downloadStarted) {
-            throw new DownloadAlreadyStartedError();
+            return this._downloadEndPromise.promise;
         }
 
         try {
-            this._downloadStarted = this._engine.download();
-            await this._downloadStarted;
+            this._downloadStarted = true;
+            const promise = this._engine.download();
+            promise
+                .then(this._downloadEndPromise.resolve)
+                .catch(this._downloadEndPromise.reject);
+            await promise;
         } finally {
             await this.close();
         }

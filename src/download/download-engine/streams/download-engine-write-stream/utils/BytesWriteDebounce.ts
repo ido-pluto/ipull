@@ -4,7 +4,7 @@ export type BytesWriteDebounceOptions = {
     maxTime: number;
     maxSize: number;
     writev: (index: number, buffers: Uint8Array[]) => Promise<void>;
-}
+};
 
 export class BytesWriteDebounce {
     private _writeChunks: {
@@ -66,7 +66,7 @@ export class BytesWriteDebounce {
             const nextWriteLocation = writeIndex + bufferTotalLength;
             const currentWrite = this._writeChunks[i];
 
-            if (currentWrite.index < nextWriteLocation) { //overlapping, prefer the last buffer (newer data)
+            if (currentWrite.index < nextWriteLocation) { // overlapping, prefer the last buffer (newer data)
                 const lastBuffer = buffer.pop()!;
                 buffer.push(currentWrite.buffer);
                 bufferTotalLength += currentWrite.buffer.length - lastBuffer.length;
