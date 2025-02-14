@@ -144,6 +144,9 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
             const state = await fd.stat();
             const metadataSize = state.size - this._fileSize;
             if (metadataSize <= 0 || metadataSize >= MAX_META_SIZE) {
+                if (this._fileSize > 0 && state.size > this._fileSize) {
+                    await this.ftruncate();
+                }
                 return;
             }
 
