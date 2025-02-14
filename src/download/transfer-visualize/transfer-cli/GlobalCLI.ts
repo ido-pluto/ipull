@@ -6,8 +6,9 @@ import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar
 import cliSpinners from "cli-spinners";
 import {DownloadStatus} from "../../download-engine/download-file/progress-status-file.js";
 import BaseDownloadEngine from "../../download-engine/engine/base-download-engine.js";
+import {DownloadEngineRemote} from "../../download-engine/engine/DownloadEngineRemote.js";
 
-type AllowedDownloadEngine = DownloadEngineMultiDownload | BaseDownloadEngine;
+type AllowedDownloadEngine = DownloadEngineMultiDownload | BaseDownloadEngine | DownloadEngineRemote;
 
 const DEFAULT_CLI_STYLE: AvailableCLIProgressStyle = "auto";
 

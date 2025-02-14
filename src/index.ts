@@ -1,5 +1,5 @@
 import DownloadEngineNodejs from "./download/download-engine/engine/download-engine-nodejs.js";
-import {downloadFile, DownloadFileOptions, downloadSequence, DownloadSequenceOptions} from "./download/node-download.js";
+import {downloadFile, DownloadFileOptions, downloadFileRemote, downloadSequence, DownloadSequenceOptions} from "./download/node-download.js";
 import {SaveProgressInfo} from "./download/download-engine/types.js";
 import PathNotAFileError from "./download/download-engine/streams/download-engine-fetch-stream/errors/path-not-a-file-error.js";
 import EmptyResponseError from "./download/download-engine/streams/download-engine-fetch-stream/errors/empty-response-error.js";
@@ -16,10 +16,13 @@ import BaseDownloadEngine from "./download/download-engine/engine/base-download-
 import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
 import {BaseMultiProgressBar, MultiProgressBarOptions} from "./download/transfer-visualize/transfer-cli/multiProgressBars/BaseMultiProgressBar.js";
 import {DownloadFlags, DownloadStatus} from "./download/download-engine/download-file/progress-status-file.js";
+import {DownloadEngineRemote} from "./download/download-engine/engine/DownloadEngineRemote.js";
+import {CliProgressDownloadEngineOptions} from "./download/transfer-visualize/transfer-cli/GlobalCLI.js";
 
 export {
     DownloadFlags,
     DownloadStatus,
+    downloadFileRemote,
     downloadFile,
     downloadSequence,
     BaseMultiProgressBar,
@@ -38,13 +41,15 @@ export {
 
 export type {
     BaseDownloadEngine,
+    DownloadEngineRemote,
     DownloadFileOptions,
     DownloadSequenceOptions,
     DownloadEngineNodejs,
     DownloadEngineMultiDownload,
     SaveProgressInfo,
     FormattedStatus,
-    MultiProgressBarOptions
+    MultiProgressBarOptions,
+    CliProgressDownloadEngineOptions
 };
 
 

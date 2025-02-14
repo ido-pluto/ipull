@@ -1,4 +1,4 @@
-import {downloadFileBrowser, DownloadFileBrowserOptions, downloadSequenceBrowser, DownloadSequenceBrowserOptions} from "./download/browser-download.js";
+import {downloadFileBrowser, DownloadFileBrowserOptions, downloadFileRemoteBrowser, downloadSequenceBrowser, DownloadSequenceBrowserOptions} from "./download/browser-download.js";
 import DownloadEngineBrowser from "./download/download-engine/engine/download-engine-browser.js";
 import EmptyResponseError from "./download/download-engine/streams/download-engine-fetch-stream/errors/empty-response-error.js";
 import StatusCodeError from "./download/download-engine/streams/download-engine-fetch-stream/errors/status-code-error.js";
@@ -14,11 +14,13 @@ import HttpError from "./download/download-engine/streams/download-engine-fetch-
 import BaseDownloadEngine from "./download/download-engine/engine/base-download-engine.js";
 import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
 import {DownloadFlags, DownloadStatus} from "./download/download-engine/download-file/progress-status-file.js";
+import {DownloadEngineRemote} from "./download/download-engine/engine/DownloadEngineRemote.js";
 
 export {
     DownloadFlags,
     DownloadStatus,
     downloadFileBrowser,
+    downloadFileRemoteBrowser,
     downloadSequenceBrowser,
     EmptyResponseError,
     HttpError,
@@ -31,6 +33,7 @@ export {
     InvalidOptionError
 };
 export type {
+    DownloadEngineRemote,
     BaseDownloadEngine,
     DownloadFileBrowserOptions,
     DownloadEngineBrowser,

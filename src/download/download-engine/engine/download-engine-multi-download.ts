@@ -4,8 +4,9 @@ import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statist
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
 import {concurrency} from "./utils/concurrency.js";
 import {DownloadFlags, DownloadStatus} from "../download-file/progress-status-file.js";
+import {DownloadEngineRemote} from "./DownloadEngineRemote.js";
 
-export type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineMultiDownload<any>;
+export type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineRemote | DownloadEngineMultiDownload<any>;
 
 type DownloadEngineMultiDownloadEvents<Engine = DownloadEngineMultiAllowedEngines> = BaseDownloadEngineEvents & {
     childDownloadStarted: (engine: Engine) => void
@@ -247,6 +248,10 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             return;
         }
 
+        if (!(engine instanceof BaseDownloadEngine)) {
+            return;
+        }
+
         const options = engine._fileEngineOptions;
         const onFinishAsync = options.onFinishAsync;
         const onCloseAsync = options.onCloseAsync;
@@ -266,12 +271,16 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
 
     public pause(): void {
         this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Paused;
-        this._activeEngines.forEach(engine => engine.pause());
+        this._activeEngines.forEach(engine => {
+            if ("pause" in engine) engine.pause();
+        });
     }
 
     public resume(): void {
         this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
-        this._activeEngines.forEach(engine => engine.resume());
+        this._activeEngines.forEach(engine => {
+            if ("resume" in engine) engine.resume();
+        });
     }
 
     public async close() {
@@ -283,7 +292,12 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         }
 
         const closePromises = Array.from(this._activeEngines)
-            .map(engine => engine.close());
+            .map(engine => {
+                if ("close" in engine) {
+                    return engine.close();
+                }
+                return Promise.resolve();
+            });
         await Promise.all(closePromises);
 
         this.emit("closed");

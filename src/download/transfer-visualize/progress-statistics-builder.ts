@@ -5,6 +5,7 @@ import {createFormattedStatus, FormattedStatus} from "./format-transfer-status.j
 import DownloadEngineFile from "../download-engine/download-file/download-engine-file.js";
 import ProgressStatusFile, {DownloadStatus, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
+import {DownloadEngineRemote} from "../download-engine/engine/DownloadEngineRemote.js";
 
 export type ProgressStatusWithIndex = FormattedStatus & {
     index: number,
@@ -14,7 +15,7 @@ interface CliProgressBuilderEvents {
     progress: (progress: ProgressStatusWithIndex) => void;
 }
 
-export type AnyEngine = DownloadEngineFile | BaseDownloadEngine | DownloadEngineMultiDownload;
+export type AnyEngine = DownloadEngineFile | BaseDownloadEngine | DownloadEngineMultiDownload | DownloadEngineRemote;
 export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressBuilderEvents> {
     private _engines = new Set<AnyEngine>();
     private _activeTransfers: { [index: number]: number } = {};
