@@ -64,6 +64,10 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         return this.status.startTime < Date.now() - SKIP_ETA_START_TIME;
     }
 
+    protected get retryingText() {
+        return this.status.retrying ? `(retrying #${this.status.retryingTotalAttempts})` : "";
+    }
+
     protected getNameSize(fileName = this.status.fileName) {
         return this.options.truncateName === false
             ? fileName.length
@@ -170,12 +174,19 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         const {formattedPercentage, formattedSpeed, formatTransferredOfTotal, formatTotal} = this.status;
 
         const status = this.switchTransferToShortText();
+        const retryingText = this.retryingText;
         return renderDataLine([
             {
                 type: "status",
                 fullText: status,
                 size: status.length,
                 formatter: (text) => chalk.cyan(text)
+            },
+            {
+                type: "status",
+                fullText: retryingText,
+                size: retryingText.length,
+                formatter: (text) => chalk.ansi256(196)(text)
             },
             {
                 type: "spacer",

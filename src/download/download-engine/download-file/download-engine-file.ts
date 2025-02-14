@@ -66,7 +66,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
     protected _closed = false;
     protected _progressStatus: ProgressStatusFile;
-    protected _activeStreamBytes: { [key: number]: number } = {};
+    protected _activeStreamContext: {
+        [key: number]: {
+            streamBytes: number,
+            retryingAttempts: number
+            isRetrying?: boolean,
+        }
+    } = {};
+
     protected _activeProgram?: BaseDownloadProgram;
     protected _downloadStatus = DownloadStatus.NotStarted;
     private _latestProgressDate = 0;
@@ -114,7 +121,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public get status(): ProgressStatus {
-        return this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus, this.options.comment);
+        const thisStatus = this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus, this.options.comment);
+        const streamContexts = Object.values(this._activeStreamContext);
+
+        thisStatus.retrying = Object.values(this._activeStreamContext)
+            .some(c => c.isRetrying);
+        thisStatus.retryingTotalAttempts = Math.max(...streamContexts.map(x => x.retryingAttempts));
+
+        return thisStatus;
     }
 
     protected get _activePart() {
@@ -135,8 +149,8 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             return this.downloadSize;
         }
 
-        const streamingBytes = Object.values(this._activeStreamBytes)
-            .reduce((acc, bytes) => acc + bytes, 0);
+        const streamingBytes = Object.values(this._activeStreamContext)
+            .reduce((acc, cur) => acc + cur.streamBytes, 0);
 
         const streamBytes = this._activeDownloadedChunkSize + streamingBytes;
         const streamBytesMin = Math.min(streamBytes, this._activePart.size || streamBytes);
@@ -210,7 +224,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             );
 
             // Reset active stream progress
-            this._activeStreamBytes = {};
+            this._activeStreamContext = {};
 
             if (this._activePart.acceptRange) {
                 this._activeProgram = switchProgram(
@@ -226,7 +240,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         }
 
         // All parts are downloaded, we can clear the progress
-        this._activeStreamBytes = {};
+        this._activeStreamContext = {};
         this._latestProgressDate = 0;
 
         if (this._closed) return;
@@ -239,6 +253,8 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected _downloadSlice(startChunk: number, endChunk: number) {
+        const getContext = () => this._activeStreamContext[startChunk] ??= {streamBytes: 0, retryingAttempts: 0};
+
         const fetchState = this.options.fetchStream.withSubState({
             chunkSize: this._progress.chunkSize,
             startChunk,
@@ -247,9 +263,20 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             url: this._activePart.downloadURL!,
             rangeSupport: this._activePart.acceptRange,
             onProgress: (length: number) => {
-                this._activeStreamBytes[startChunk] = length;
+                getContext().streamBytes = length;
                 this._sendProgressDownloadPart();
             }
+        });
+
+        fetchState.addListener("retryingOn", () => {
+            const context = getContext();
+            context.isRetrying = true;
+            context.retryingAttempts++;
+            this._sendProgressDownloadPart();
+        });
+
+        fetchState.addListener("retryingOff", () => {
+            getContext().isRetrying = false;
         });
 
 
@@ -282,7 +309,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
                 this._progress.chunks[index] = ChunkStatus.COMPLETE;
                 lastChunkSize = chunks.reduce((last, current) => last + current.length, 0);
-                delete this._activeStreamBytes[startChunk];
+                getContext().streamBytes = 0;
                 void this._saveProgress();
 
                 const nextChunk = this._progress.chunks[index + 1];
@@ -302,7 +329,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 this._progress.chunks = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE);
             }
 
-            delete this._activeStreamBytes[startChunk];
+            delete this._activeStreamContext[startChunk];
             await Promise.all(allWrites);
         })();
     }

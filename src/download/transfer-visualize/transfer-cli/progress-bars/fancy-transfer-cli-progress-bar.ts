@@ -19,47 +19,56 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
         const progressBarText = ` ${formattedPercentageWithPadding} (${formatTransferred}/${formatTotal}) `;
 
         const dimEta: DataLine = this.getETA(" | ", text => chalk.dim(text));
+        const retryingText = this.retryingText;
 
-        return renderDataLine([{
-            type: "status",
-            fullText: "",
-            size: 1,
-            formatter: () => STATUS_ICONS.activeDownload
-        }, {
-            type: "spacer",
-            fullText: " ",
-            size: " ".length
-        }, ...this.getNameAndCommentDataParts(), {
-            type: "spacer",
-            fullText: " ",
-            size: " ".length
-        }, {
-            type: "progressBar",
-            fullText: progressBarText,
-            size: Math.max(progressBarText.length, `100.0% (1024.00MB/${formatTotal})`.length),
-            flex: 4,
-            addEndPadding: 4,
-            maxSize: 40,
-            formatter(_, size) {
-                const leftPad = " ".repeat(Math.floor((size - progressBarText.length) / 2));
-                return renderProgressBar({
-                    barText: leftPad + ` ${chalk.black.bgWhiteBright(formattedPercentageWithPadding)} ${chalk.gray(`(${formatTransferred}/${formatTotal})`)} `,
-                    backgroundText: leftPad + ` ${chalk.yellow.bgGray(formattedPercentageWithPadding)} ${chalk.white(`(${formatTransferred}/${formatTotal})`)} `,
-                    length: size,
-                    loadedPercentage: percentage / 100,
-                    barStyle: chalk.black.bgWhiteBright,
-                    backgroundStyle: chalk.bgGray
-                });
-            }
-        }, {
-            type: "spacer",
-            fullText: " ",
-            size: " ".length
-        }, {
-            type: "speed",
-            fullText: formattedSpeed,
-            size: Math.max("00.00kB/s".length, formattedSpeed.length)
-        }, ...dimEta]);
+        return renderDataLine([
+            {
+                type: "status",
+                fullText: "",
+                size: 1,
+                formatter: () => STATUS_ICONS.activeDownload
+            },
+            {
+                type: "status",
+                fullText: retryingText,
+                size: retryingText.length,
+                formatter: (text) => chalk.ansi256(196)(text)
+            },
+            {
+                type: "spacer",
+                fullText: " ",
+                size: " ".length
+            }, ...this.getNameAndCommentDataParts(), {
+                type: "spacer",
+                fullText: " ",
+                size: " ".length
+            }, {
+                type: "progressBar",
+                fullText: progressBarText,
+                size: Math.max(progressBarText.length, `100.0% (1024.00MB/${formatTotal})`.length),
+                flex: 4,
+                addEndPadding: 4,
+                maxSize: 40,
+                formatter(_, size) {
+                    const leftPad = " ".repeat(Math.floor((size - progressBarText.length) / 2));
+                    return renderProgressBar({
+                        barText: leftPad + ` ${chalk.black.bgWhiteBright(formattedPercentageWithPadding)} ${chalk.gray(`(${formatTransferred}/${formatTotal})`)} `,
+                        backgroundText: leftPad + ` ${chalk.yellow.bgGray(formattedPercentageWithPadding)} ${chalk.white(`(${formatTransferred}/${formatTotal})`)} `,
+                        length: size,
+                        loadedPercentage: percentage / 100,
+                        barStyle: chalk.black.bgWhiteBright,
+                        backgroundStyle: chalk.bgGray
+                    });
+                }
+            }, {
+                type: "spacer",
+                fullText: " ",
+                size: " ".length
+            }, {
+                type: "speed",
+                fullText: formattedSpeed,
+                size: Math.max("00.00kB/s".length, formattedSpeed.length)
+            }, ...dimEta]);
     }
 
     protected override renderFinishedLine() {

@@ -7,6 +7,8 @@ import retry from "async-retry";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
 import {parseHttpContentRange} from "./utils/httpRange.js";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
+import prettyMilliseconds from "pretty-ms";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
@@ -43,7 +45,24 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
+            let lastTimeoutIndex: any;
+            const clearStreamTimeout = () => {
+                if (lastTimeoutIndex) {
+                    clearTimeout(lastTimeoutIndex);
+                }
+            };
+
+            const createStreamTimeout = () => {
+                clearStreamTimeout();
+                lastTimeoutIndex = setTimeout(() => {
+                    reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
+                    xhr.abort();
+                });
+            };
+
+
             xhr.onload = () => {
+                clearStreamTimeout();
                 const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
 
                 if (this.state.rangeSupport && contentLength !== end - start) {
@@ -63,18 +82,22 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.onerror = () => {
+                clearStreamTimeout();
                 reject(new XhrError(`Failed to fetch ${url}`));
             };
 
             xhr.onprogress = (event) => {
+                createStreamTimeout();
                 if (event.lengthComputable) {
                     onProgress?.(event.loaded);
                 }
             };
 
             xhr.send();
+            createStreamTimeout();
 
             this.on("aborted", () => {
+                clearStreamTimeout();
                 xhr.abort();
             });
         });

@@ -11,6 +11,8 @@ export type ProgressStatus = {
     transferAction: string
     downloadStatus: DownloadStatus
     downloadFlags: DownloadFlags[]
+    retrying: boolean
+    retryingTotalAttempts: number
 };
 
 export enum DownloadStatus {
@@ -41,6 +43,8 @@ export default class ProgressStatusFile {
     public startTime: number = 0;
     public endTime: number = 0;
     public downloadId: string = "";
+    public retrying = false;
+    public retryingTotalAttempts = 0;
 
     public constructor(
         totalDownloadParts: number,
@@ -70,7 +74,13 @@ export default class ProgressStatusFile {
         this.endTime = Date.now();
     }
 
-    public createStatus(downloadPart: number, transferredBytes: number, totalBytes = this.totalBytes, downloadStatus = DownloadStatus.Active, comment = this.comment): ProgressStatusFile {
+    public createStatus(
+        downloadPart: number,
+        transferredBytes: number,
+        totalBytes = this.totalBytes,
+        downloadStatus = DownloadStatus.Active,
+        comment = this.comment
+    ): ProgressStatusFile {
         const newStatus = new ProgressStatusFile(
             this.totalDownloadParts,
             this.fileName,

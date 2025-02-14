@@ -5,6 +5,8 @@ import {parseContentDisposition} from "./utils/content-disposition.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import {parseHttpContentRange} from "./utils/httpRange.js";
 import {browserCheck} from "./utils/browserCheck.js";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
+import prettyMilliseconds from "pretty-ms";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
@@ -114,7 +116,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const {done, value} = await getNextChunk();
+            const {done, value} = await DownloadEngineFetchStreamFetch._wrapperStreamTimeout(getNextChunk());
             await this.paused;
             if (done || this.aborted) break;
 
@@ -131,5 +133,28 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             headerObj[key] = value;
         });
         return headerObj;
+    }
+
+    protected static _wrapperStreamTimeout<T>(promise: Promise<T> | T, maxStreamWait = 2_000): Promise<T> | T {
+        if (!(promise instanceof Promise)) {
+            return promise;
+        }
+
+        return new Promise<T>((resolve, reject) => {
+            const timeout = setTimeout(() => {
+                reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(maxStreamWait)}`));
+            }, maxStreamWait);
+
+            promise.then(
+                (result) => {
+                    clearTimeout(timeout);
+                    resolve(result);
+                },
+                (error) => {
+                    clearTimeout(timeout);
+                    reject(error);
+                }
+            );
+        });
     }
 }

@@ -34,6 +34,8 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
     private _endTime = 0;
     private _downloadId = "";
     private _allFileNames = "";
+    private _retrying = 0;
+    private _retryingTotalAttempts = 0;
 
     constructor() {
         super();
@@ -88,7 +90,20 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             this._downloadStatus = latestStatus.downloadStatus;
         }
 
+        let isRetrying = false;
+        let retryingTotalAttempts = 0;
         engine.on("progress", (data) => {
+            if (isRetrying) {
+                this._retrying--;
+                this._retryingTotalAttempts -= retryingTotalAttempts;
+            }
+
+            isRetrying = data.retrying;
+            retryingTotalAttempts = data.retryingTotalAttempts;
+
+            this._retrying += Number(isRetrying);
+            this._retryingTotalAttempts += retryingTotalAttempts;
+
             this._sendProgress(data, index, downloadPartStart);
         });
 
@@ -141,7 +156,9 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
                 downloadPart: this._activeDownloadPart,
                 totalDownloadParts: this._totalDownloadParts,
                 startTime: this._startTime,
-                fileName: this._allFileNames
+                fileName: this._allFileNames,
+                retrying: this._retrying > 0,
+                retryingTotalAttempts: this._retryingTotalAttempts
             }),
             index
         };
