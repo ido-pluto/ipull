@@ -35,6 +35,7 @@ export default class TransferCli {
     private readonly _updateStatuesDebounce: () => void;
     private _multiProgressBar: BaseMultiProgressBar;
     private _isFirstPrint = true;
+    private _lastProgressLong = "";
 
     public constructor(options: Partial<TransferCliOptions>) {
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
@@ -86,7 +87,8 @@ export default class TransferCli {
     private _updateStatues() {
         if (!this.latestProgress) return;
         const printLog = this._multiProgressBar.createMultiProgressBar(...this.latestProgress);
-        if (printLog) {
+        if (printLog && this._lastProgressLong != printLog) {
+            this._lastProgressLong = printLog;
             this._logUpdate(printLog);
         }
     }
