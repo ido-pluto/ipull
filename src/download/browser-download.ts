@@ -36,7 +36,7 @@ export function downloadFileRemoteBrowser() {
 /**
  * Download multiple files in the browser environment.
  */
-export function downloadSequenceBrowser(options?: DownloadSequenceBrowserOptions | DownloadEngineBrowser | Promise<DownloadEngineBrowser>, ...downloads: (DownloadEngineBrowser | Promise<DownloadEngineBrowser>)[]) {
+export async function downloadSequenceBrowser(options?: DownloadSequenceBrowserOptions | DownloadEngineBrowser | Promise<DownloadEngineBrowser>, ...downloads: (DownloadEngineBrowser | Promise<DownloadEngineBrowser>)[]) {
     let downloadOptions: DownloadSequenceOptions = {};
     if (options instanceof BaseDownloadEngine || options instanceof Promise) {
         downloads.unshift(options);
@@ -45,7 +45,7 @@ export function downloadSequenceBrowser(options?: DownloadSequenceBrowserOptions
     }
 
     const downloader = new DownloadEngineMultiDownload(downloadOptions);
-    downloader.addDownload(...downloads);
+    await downloader.addDownload(...downloads);
 
     return downloader;
 }

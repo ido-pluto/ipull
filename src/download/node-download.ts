@@ -38,7 +38,7 @@ export type DownloadSequenceOptions = CliProgressDownloadEngineOptions & Downloa
 /**
  * Download multiple files with CLI progress
  */
-export function downloadSequence(options?: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
+export async function downloadSequence(options?: DownloadSequenceOptions | DownloadEngineNodejs | Promise<DownloadEngineNodejs>, ...downloads: (DownloadEngineNodejs | Promise<DownloadEngineNodejs>)[]) {
     let downloadOptions: DownloadSequenceOptions = {};
     if (options instanceof BaseDownloadEngine || options instanceof Promise) {
         downloads.unshift(options);
@@ -47,8 +47,8 @@ export function downloadSequence(options?: DownloadSequenceOptions | DownloadEng
     }
 
     const downloader = new DownloadEngineMultiDownload(downloadOptions);
-    downloader.addDownload(...downloads);
     globalCLI.addDownload(downloader, downloadOptions);
+    await downloader.addDownload(...downloads);
 
     return downloader;
 }
