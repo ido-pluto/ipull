@@ -57,7 +57,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 lastTimeoutIndex = setTimeout(() => {
                     reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
                     xhr.abort();
-                });
+                }, this.options.maxStreamWait);
             };
 
 
