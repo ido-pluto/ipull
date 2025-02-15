@@ -17,7 +17,7 @@ describe("File Copy", async () => {
             fileName: copyFileToName,
             chunkSize: 4,
             parallelStreams: 1,
-            fetchStrategy: "localFile",
+            fetchStrategy: "local",
             cliProgress: false
         });
         await engine.download();
@@ -37,7 +37,7 @@ describe("File Copy", async () => {
             url: fileToCopy,
             directory: ".",
             fileName: copyFileToName,
-            fetchStrategy: "localFile",
+            fetchStrategy: "local",
             cliProgress: false,
             parallelStreams: 1
         });
