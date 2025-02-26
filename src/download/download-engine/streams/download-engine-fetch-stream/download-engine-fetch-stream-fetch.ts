@@ -164,7 +164,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
                     if (timeoutMaxStreamWaitThrows) {
                         return;
                     }
-                    throw error;
+                    reject(error);
                 })
                 .finally(() => {
                     clearTimeout(timeoutNotResponding);
