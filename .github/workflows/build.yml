@@ -34,7 +34,7 @@ jobs:
 
   release:
     name: Release
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/beta'
     runs-on: ubuntu-latest
     concurrency: release-${{ github.ref }}
     environment:
@@ -82,7 +82,7 @@ jobs:
           name: pages-docs
           path: docs
       - name: Deploy docs to GitHub Pages
-        if: steps.set-npm-url.outputs.npm-url != ''
+        if: steps.set-npm-url.outputs.npm-url != '' && github.ref == 'refs/heads/main'
         uses: actions/deploy-pages@v2
         with:
           artifact_name: pages-docs
