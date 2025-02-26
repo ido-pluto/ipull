@@ -19,7 +19,7 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
         const progressBarText = ` ${formattedPercentageWithPadding} (${formatTransferred}/${formatTotal}) `;
 
         const dimEta: DataLine = this.getETA(" | ", text => chalk.dim(text));
-        const retryingText = this.retryingText;
+        const alertStatus = this.alertStatus;
 
         return renderDataLine([
             {
@@ -30,8 +30,8 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
             },
             {
                 type: "status",
-                fullText: retryingText,
-                size: retryingText.length,
+                fullText: alertStatus,
+                size: alertStatus.length,
                 formatter: (text) => chalk.ansi256(196)(text)
             },
             {

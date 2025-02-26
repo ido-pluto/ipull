@@ -1,4 +1,10 @@
-import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, MIN_LENGTH_FOR_MORE_INFO_REQUEST, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {
+    DownloadInfoResponse,
+    FetchSubState,
+    MIN_LENGTH_FOR_MORE_INFO_REQUEST,
+    STREAM_NOT_RESPONDING_TIMEOUT,
+    WriteCallback
+} from "./base-download-engine-fetch-stream.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
@@ -11,6 +17,7 @@ import prettyMilliseconds from "pretty-ms";
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = false;
+    private _activeController?: AbortController;
     public override transferAction = "Downloading";
     public override readonly supportDynamicStreamLength = true;
 
@@ -29,10 +36,14 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             headers.range = `bytes=${this._startSize}-${this._endSize - 1}`;
         }
 
-        const controller = new AbortController();
+        if (!this._activeController?.signal.aborted) {
+            this._activeController?.abort();
+        }
+
+        this._activeController = new AbortController();
         const response = await fetch(this.appendToURL(this.state.url), {
             headers,
-            signal: controller.signal
+            signal: this._activeController.signal
         });
 
         if (response.status < 200 || response.status >= 300) {
@@ -46,7 +57,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         }
 
         this.on("aborted", () => {
-            controller.abort();
+            this._activeController?.abort();
         });
 
         const reader = response.body!.getReader();
@@ -117,7 +128,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const {done, value} = await DownloadEngineFetchStreamFetch._wrapperStreamTimeout(getNextChunk());
+            const {done, value} = await this._wrapperStreamNotResponding(getNextChunk());
             await this.paused;
             if (done || this.aborted) break;
 
@@ -128,6 +139,44 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         smartSplit.sendLeftovers();
     }
 
+    protected _wrapperStreamNotResponding<T>(promise: Promise<T> | T): Promise<T> | T {
+        if (!(promise instanceof Promise)) {
+            return promise;
+        }
+
+        return new Promise<T>((resolve, reject) => {
+            let streamNotRespondedInTime = false;
+            let timeoutMaxStreamWaitThrows = false;
+            const timeoutNotResponding = setTimeout(() => {
+                streamNotRespondedInTime = true;
+                this.emit("streamNotRespondingOn");
+            }, STREAM_NOT_RESPONDING_TIMEOUT);
+
+            const timeoutMaxStreamWait = setTimeout(() => {
+                timeoutMaxStreamWaitThrows = true;
+                reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
+                this._activeController?.abort();
+            }, this.options.maxStreamWait);
+
+            promise
+                .then(resolve)
+                .catch(error => {
+                    if (timeoutMaxStreamWaitThrows) {
+                        return;
+                    }
+                    throw error;
+                })
+                .finally(() => {
+                    clearTimeout(timeoutNotResponding);
+                    clearTimeout(timeoutMaxStreamWait);
+                    if (streamNotRespondedInTime) {
+                        this.emit("streamNotRespondingOff");
+                    }
+                });
+        });
+    }
+
+
     protected static convertHeadersToRecord(headers: Headers): { [key: string]: string } {
         const headerObj: { [key: string]: string } = {};
         headers.forEach((value, key) => {
@@ -136,26 +185,4 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         return headerObj;
     }
 
-    protected static _wrapperStreamTimeout<T>(promise: Promise<T> | T, maxStreamWait = 2_000): Promise<T> | T {
-        if (!(promise instanceof Promise)) {
-            return promise;
-        }
-
-        return new Promise<T>((resolve, reject) => {
-            const timeout = setTimeout(() => {
-                reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(maxStreamWait)}`));
-            }, maxStreamWait);
-
-            promise.then(
-                (result) => {
-                    clearTimeout(timeout);
-                    resolve(result);
-                },
-                (error) => {
-                    clearTimeout(timeout);
-                    reject(error);
-                }
-            );
-        });
-    }
 }

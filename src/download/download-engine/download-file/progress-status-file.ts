@@ -13,6 +13,7 @@ export type ProgressStatus = {
     downloadFlags: DownloadFlags[]
     retrying: boolean
     retryingTotalAttempts: number
+    streamsNotResponding: number
 };
 
 export enum DownloadStatus {
@@ -45,6 +46,7 @@ export default class ProgressStatusFile {
     public downloadId: string = "";
     public retrying = false;
     public retryingTotalAttempts = 0;
+    public streamsNotResponding = 0;
 
     public constructor(
         totalDownloadParts: number,

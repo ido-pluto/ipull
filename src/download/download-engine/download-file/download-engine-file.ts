@@ -74,6 +74,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             streamBytes: number,
             retryingAttempts: number
             isRetrying?: boolean,
+            isStreamNotResponding?: boolean
         }
     } = {};
 
@@ -127,9 +128,9 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         const thisStatus = this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus, this.options.comment);
         const streamContexts = Object.values(this._activeStreamContext);
 
-        thisStatus.retrying = Object.values(this._activeStreamContext)
-            .some(c => c.isRetrying);
+        thisStatus.retrying = streamContexts.some(c => c.isRetrying);
         thisStatus.retryingTotalAttempts = Math.max(...streamContexts.map(x => x.retryingAttempts));
+        thisStatus.streamsNotResponding = streamContexts.reduce((acc, cur) => acc + (cur.isStreamNotResponding ? 1 : 0), 0);
 
         return thisStatus;
     }
@@ -294,6 +295,15 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         fetchState.addListener("retryingOff", () => {
             getContext().isRetrying = false;
+        });
+
+        fetchState.addListener("streamNotRespondingOn", () => {
+            getContext().isStreamNotResponding = true;
+            this._sendProgressDownloadPart();
+        });
+
+        fetchState.addListener("streamNotRespondingOff", () => {
+            getContext().isStreamNotResponding = false;
         });
 
         const downloadedPartsSize = this._downloadedPartsSize;

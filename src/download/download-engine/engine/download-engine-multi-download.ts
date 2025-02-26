@@ -160,6 +160,8 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         if (this._options.finalizeDownloadAfterAllSettled) {
             this._changeEngineFinishDownload(engine);
         }
+
+        this.downloads.push(engine);
         this._reloadDownloadParallelisms?.();
     }
 
@@ -183,7 +185,6 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         this._loadingDownloads--;
 
         this._addEngine(awaitEngine, index);
-        this.downloads.push(awaitEngine);
         this._progressStatisticsBuilder.add(awaitEngine, true);
 
         return awaitEngine;

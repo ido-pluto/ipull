@@ -44,9 +44,7 @@ class GlobalCLI {
         }
 
         await this._multiDownloadEngine.addDownload(engine);
-        if (this._multiDownloadEngine.activeDownloads.length === 0) {
-            await this._multiDownloadEngine.download();
-        }
+        this._multiDownloadEngine.download();
     }
 
     private _createMultiDownloadEngine() {

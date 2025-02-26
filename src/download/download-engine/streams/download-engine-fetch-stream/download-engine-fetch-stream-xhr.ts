@@ -1,4 +1,10 @@
-import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, MIN_LENGTH_FOR_MORE_INFO_REQUEST, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {
+    DownloadInfoResponse,
+    FetchSubState,
+    MIN_LENGTH_FOR_MORE_INFO_REQUEST,
+    STREAM_NOT_RESPONDING_TIMEOUT,
+    WriteCallback
+} from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
@@ -7,8 +13,8 @@ import retry from "async-retry";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
 import {parseHttpContentRange} from "./utils/httpRange.js";
-import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
 import prettyMilliseconds from "pretty-ms";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
@@ -47,16 +53,33 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
-            let lastTimeoutIndex: any;
+            let lastNotRespondingTimeoutIndex: any;
+            let lastMaxStreamWaitTimeoutIndex: any;
+            let streamNotResponding = false;
             const clearStreamTimeout = () => {
-                if (lastTimeoutIndex) {
-                    clearTimeout(lastTimeoutIndex);
+                if (streamNotResponding) {
+                    this.emit("streamNotRespondingOff");
+                    streamNotResponding = false;
+                }
+
+                if (lastNotRespondingTimeoutIndex) {
+                    clearTimeout(lastNotRespondingTimeoutIndex);
+                }
+
+                if (lastMaxStreamWaitTimeoutIndex) {
+                    clearTimeout(lastMaxStreamWaitTimeoutIndex);
                 }
             };
 
             const createStreamTimeout = () => {
                 clearStreamTimeout();
-                lastTimeoutIndex = setTimeout(() => {
+
+                lastNotRespondingTimeoutIndex = setTimeout(() => {
+                    streamNotResponding = true;
+                    this.emit("streamNotRespondingOn");
+                }, STREAM_NOT_RESPONDING_TIMEOUT);
+
+                lastMaxStreamWaitTimeoutIndex = setTimeout(() => {
                     reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
                     xhr.abort();
                 }, this.options.maxStreamWait);
