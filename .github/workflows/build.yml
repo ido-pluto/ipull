@@ -55,7 +55,7 @@ jobs:
           node-version: "22"
       - name: Install modules
         run: npm ci --ignore-scripts
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4
         with:
           path: artifacts
       - name: Move artifacts
@@ -77,12 +77,12 @@ jobs:
           fi
       - name: Upload docs to GitHub Pages
         if: steps.set-npm-url.outputs.npm-url != ''
-        uses: actions/upload-pages-artifact@v2
+        uses: actions/upload-pages-artifact@v3
         with:
           name: pages-docs
           path: docs
       - name: Deploy docs to GitHub Pages
         if: steps.set-npm-url.outputs.npm-url != '' && github.ref == 'refs/heads/main'
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
         with:
           artifact_name: pages-docs
