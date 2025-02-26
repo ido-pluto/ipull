@@ -12,6 +12,7 @@ type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | Readab
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = false;
     public override transferAction = "Downloading";
+    public override readonly supportDynamicStreamLength = true;
 
     withSubState(state: FetchSubState): this {
         const fetchStream = new DownloadEngineFetchStreamFetch(this.options);

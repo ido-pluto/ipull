@@ -87,8 +87,10 @@ const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
 };
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
-    public readonly programType?: AvailablePrograms;
+    public readonly defaultProgramType?: AvailablePrograms;
+    public readonly availablePrograms: AvailablePrograms[] = ["chunks", "stream"];
     public readonly abstract transferAction: string;
+    public readonly supportDynamicStreamLength: boolean = false;
     public readonly options: Partial<BaseDownloadEngineFetchStreamOptions> = {};
     public state: FetchSubState = null!;
     public paused?: Promise<void>;

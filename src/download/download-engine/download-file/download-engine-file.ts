@@ -9,6 +9,7 @@ import switchProgram, {AvailablePrograms} from "./download-programs/switch-progr
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
 import {pushComment} from "./utils/push-comment.js";
 import {uid} from "uid";
+import {DownloaderProgramManager} from "./downloaderProgramManager.js";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
@@ -23,6 +24,7 @@ export type DownloadEngineFileOptions = {
     onPausedAsync?: () => Promise<void>
     onSaveProgressAsync?: (progress: SaveProgressInfo) => Promise<void>
     programType?: AvailablePrograms
+    autoIncreaseParallelStreams?: boolean
 
     /** @internal */
     skipExisting?: boolean;
@@ -49,7 +51,8 @@ const DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM = 1024 * 1024; // 1MB
 
 const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {
     chunkSize: 0,
-    parallelStreams: 3
+    parallelStreams: 3,
+    autoIncreaseParallelStreams: true
 };
 
 export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileEvents> {
@@ -160,7 +163,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected get _programType() {
-        return this.options.fetchStream.programType || this.options.programType;
+        if (this.options.programType && this.options.fetchStream.availablePrograms.includes(this.options.programType)) {
+            return this.options.programType;
+        }
+        return this.options.fetchStream.defaultProgramType;
     }
 
     protected _emptyChunksForPart(part: number) {
@@ -186,6 +192,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             this.options.comment = pushComment("Skipping existing", this.options.comment);
         } else if (this.file.downloadProgress) {
             this._progress = this.file.downloadProgress;
+            this._progress.parallelStreams = this.options.parallelStreams;
             this._initEventReloadStatus();
         } else {
             this._progress = {
@@ -232,7 +239,17 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                     this._downloadSlice.bind(this),
                     this._programType
                 );
-                await this._activeProgram.download();
+
+                let manager: DownloaderProgramManager | null = null;
+                if (this.options.autoIncreaseParallelStreams && this.options.fetchStream.supportDynamicStreamLength) {
+                    manager = new DownloaderProgramManager(this._activeProgram, this);
+                }
+
+                try {
+                    await this._activeProgram.download();
+                } finally {
+                    manager?.close();
+                }
             } else {
                 const chunksToRead = this._activePart.size > 0 ? this._progress.chunks.length : Infinity;
                 await this._downloadSlice(0, chunksToRead);
@@ -252,7 +269,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         await this.options.onFinishAsync?.();
     }
 
-    protected _downloadSlice(startChunk: number, endChunk: number) {
+    protected async _downloadSlice(startChunk: number, endChunk: number) {
         const getContext = () => this._activeStreamContext[startChunk] ??= {streamBytes: 0, retryingAttempts: 0};
 
         const fetchState = this.options.fetchStream.withSubState({
@@ -279,59 +296,56 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             getContext().isRetrying = false;
         });
 
-
         const downloadedPartsSize = this._downloadedPartsSize;
         this._progress.chunks[startChunk] = ChunkStatus.IN_PROGRESS;
-        return (async () => {
-            const allWrites = new Set<Promise<any>>();
+        const allWrites = new Set<Promise<any>>();
 
-            let lastChunkSize = 0;
-            await fetchState.fetchChunks((chunks, writePosition, index) => {
-                if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
-                    return;
-                }
-
-                for (const chunk of chunks) {
-                    const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunk);
-                    writePosition += chunk.length;
-                    if (writePromise) {
-                        allWrites.add(writePromise);
-                        writePromise.then(() => {
-                            allWrites.delete(writePromise);
-                        });
-                    }
-                }
-
-                // if content length is 0, we do not know how many chunks we should have
-                if (this._activePart.size === 0) {
-                    this._progress.chunks.push(ChunkStatus.NOT_STARTED);
-                }
-
-                this._progress.chunks[index] = ChunkStatus.COMPLETE;
-                lastChunkSize = chunks.reduce((last, current) => last + current.length, 0);
-                getContext().streamBytes = 0;
-                void this._saveProgress();
-
-                const nextChunk = this._progress.chunks[index + 1];
-                const shouldReadNext = endChunk - index > 1; // grater than 1, meaning there is a next chunk
-
-                if (shouldReadNext) {
-                    if (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED) {
-                        return fetchState.close();
-                    }
-                    this._progress.chunks[index + 1] = ChunkStatus.IN_PROGRESS;
-                }
-            });
-
-            // On dynamic content length, we need to adjust the last chunk size
-            if (this._activePart.size === 0) {
-                this._activePart.size = this._activeDownloadedChunkSize - this.options.chunkSize + lastChunkSize;
-                this._progress.chunks = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE);
+        let lastChunkSize = 0;
+        await fetchState.fetchChunks((chunks, writePosition, index) => {
+            if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
+                return;
             }
 
-            delete this._activeStreamContext[startChunk];
-            await Promise.all(allWrites);
-        })();
+            for (const chunk of chunks) {
+                const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunk);
+                writePosition += chunk.length;
+                if (writePromise) {
+                    allWrites.add(writePromise);
+                    writePromise.then(() => {
+                        allWrites.delete(writePromise);
+                    });
+                }
+            }
+
+            // if content length is 0, we do not know how many chunks we should have
+            if (this._activePart.size === 0) {
+                this._progress.chunks.push(ChunkStatus.NOT_STARTED);
+            }
+
+            this._progress.chunks[index] = ChunkStatus.COMPLETE;
+            lastChunkSize = chunks.reduce((last, current) => last + current.length, 0);
+            getContext().streamBytes = 0;
+            void this._saveProgress();
+
+            const nextChunk = this._progress.chunks[index + 1];
+            const shouldReadNext = fetchState.state.endChunk - index > 1; // grater than 1, meaning there is a next chunk
+
+            if (shouldReadNext) {
+                if (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED) {
+                    return fetchState.close();
+                }
+                this._progress.chunks[index + 1] = ChunkStatus.IN_PROGRESS;
+            }
+        });
+
+        // On dynamic content length, we need to adjust the last chunk size
+        if (this._activePart.size === 0) {
+            this._activePart.size = this._activeDownloadedChunkSize - this.options.chunkSize + lastChunkSize;
+            this._progress.chunks = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE);
+        }
+
+        delete this._activeStreamContext[startChunk];
+        await Promise.all(allWrites);
     }
 
     protected _saveProgress() {

@@ -2,7 +2,7 @@ import {EventEmitter} from "eventemitter3";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
-import {concurrency} from "./utils/concurrency.js";
+import {concurrency} from "../utils/concurrency.js";
 import {DownloadFlags, DownloadStatus} from "../download-file/progress-status-file.js";
 import {DownloadEngineRemote} from "./DownloadEngineRemote.js";
 

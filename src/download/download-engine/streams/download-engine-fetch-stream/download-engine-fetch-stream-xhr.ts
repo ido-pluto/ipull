@@ -13,7 +13,9 @@ import prettyMilliseconds from "pretty-ms";
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = true;
-    public override readonly programType: AvailablePrograms = "chunks";
+    public override readonly defaultProgramType: AvailablePrograms = "chunks";
+    public override readonly availablePrograms: AvailablePrograms[] = ["chunks"];
+
     public override transferAction = "Downloading";
 
     withSubState(state: FetchSubState): this {

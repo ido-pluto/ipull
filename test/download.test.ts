@@ -23,6 +23,7 @@ describe("File Download", () => {
         const downloader = new DownloadEngineFile(file, {
             parallelStreams: randomNumber,
             chunkSize: 1024 ** 2,
+            autoIncreaseParallelStreams: false,
             fetchStream,
             writeStream
         });
