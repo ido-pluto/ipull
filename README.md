@@ -25,6 +25,7 @@ npx ipull http://example.com/file.large
 ## Features
 
 - Download using parallels connections
+- Maximize download speed (automatic parallelization, 3+)
 - Pausing and resuming downloads
 - Node.js and browser support
 - Smart retry on fail
