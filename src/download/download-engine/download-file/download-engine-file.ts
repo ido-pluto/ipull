@@ -367,7 +367,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         this.emit("save", this._progress);
         return withLock(this, "_saveLock", async () => {
-            if (thisProgress === this._latestProgressDate) {
+            if (thisProgress === this._latestProgressDate && !this._closed && this._downloadStatus !== DownloadStatus.Finished) {
                 await this.options.onSaveProgressAsync?.(this._progress);
             }
         });
