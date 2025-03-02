@@ -40,8 +40,16 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             this._activeController?.abort();
         }
 
+        let response: Response | null = null;
         this._activeController = new AbortController();
-        const response = await fetch(this.appendToURL(this.state.url), {
+        this.on("aborted", () => {
+            if (!response) {
+                this._activeController?.abort();
+            }
+        });
+
+
+        response = await fetch(this.appendToURL(this.state.url), {
             headers,
             signal: this._activeController.signal
         });
@@ -55,10 +63,6 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         if (this.state.rangeSupport && contentLength !== expectedContentLength) {
             throw new InvalidContentLengthError(expectedContentLength, contentLength);
         }
-
-        this.on("aborted", () => {
-            this._activeController?.abort();
-        });
 
         const reader = response.body!.getReader();
         return await this.chunkGenerator(callback, () => reader.read());
@@ -128,23 +132,23 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
-            const {done, value} = await this._wrapperStreamNotResponding(getNextChunk());
+            const chunkInfo = await this._wrapperStreamNotResponding(getNextChunk());
             await this.paused;
-            if (done || this.aborted) break;
+            if (!chunkInfo || this.aborted || chunkInfo.done) break;
 
-            smartSplit.addChunk(value);
+            smartSplit.addChunk(chunkInfo.value);
             this.state.onProgress?.(smartSplit.savedLength);
         }
 
         smartSplit.sendLeftovers();
     }
 
-    protected _wrapperStreamNotResponding<T>(promise: Promise<T> | T): Promise<T> | T {
+    protected _wrapperStreamNotResponding<T>(promise: Promise<T> | T): Promise<T | void> | T | void {
         if (!(promise instanceof Promise)) {
             return promise;
         }
 
-        return new Promise<T>((resolve, reject) => {
+        return new Promise<T | void>((resolve, reject) => {
             let streamNotRespondedInTime = false;
             let timeoutMaxStreamWaitThrows = false;
             const timeoutNotResponding = setTimeout(() => {
@@ -158,10 +162,12 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
                 this._activeController?.abort();
             }, this.options.maxStreamWait);
 
+            this.addListener("aborted", resolve);
+
             promise
                 .then(resolve)
                 .catch(error => {
-                    if (timeoutMaxStreamWaitThrows) {
+                    if (timeoutMaxStreamWaitThrows || this.aborted) {
                         return;
                     }
                     reject(error);
@@ -172,6 +178,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
                     if (streamNotRespondedInTime) {
                         this.emit("streamNotRespondingOff");
                     }
+                    this.removeListener("aborted", resolve);
                 });
         });
     }
