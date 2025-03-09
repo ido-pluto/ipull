@@ -225,7 +225,9 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
                 this._reloadDownloadParallelisms = reload;
                 await promise;
                 continueIteration = this._engineWaitPromises.size > 0;
-                await Promise.race(this._engineWaitPromises);
+                if (continueIteration) {
+                    await Promise.race(this._engineWaitPromises);
+                }
             }
 
             this._downloadEndPromise = Promise.withResolvers();
