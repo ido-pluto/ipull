@@ -95,6 +95,10 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 }
 
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    if (xhr.response.length != contentLength) {
+                        throw new InvalidContentLengthError(contentLength, xhr.response.length);
+                    }
+
                     const arrayBuffer = xhr.response;
                     if (arrayBuffer) {
                         resolve(new Uint8Array(arrayBuffer));

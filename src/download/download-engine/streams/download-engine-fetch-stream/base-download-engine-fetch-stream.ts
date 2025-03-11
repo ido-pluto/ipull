@@ -53,6 +53,7 @@ export type FetchSubState = {
     url: string,
     startChunk: number,
     endChunk: number,
+    lastChunkEndsFile: boolean,
     totalSize: number,
     chunkSize: number,
     rangeSupport?: boolean,

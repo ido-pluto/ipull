@@ -18,7 +18,8 @@ export type BaseDownloadEngineOptions = InputURLOptions & BaseDownloadEngineFetc
     parallelStreams?: number;
     retry?: retry.Options
     comment?: string;
-    programType?: AvailablePrograms
+    programType?: AvailablePrograms,
+    autoIncreaseParallelStreams?: boolean
 };
 
 export type BaseDownloadEngineEvents = {
