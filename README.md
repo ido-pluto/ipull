@@ -74,8 +74,9 @@ import {downloadFileBrowser} from "ipull/dist/browser.js";
 
 const downloader = await downloadFileBrowser({
     url: 'https://example.com/file.large',
-    onWrite: (cursor: number, buffer: Uint8Array, options) => {
-        console.log(`Writing ${buffer.length} bytes at cursor ${cursor}, with options: ${JSON.stringify(options)}`);
+    onWrite: (cursor: number, buffers: Uint8Array[], options) => {
+        const totalLength = buffers.reduce((acc, buffer) => acc + buffer.length, 0);
+        console.log(`Writing ${totalLength} bytes at cursor ${cursor}, with options: ${JSON.stringify(options)}`);
     }
 });
 

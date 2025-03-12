@@ -317,15 +317,12 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 return;
             }
 
-            for (const chunk of chunks) {
-                const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunk);
-                writePosition += chunk.length;
-                if (writePromise) {
-                    allWrites.add(writePromise);
-                    writePromise.then(() => {
-                        allWrites.delete(writePromise);
-                    });
-                }
+            const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunks);
+            if (writePromise) {
+                allWrites.add(writePromise);
+                writePromise.then(() => {
+                    allWrites.delete(writePromise);
+                });
             }
 
             // if content length is 0, we do not know how many chunks we should have

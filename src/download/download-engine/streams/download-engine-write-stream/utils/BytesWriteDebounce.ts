@@ -19,9 +19,13 @@ export class BytesWriteDebounce {
 
     }
 
-    async addChunk(index: number, buffer: Uint8Array) {
-        this._writeChunks.push({index, buffer});
-        this._totalSizeOfChunks += buffer.byteLength;
+    async addChunk(index: number, buffers: Uint8Array[]) {
+        let writeIndex = index;
+        for (const buffer of buffers) {
+            this._writeChunks.push({index: writeIndex, buffer});
+            this._totalSizeOfChunks += buffer.length;
+            writeIndex += buffer.length;
+        }
 
         await this._writeIfNeeded();
         this.checkIfWriteNeededInterval();
@@ -57,32 +61,32 @@ export class BytesWriteDebounce {
         const firstWrite = this._writeChunks[0];
 
         let writeIndex = firstWrite.index;
-        let buffer: Uint8Array[] = [firstWrite.buffer];
-        let bufferTotalLength = firstWrite.buffer.length;
+        let buffers: Uint8Array[] = [firstWrite.buffer];
+        let buffersTotalLength = firstWrite.buffer.length;
 
         const writePromises: Promise<void>[] = [];
 
-        for (let i = 0; i < this._writeChunks.length; i++) {
-            const nextWriteLocation = writeIndex + bufferTotalLength;
+        for (let i = 1; i < this._writeChunks.length; i++) {
+            const nextWriteLocation = writeIndex + buffersTotalLength;
             const currentWrite = this._writeChunks[i];
 
             if (currentWrite.index < nextWriteLocation) { // overlapping, prefer the last buffer (newer data)
-                const lastBuffer = buffer.pop()!;
-                buffer.push(currentWrite.buffer);
-                bufferTotalLength += currentWrite.buffer.length - lastBuffer.length;
+                const lastBuffer = buffers.pop()!;
+                buffers.push(currentWrite.buffer);
+                buffersTotalLength += currentWrite.buffer.length - lastBuffer.length;
             } else if (nextWriteLocation === currentWrite.index) {
-                buffer.push(currentWrite.buffer);
-                bufferTotalLength += currentWrite.buffer.length;
+                buffers.push(currentWrite.buffer);
+                buffersTotalLength += currentWrite.buffer.length;
             } else {
-                writePromises.push(this._options.writev(writeIndex, buffer));
+                writePromises.push(this._options.writev(writeIndex, buffers));
 
                 writeIndex = currentWrite.index;
-                buffer = [currentWrite.buffer];
-                bufferTotalLength = currentWrite.buffer.length;
+                buffers = [currentWrite.buffer];
+                buffersTotalLength = currentWrite.buffer.length;
             }
         }
 
-        writePromises.push(this._options.writev(writeIndex, buffer));
+        writePromises.push(this._options.writev(writeIndex, buffers));
 
         this._writeChunks = [];
         this._totalSizeOfChunks = 0;

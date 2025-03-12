@@ -26,30 +26,35 @@ describe("Browser Fetch API", () => {
         const response = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const bufferIsCorrect = Buffer.from(await fs.readFile(response));
 
-        let buffer = Buffer.alloc(0);
+        let bigBuffer = Buffer.alloc(0);
         let lastWrite = 0;
         const downloader = await downloadFileBrowser({
             url: BIG_FILE,
             parallelStreams: 2,
             autoIncreaseParallelStreams: false,
             onWrite(cursor, data) {
-                buffer.set(data, cursor);
-                if (cursor + data.length > lastWrite) {
-                    lastWrite = cursor + data.length;
+                let writeLocation = cursor;
+                for (const buffer of data) {
+                    bigBuffer.set(buffer, writeLocation);
+                    writeLocation += buffer.length;
+                }
+
+                if (writeLocation > lastWrite) {
+                    lastWrite = writeLocation;
                 }
             }
         });
 
-        buffer = Buffer.alloc(downloader.file.totalSize);
+        bigBuffer = Buffer.alloc(downloader.file.totalSize);
         await downloader.download();
 
-        const diff = buffer.findIndex((value, index) => value !== bufferIsCorrect[index]);
+        const diff = bigBuffer.findIndex((value, index) => value !== bufferIsCorrect[index]);
         context.expect(diff)
             .toBe(-1);
 
         context.expect(lastWrite)
             .toBe(downloader.file.totalSize);
-        context.expect(hashBuffer(buffer))
+        context.expect(hashBuffer(bigBuffer))
             .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
     }, {repeats: 4, concurrent: true});
 }, {timeout: 1000 * 60 * 3});

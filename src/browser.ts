@@ -15,6 +15,9 @@ import BaseDownloadEngine from "./download/download-engine/engine/base-download-
 import {InvalidOptionError} from "./download/download-engine/engine/error/InvalidOptionError.js";
 import {DownloadFlags, DownloadStatus} from "./download/download-engine/download-file/progress-status-file.js";
 import {DownloadEngineRemote} from "./download/download-engine/engine/DownloadEngineRemote.js";
+import {
+    DownloadEngineWriteStreamOptionsBrowser
+} from "./download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 
 export {
     DownloadFlags,
@@ -33,7 +36,6 @@ export {
     InvalidOptionError
 };
 
-
 export type {
     DownloadEngineRemote,
     BaseDownloadEngine,
@@ -43,5 +45,6 @@ export type {
     DownloadEngineMultiAllowedEngines,
     FormattedStatus,
     SaveProgressInfo,
-    DownloadSequenceBrowserOptions
+    DownloadSequenceBrowserOptions,
+    DownloadEngineWriteStreamOptionsBrowser
 };

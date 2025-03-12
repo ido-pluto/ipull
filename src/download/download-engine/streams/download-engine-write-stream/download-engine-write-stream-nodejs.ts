@@ -52,7 +52,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
         this._writeDebounce = new BytesWriteDebounce({
             ...optionsWithDefaults.debounceWrite,
-            writev: (cursor, buffer) => this._writeWithoutDebounce(cursor, buffer)
+            writev: (cursor, buffers) => this._writeWithoutDebounce(cursor, buffers)
         });
     }
 
@@ -84,8 +84,8 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         });
     }
 
-    async write(cursor: number, buffer: Uint8Array) {
-        await this._writeDebounce.addChunk(cursor, buffer);
+    async write(cursor: number, buffers: Uint8Array[]) {
+        await this._writeDebounce.addChunk(cursor, buffers);
     }
 
     async _writeWithoutDebounce(cursor: number, buffers: Uint8Array[]) {
@@ -131,7 +131,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         const encoder = new TextEncoder();
         const uint8Array = encoder.encode(jsonString);
 
-        await this.write(this._fileSize, uint8Array);
+        await this.write(this._fileSize, [uint8Array]);
     }
 
     async loadMetadataAfterFileWithoutRetry() {
