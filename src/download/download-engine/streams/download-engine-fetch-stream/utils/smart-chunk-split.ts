@@ -14,6 +14,7 @@ export default class SmartChunkSplit {
     private readonly _lastChunkSize: number;
     private _bytesWriteLocation: number;
     private _chunks: Uint8Array[] = [];
+    private _closed = false;
 
     public constructor(_callback: WriteCallback, _options: SmartChunkSplitOptions) {
         this._options = _options;
@@ -36,7 +37,16 @@ export default class SmartChunkSplit {
         return this._chunks.reduce((acc, chunk) => acc + chunk.length, 0);
     }
 
+    closeAndSendLeftoversIfLengthIsUnknown() {
+        if (this._chunks.length > 0 && this._options.endChunk === Infinity) {
+            this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++);
+        }
+        this._closed = true;
+    }
+
     private _sendChunk() {
+        if (this._closed) return;
+
         const checkThreshold = () =>
             (this._options.endChunk - this._options.startChunk === 1 ?
                 this._lastChunkSize : this._options.chunkSize);

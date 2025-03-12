@@ -139,6 +139,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             smartSplit.addChunk(chunkInfo.value);
             this.state.onProgress?.(smartSplit.savedLength);
         }
+
+        smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
     }
 
     protected _wrapperStreamNotResponding<T>(promise: Promise<T> | T): Promise<T | void> | T | void {
