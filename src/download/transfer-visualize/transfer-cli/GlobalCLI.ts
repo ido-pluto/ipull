@@ -24,6 +24,7 @@ export type CliProgressDownloadEngineOptions = {
 
 class GlobalCLI {
     private _multiDownloadEngine = this._createMultiDownloadEngine();
+    private _eventsRegistered = new Set<DownloadEngineMultiAllowedEngines>();
     private _transferCLI = GlobalCLI._createOptions({});
     private _cliActive = false;
     private _downloadOptions = new WeakMap<AllowedDownloadEngine, CliProgressDownloadEngineOptions>();
@@ -78,10 +79,15 @@ class GlobalCLI {
         };
 
         const checkPauseCLI = () => {
-            if (!isDownloadActive()) {
+            if (this._cliActive && !isDownloadActive()) {
                 this._transferCLI.stop();
                 this._cliActive = false;
             }
+        };
+
+        const checkCloseCLI = (engine: DownloadEngineMultiAllowedEngines) => {
+            this._eventsRegistered.delete(engine);
+            checkPauseCLI();
         };
 
         const checkResumeCLI = (engine: DownloadEngineMultiAllowedEngines) => {
@@ -91,21 +97,21 @@ class GlobalCLI {
             }
         };
 
-        this._multiDownloadEngine.on("start", () => {
-            this._transferCLI.start();
-            this._cliActive = true;
-        });
-
         this._multiDownloadEngine.on("finished", () => {
-            this._transferCLI.stop();
-            this._cliActive = false;
             this._multiDownloadEngine = this._createMultiDownloadEngine();
+            this._eventsRegistered = new Set();
         });
 
+        const eventsRegistered = this._eventsRegistered;
         this._multiDownloadEngine.on("childDownloadStarted", function registerEngineStatus(engine) {
-            engine.on("closed", checkPauseCLI);
+            if (eventsRegistered.has(engine)) return;
+            eventsRegistered.add(engine);
+
+            checkResumeCLI(engine);
             engine.on("paused", checkPauseCLI);
+            engine.on("closed", () => checkCloseCLI(engine));
             engine.on("resumed", () => checkResumeCLI(engine));
+            engine.on("start", () => checkResumeCLI(engine));
 
             if (engine instanceof DownloadEngineMultiDownload) {
                 engine.on("childDownloadStarted", registerEngineStatus);
