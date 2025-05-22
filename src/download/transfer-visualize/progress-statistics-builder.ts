@@ -55,6 +55,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             this._endTime = Date.now();
             this._lastStatus = {
                 ...this._lastStatus,
+                downloadStatus: status,
                 endTime: this._endTime
             };
         }
