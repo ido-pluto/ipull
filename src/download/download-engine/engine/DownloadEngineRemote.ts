@@ -3,12 +3,13 @@ import {EventEmitter} from "eventemitter3";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {DownloadStatus} from "../download-file/progress-status-file.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
+import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
 
 export class DownloadEngineRemote extends EventEmitter<BaseDownloadEngineEvents> {
     /**
      * @internal
      */
-    _downloadEndPromise = Promise.withResolvers<void>();
+    _downloadEndPromise = promiseWithResolvers<void>();
     /**
      * @internal
      */

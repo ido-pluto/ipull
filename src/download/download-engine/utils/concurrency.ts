@@ -1,5 +1,7 @@
+import {promiseWithResolvers} from "./promiseWithResolvers.js";
+
 export function concurrency<Value>(array: Value[], concurrencyCount: number, callback: (value: Value) => Promise<void>) {
-    const {resolve, reject, promise} = Promise.withResolvers<void>();
+    const {resolve, reject, promise} = promiseWithResolvers<void>();
     let index = 0;
     let activeCount = 0;
 

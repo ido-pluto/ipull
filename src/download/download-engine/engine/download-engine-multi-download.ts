@@ -5,6 +5,7 @@ import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engi
 import {concurrency} from "../utils/concurrency.js";
 import {DownloadFlags, DownloadStatus} from "../download-file/progress-status-file.js";
 import {DownloadEngineRemote} from "./DownloadEngineRemote.js";
+import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
 
 export type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineRemote | DownloadEngineMultiDownload<any>;
 
@@ -57,7 +58,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     /**
      * @internal
      */
-    _downloadEndPromise = Promise.withResolvers<void>();
+    _downloadEndPromise = promiseWithResolvers<void>();
     /**
      * @internal
      */
@@ -230,7 +231,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
                 }
             }
 
-            this._downloadEndPromise = Promise.withResolvers();
+            this._downloadEndPromise = promiseWithResolvers();
             this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
             this.emit("finished");
             await this._finishEnginesDownload();

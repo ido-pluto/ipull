@@ -9,6 +9,7 @@ import {AvailablePrograms} from "../download-file/download-programs/switch-progr
 import StatusCodeError from "../streams/download-engine-fetch-stream/errors/status-code-error.js";
 import {InvalidOptionError} from "./error/InvalidOptionError.js";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
+import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
 
 const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
 export type InputURLOptions = { partURLs: string[] } | { url: string };
@@ -41,7 +42,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     /**
      * @internal
      */
-    _downloadEndPromise = Promise.withResolvers<void>();
+    _downloadEndPromise = promiseWithResolvers<void>();
     /**
      * @internal
      */

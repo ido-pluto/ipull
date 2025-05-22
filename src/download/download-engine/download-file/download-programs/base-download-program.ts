@@ -1,4 +1,5 @@
 import {ChunkStatus, SaveProgressInfo} from "../../types.js";
+import {promiseWithResolvers} from "../../utils/promiseWithResolvers.js";
 
 export type ProgramSlice = {
     start: number,
@@ -71,7 +72,7 @@ export default abstract class BaseDownloadProgram {
     }
 
     private async _waitForStreamEndWithReload() {
-        const promiseResolvers = Promise.withResolvers<void>();
+        const promiseResolvers = promiseWithResolvers<void>();
         this._reload = promiseResolvers.resolve;
         return await Promise.race(this._activeDownloads.concat([promiseResolvers.promise]));
     }

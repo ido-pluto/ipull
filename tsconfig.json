@@ -4,8 +4,8 @@
             "esNext",
             "DOM"
         ],
-        "module": "nodeNext",
-        "target": "esNext",
+        "module": "NodeNext",
+        "target": "es2022",
         "esModuleInterop": true,
         "noImplicitAny": true,
         "noImplicitReturns": true,
