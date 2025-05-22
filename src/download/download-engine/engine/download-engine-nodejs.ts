@@ -16,8 +16,12 @@ export const PROGRESS_FILE_EXTENSION = ".ipull";
 type PathOptions = { directory: string } | { savePath: string };
 export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOptions & {
     fileName?: string;
-    fetchStrategy?: "localFile" | "fetch";
+    fetchStrategy?: "local" | "remote";
     skipExisting?: boolean;
+    debounceWrite?: {
+        maxTime: number
+        maxSize: number
+    }
 };
 
 export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
@@ -47,12 +51,16 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
 
         this._engine.options.onSaveProgressAsync = async (progress) => {
             if (this.options.skipExisting) return;
-            await this.options.writeStream.saveMedataAfterFile(progress);
+            await this.options.writeStream.saveMetadataAfterFile(progress);
+        };
+
+        this._engine.options.onPausedAsync = async () => {
+            await this.options.writeStream.ensureBytesSynced();
         };
 
         // Try to clone the file if it's a single part download
         this._engine.options.onStartedAsync = async () => {
-            if (this.options.skipExisting || this.options.fetchStrategy !== "localFile" || this.options.partURLs.length !== 1) return;
+            if (this.options.skipExisting || this.options.fetchStrategy !== "local" || this.options.partURLs.length !== 1) return;
 
             try {
                 const {reflinkFile} = await import("@reflink/reflink");
@@ -130,7 +138,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 
         options.fetchStrategy ??= DownloadEngineNodejs._guessFetchStrategy(partURLs[0]);
-        const fetchStream = options.fetchStrategy === "localFile" ?
+        const fetchStream = options.fetchStrategy === "local" ?
             new DownloadEngineFetchStreamLocalFile(options) :
             new DownloadEngineFetchStreamFetch(options);
 
@@ -190,9 +198,9 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     protected static _guessFetchStrategy(url: string) {
         try {
             new URL(url);
-            return "fetch";
+            return "remote";
         } catch {}
 
-        return "localFile";
+        return "local";
     }
 }

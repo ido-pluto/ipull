@@ -1,4 +1,10 @@
-import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, MIN_LENGTH_FOR_MORE_INFO_REQUEST, WriteCallback} from "./base-download-engine-fetch-stream.js";
+import BaseDownloadEngineFetchStream, {
+    DownloadInfoResponse,
+    FetchSubState,
+    MIN_LENGTH_FOR_MORE_INFO_REQUEST,
+    STREAM_NOT_RESPONDING_TIMEOUT,
+    WriteCallback
+} from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
@@ -7,11 +13,15 @@ import retry from "async-retry";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
 import {parseHttpContentRange} from "./utils/httpRange.js";
+import prettyMilliseconds from "pretty-ms";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = true;
-    public override readonly programType: AvailablePrograms = "chunks";
+    public override readonly defaultProgramType: AvailablePrograms = "chunks";
+    public override readonly availablePrograms: AvailablePrograms[] = ["chunks"];
+
     public override transferAction = "Downloading";
 
     withSubState(state: FetchSubState): this {
@@ -43,7 +53,41 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
+            let lastNotRespondingTimeoutIndex: any;
+            let lastMaxStreamWaitTimeoutIndex: any;
+            let streamNotResponding = false;
+            const clearStreamTimeout = () => {
+                if (streamNotResponding) {
+                    this.emit("streamNotRespondingOff");
+                    streamNotResponding = false;
+                }
+
+                if (lastNotRespondingTimeoutIndex) {
+                    clearTimeout(lastNotRespondingTimeoutIndex);
+                }
+
+                if (lastMaxStreamWaitTimeoutIndex) {
+                    clearTimeout(lastMaxStreamWaitTimeoutIndex);
+                }
+            };
+
+            const createStreamTimeout = () => {
+                clearStreamTimeout();
+
+                lastNotRespondingTimeoutIndex = setTimeout(() => {
+                    streamNotResponding = true;
+                    this.emit("streamNotRespondingOn");
+                }, STREAM_NOT_RESPONDING_TIMEOUT);
+
+                lastMaxStreamWaitTimeoutIndex = setTimeout(() => {
+                    reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
+                    xhr.abort();
+                }, this.options.maxStreamWait);
+            };
+
+
             xhr.onload = () => {
+                clearStreamTimeout();
                 const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
 
                 if (this.state.rangeSupport && contentLength !== end - start) {
@@ -51,6 +95,10 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 }
 
                 if (xhr.status >= 200 && xhr.status < 300) {
+                    if (xhr.response.length != contentLength) {
+                        throw new InvalidContentLengthError(contentLength, xhr.response.length);
+                    }
+
                     const arrayBuffer = xhr.response;
                     if (arrayBuffer) {
                         resolve(new Uint8Array(arrayBuffer));
@@ -63,18 +111,22 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.onerror = () => {
+                clearStreamTimeout();
                 reject(new XhrError(`Failed to fetch ${url}`));
             };
 
             xhr.onprogress = (event) => {
+                createStreamTimeout();
                 if (event.lengthComputable) {
                     onProgress?.(event.loaded);
                 }
             };
 
             xhr.send();
+            createStreamTimeout();
 
             this.on("aborted", () => {
+                clearStreamTimeout();
                 xhr.abort();
             });
         });

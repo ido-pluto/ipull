@@ -11,7 +11,9 @@ globalThis.XMLHttpRequest = await import("xmlhttprequest-ssl").then(m => m.XMLHt
 describe("Browser Fetch API", () => {
     test.concurrent("Download file browser - memory", async (context) => {
         const downloader = await downloadFileBrowser({
-            url: BIG_FILE
+            url: BIG_FILE,
+            parallelStreams: 2,
+            autoIncreaseParallelStreams: false
         });
 
         await downloader.download();
@@ -21,26 +23,40 @@ describe("Browser Fetch API", () => {
     });
 
     test.concurrent("Download file browser", async (context) => {
-        let buffer = Buffer.alloc(0);
+        const response = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
+        const bufferIsCorrect = Buffer.from(await fs.readFile(response));
+
+        let bigBuffer = Buffer.alloc(0);
         let lastWrite = 0;
         const downloader = await downloadFileBrowser({
             url: BIG_FILE,
+            parallelStreams: 2,
+            autoIncreaseParallelStreams: false,
             onWrite(cursor, data) {
-                buffer.set(data, cursor);
-                if (cursor + data.length > lastWrite) {
-                    lastWrite = cursor + data.length;
+                let writeLocation = cursor;
+                for (const buffer of data) {
+                    bigBuffer.set(buffer, writeLocation);
+                    writeLocation += buffer.length;
+                }
+
+                if (writeLocation > lastWrite) {
+                    lastWrite = writeLocation;
                 }
             }
         });
 
-        buffer = Buffer.alloc(downloader.file.totalSize);
-
+        bigBuffer = Buffer.alloc(downloader.file.totalSize);
         await downloader.download();
-        context.expect(hashBuffer(buffer))
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+
+        const diff = bigBuffer.findIndex((value, index) => value !== bufferIsCorrect[index]);
+        context.expect(diff)
+            .toBe(-1);
+
         context.expect(lastWrite)
             .toBe(downloader.file.totalSize);
-    });
+        context.expect(hashBuffer(bigBuffer))
+            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+    }, {repeats: 4, concurrent: true});
 }, {timeout: 1000 * 60 * 3});
 
 describe("Browser Fetch memory", () => {

@@ -11,6 +11,7 @@ export enum ChunkStatus {
 }
 
 export type SaveProgressInfo = {
+    downloadId: string,
     part: number,
     chunks: ChunkStatus[],
     chunkSize: number,

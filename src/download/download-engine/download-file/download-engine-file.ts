@@ -8,6 +8,8 @@ import {withLock} from "lifecycle-utils";
 import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
 import {pushComment} from "./utils/push-comment.js";
+import {uid} from "uid";
+import {DownloaderProgramManager} from "./downloaderProgramManager.js";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
@@ -19,8 +21,10 @@ export type DownloadEngineFileOptions = {
     onFinishAsync?: () => Promise<void>
     onStartedAsync?: () => Promise<void>
     onCloseAsync?: () => Promise<void>
+    onPausedAsync?: () => Promise<void>
     onSaveProgressAsync?: (progress: SaveProgressInfo) => Promise<void>
     programType?: AvailablePrograms
+    autoIncreaseParallelStreams?: boolean
 
     /** @internal */
     skipExisting?: boolean;
@@ -42,9 +46,13 @@ export type DownloadEngineFileEvents = {
     [key: string]: any
 };
 
+const DEFAULT_CHUNKS_SIZE_FOR_CHUNKS_PROGRAM = 1024 * 1024 * 5; // 5MB
+const DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM = 1024 * 1024; // 1MB
+
 const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {
-    chunkSize: 1024 * 1024 * 5,
-    parallelStreams: 1
+    chunkSize: 0,
+    parallelStreams: 3,
+    autoIncreaseParallelStreams: true
 };
 
 export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileEvents> {
@@ -52,6 +60,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public options: DownloadEngineFileOptionsWithDefaults;
 
     protected _progress: SaveProgressInfo = {
+        downloadId: "",
         part: 0,
         chunks: [],
         chunkSize: 0,
@@ -60,7 +69,15 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
     protected _closed = false;
     protected _progressStatus: ProgressStatusFile;
-    protected _activeStreamBytes: { [key: number]: number } = {};
+    protected _activeStreamContext: {
+        [key: number]: {
+            streamBytes: number,
+            retryingAttempts: number
+            isRetrying?: boolean,
+            isStreamNotResponding?: boolean
+        }
+    } = {};
+
     protected _activeProgram?: BaseDownloadProgram;
     protected _downloadStatus = DownloadStatus.NotStarted;
     private _latestProgressDate = 0;
@@ -70,7 +87,23 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.file = file;
         this.options = {...DEFAULT_OPTIONS, ...options};
         this._progressStatus = new ProgressStatusFile(file.parts.length, file.localFileName, options.fetchStream.transferAction, this._createProgressFlags());
+        this._setDefaultByOptions();
         this._initProgress();
+
+    }
+
+    private _setDefaultByOptions() {
+        if (this.options.chunkSize === 0) {
+            switch (this._programType) {
+                case "chunks":
+                    this.options.chunkSize = DEFAULT_CHUNKS_SIZE_FOR_CHUNKS_PROGRAM;
+                    break;
+                case "stream":
+                default:
+                    this.options.chunkSize = DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM;
+                    break;
+            }
+        }
     }
 
     private _createProgressFlags() {
@@ -92,7 +125,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public get status(): ProgressStatus {
-        return this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus, this.options.comment);
+        const thisStatus = this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus, this.options.comment);
+        const streamContexts = Object.values(this._activeStreamContext);
+
+        thisStatus.retrying = streamContexts.some(c => c.isRetrying);
+        thisStatus.retryingTotalAttempts = Math.max(...streamContexts.map(x => x.retryingAttempts));
+        thisStatus.streamsNotResponding = streamContexts.reduce((acc, cur) => acc + (cur.isStreamNotResponding ? 1 : 0), 0);
+
+        return thisStatus;
     }
 
     protected get _activePart() {
@@ -113,14 +153,21 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             return this.downloadSize;
         }
 
-        const streamingBytes = Object.values(this._activeStreamBytes)
-            .reduce((acc, bytes) => acc + bytes, 0);
+        const streamingBytes = Object.values(this._activeStreamContext)
+            .reduce((acc, cur) => acc + cur.streamBytes, 0);
 
         const streamBytes = this._activeDownloadedChunkSize + streamingBytes;
         const streamBytesMin = Math.min(streamBytes, this._activePart.size || streamBytes);
 
         const allBytes = streamBytesMin + this._downloadedPartsSize;
         return Math.min(allBytes, this.downloadSize || allBytes);
+    }
+
+    protected get _programType() {
+        if (this.options.programType && this.options.fetchStream.availablePrograms.includes(this.options.programType)) {
+            return this.options.programType;
+        }
+        return this.options.fetchStream.defaultProgramType;
     }
 
     protected _emptyChunksForPart(part: number) {
@@ -146,14 +193,17 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             this.options.comment = pushComment("Skipping existing", this.options.comment);
         } else if (this.file.downloadProgress) {
             this._progress = this.file.downloadProgress;
+            this._progress.parallelStreams = this.options.parallelStreams;
             this._initEventReloadStatus();
         } else {
             this._progress = {
                 part: 0,
+                downloadId: uid(),
                 chunks: this._emptyChunksForPart(0),
                 chunkSize: this.options.chunkSize,
                 parallelStreams: this.options.parallelStreams
             };
+            this._progressStatus.downloadId = this._progress.downloadId;
         }
     }
 
@@ -182,15 +232,25 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             );
 
             // Reset active stream progress
-            this._activeStreamBytes = {};
+            this._activeStreamContext = {};
 
             if (this._activePart.acceptRange) {
                 this._activeProgram = switchProgram(
                     this._progress,
                     this._downloadSlice.bind(this),
-                    this.options.fetchStream.programType || this.options.programType
+                    this._programType
                 );
-                await this._activeProgram.download();
+
+                let manager: DownloaderProgramManager | null = null;
+                if (this.options.autoIncreaseParallelStreams && this.options.fetchStream.supportDynamicStreamLength) {
+                    manager = new DownloaderProgramManager(this._activeProgram, this);
+                }
+
+                try {
+                    await this._activeProgram.download();
+                } finally {
+                    manager?.close();
+                }
             } else {
                 const chunksToRead = this._activePart.size > 0 ? this._progress.chunks.length : Infinity;
                 await this._downloadSlice(0, chunksToRead);
@@ -198,7 +258,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         }
 
         // All parts are downloaded, we can clear the progress
-        this._activeStreamBytes = {};
+        this._activeStreamContext = {};
         this._latestProgressDate = 0;
 
         if (this._closed) return;
@@ -210,73 +270,94 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         await this.options.onFinishAsync?.();
     }
 
-    protected _downloadSlice(startChunk: number, endChunk: number) {
+    protected async _downloadSlice(startChunk: number, endChunk: number) {
+        const getContext = () => this._activeStreamContext[startChunk] ??= {streamBytes: 0, retryingAttempts: 0};
+
         const fetchState = this.options.fetchStream.withSubState({
             chunkSize: this._progress.chunkSize,
             startChunk,
-            endChunk,
+            endChunk: endChunk,
+            lastChunkEndsFile: endChunk === Infinity || endChunk === this._progress.chunks.length,
             totalSize: this._activePart.size,
             url: this._activePart.downloadURL!,
             rangeSupport: this._activePart.acceptRange,
             onProgress: (length: number) => {
-                this._activeStreamBytes[startChunk] = length;
+                getContext().streamBytes = length;
                 this._sendProgressDownloadPart();
             }
         });
 
+        fetchState.addListener("retryingOn", () => {
+            const context = getContext();
+            context.isRetrying = true;
+            context.retryingAttempts++;
+            this._sendProgressDownloadPart();
+        });
+
+        fetchState.addListener("retryingOff", () => {
+            getContext().isRetrying = false;
+        });
+
+        fetchState.addListener("streamNotRespondingOn", () => {
+            getContext().isStreamNotResponding = true;
+            this._sendProgressDownloadPart();
+        });
+
+        fetchState.addListener("streamNotRespondingOff", () => {
+            getContext().isStreamNotResponding = false;
+        });
 
         const downloadedPartsSize = this._downloadedPartsSize;
         this._progress.chunks[startChunk] = ChunkStatus.IN_PROGRESS;
-        return (async () => {
-            const allWrites = new Set<Promise<any>>();
+        const allWrites = new Set<Promise<any>>();
 
-            let lastChunkSize = 0;
-            await fetchState.fetchChunks((chunks, writePosition, index) => {
-                if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
-                    return;
-                }
-
-                for (const chunk of chunks) {
-                    const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunk);
-                    writePosition += chunk.length;
-                    if (writePromise) {
-                        allWrites.add(writePromise);
-                        writePromise.then(() => {
-                            allWrites.delete(writePromise);
-                        });
-                    }
-                }
-
-                // if content length is 0, we do not know how many chunks we should have
-                if (this._activePart.size === 0) {
-                    this._progress.chunks.push(ChunkStatus.NOT_STARTED);
-                }
-
-                this._progress.chunks[index] = ChunkStatus.COMPLETE;
-                lastChunkSize = chunks.reduce((last, current) => last + current.length, 0);
-                delete this._activeStreamBytes[startChunk];
-                void this._saveProgress();
-
-                const nextChunk = this._progress.chunks[index + 1];
-                const shouldReadNext = endChunk - index > 1; // grater than 1, meaning there is a next chunk
-
-                if (shouldReadNext) {
-                    if (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED) {
-                        return fetchState.close();
-                    }
-                    this._progress.chunks[index + 1] = ChunkStatus.IN_PROGRESS;
-                }
-            });
-
-            // On dynamic content length, we need to adjust the last chunk size
-            if (this._activePart.size === 0) {
-                this._activePart.size = this._activeDownloadedChunkSize - this.options.chunkSize + lastChunkSize;
-                this._progress.chunks = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE);
+        let lastChunkSize = 0, lastInProgressIndex = startChunk;
+        await fetchState.fetchChunks((chunks, writePosition, index) => {
+            if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
+                return;
             }
 
-            delete this._activeStreamBytes[startChunk];
-            await Promise.all(allWrites);
-        })();
+            const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunks);
+            if (writePromise) {
+                allWrites.add(writePromise);
+                writePromise.then(() => {
+                    allWrites.delete(writePromise);
+                });
+            }
+
+            // if content length is 0, we do not know how many chunks we should have
+            if (this._activePart.size === 0) {
+                this._progress.chunks.push(ChunkStatus.NOT_STARTED);
+            }
+
+            this._progress.chunks[index] = ChunkStatus.COMPLETE;
+            lastChunkSize = chunks.reduce((last, current) => last + current.length, 0);
+            getContext().streamBytes = 0;
+            void this._saveProgress();
+
+            const nextChunk = this._progress.chunks[index + 1];
+            const shouldReadNext = fetchState.state.endChunk - index > 1; // grater than 1, meaning there is a next chunk
+
+            if (shouldReadNext) {
+                if (nextChunk == null || nextChunk != ChunkStatus.NOT_STARTED) {
+                    return fetchState.close();
+                }
+                this._progress.chunks[lastInProgressIndex = index + 1] = ChunkStatus.IN_PROGRESS;
+            }
+        });
+
+        if (this._progress.chunks[lastInProgressIndex] === ChunkStatus.IN_PROGRESS) {
+            this._progress.chunks[lastInProgressIndex] = ChunkStatus.NOT_STARTED;
+        }
+
+        // On dynamic content length, we need to adjust the last chunk size
+        if (this._activePart.size === 0) {
+            this._activePart.size = this._activeDownloadedChunkSize - this.options.chunkSize + lastChunkSize;
+            this._progress.chunks = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE);
+        }
+
+        delete this._activeStreamContext[startChunk];
+        await Promise.all(allWrites);
     }
 
     protected _saveProgress() {
@@ -288,7 +369,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         this.emit("save", this._progress);
         return withLock(this, "_saveLock", async () => {
-            if (thisProgress === this._latestProgressDate) {
+            if (thisProgress === this._latestProgressDate && !this._closed && this._downloadStatus !== DownloadStatus.Finished) {
                 await this.options.onSaveProgressAsync?.(this._progress);
             }
         });
@@ -299,14 +380,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.emit("progress", this.status);
     }
 
-    public pause() {
+    public async pause() {
         if (this.options.fetchStream.paused) {
             return;
         }
 
         this._downloadStatus = DownloadStatus.Paused;
         this.options.fetchStream.emit("paused");
-        this.emit("paused");
+        await this.options.onPausedAsync?.();
         this._sendProgressDownloadPart();
     }
 

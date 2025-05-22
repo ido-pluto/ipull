@@ -11,7 +11,8 @@ export default class DownloadProgramStream extends BaseDownloadProgram {
         const slice = this._findChunksSlices()[0];
         if (!slice) return null;
         const length = slice.end - slice.start;
-        return {start: Math.floor(slice.start + length / 2), end: slice.end};
+        const start = slice.start == 0 ? slice.start : Math.floor(slice.start + length / 2);
+        return {start, end: slice.end};
     }
 
     private _findChunksSlices() {

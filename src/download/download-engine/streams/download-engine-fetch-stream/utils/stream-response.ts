@@ -20,7 +20,7 @@ export default async function streamResponse(stream: IStreamResponse, downloadEn
     });
 
     stream.on("close", () => {
-        smartSplit.sendLeftovers();
+        smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
         resolve();
     });
 

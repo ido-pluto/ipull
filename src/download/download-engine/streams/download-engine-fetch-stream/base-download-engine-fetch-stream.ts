@@ -6,10 +6,17 @@ import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import sleep from "sleep-promise";
 
+export const STREAM_NOT_RESPONDING_TIMEOUT = 1000 * 3;
+
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 
 export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
+    retryFetchDownloadInfo?: retry.Options
+    /**
+     * Max wait for next data stream
+     */
+    maxStreamWait?: number
     /**
      * If true, the engine will retry the request if the server returns a status code between 500 and 599
      */
@@ -46,6 +53,7 @@ export type FetchSubState = {
     url: string,
     startChunk: number,
     endChunk: number,
+    lastChunkEndsFile: boolean,
     totalSize: number,
     chunkSize: number,
     rangeSupport?: boolean,
@@ -57,14 +65,25 @@ export type BaseDownloadEngineFetchStreamEvents = {
     resumed: () => void
     aborted: () => void
     errorCountIncreased: (errorCount: number, error: Error) => void
+    retryingOn: (error: Error, attempt: number) => void
+    retryingOff: () => void
+    streamNotRespondingOn: () => void
+    streamNotRespondingOff: () => void
 };
 
 export type WriteCallback = (data: Uint8Array[], position: number, index: number) => void;
 
 const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     retryOnServerError: true,
+    maxStreamWait: 1000 * 15,
     retry: {
-        retries: 150,
+        retries: 50,
+        factor: 1.5,
+        minTimeout: 200,
+        maxTimeout: 5_000
+    },
+    retryFetchDownloadInfo: {
+        retries: 5,
         factor: 1.5,
         minTimeout: 200,
         maxTimeout: 5_000
@@ -73,8 +92,10 @@ const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
 };
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
-    public readonly programType?: AvailablePrograms;
+    public readonly defaultProgramType?: AvailablePrograms;
+    public readonly availablePrograms: AvailablePrograms[] = ["chunks", "stream"];
     public readonly abstract transferAction: string;
+    public readonly supportDynamicStreamLength: boolean = false;
     public readonly options: Partial<BaseDownloadEngineFetchStreamOptions> = {};
     public state: FetchSubState = null!;
     public paused?: Promise<void>;
@@ -133,14 +154,25 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         let throwErr: Error | null = null;
 
         const tryHeaders = "tryHeaders" in this.options && this.options.tryHeaders ? this.options.tryHeaders.slice() : [];
+        let retryingOn = false;
 
         const fetchDownloadInfoCallback = async (): Promise<DownloadInfoResponse | null> => {
             try {
-                return await this.fetchDownloadInfoWithoutRetry(url);
+                const response = await this.fetchDownloadInfoWithoutRetry(url);
+                if (retryingOn) {
+                    retryingOn = false;
+                    this.emit("retryingOff");
+                }
+                return response;
             } catch (error: any) {
+                this.errorCount.value++;
+                this.emit("errorCountIncreased", this.errorCount.value, error);
+
                 if (error instanceof HttpError && !this.retryOnServerError(error)) {
                     if ("tryHeaders" in this.options && tryHeaders.length) {
                         this.options.headers = tryHeaders.shift();
+                        retryingOn = true;
+                        this.emit("retryingOn", error, this.errorCount.value);
                         await sleep(this.options.tryHeadersDelay ?? 0);
                         return await fetchDownloadInfoCallback();
                     }
@@ -149,10 +181,9 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     return null;
                 }
 
-                this.errorCount.value++;
-                this.emit("errorCountIncreased", this.errorCount.value, error);
-
                 if (error instanceof StatusCodeError && error.retryAfter) {
+                    retryingOn = true;
+                    this.emit("retryingOn", error, this.errorCount.value);
                     await sleep(error.retryAfter * 1000);
                     return await fetchDownloadInfoCallback();
                 }
@@ -161,8 +192,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
             }
         };
 
-
-        const response = ("defaultFetchDownloadInfo" in this.options && this.options.defaultFetchDownloadInfo) || await retry(fetchDownloadInfoCallback, this.options.retry);
+        const response = ("defaultFetchDownloadInfo" in this.options && this.options.defaultFetchDownloadInfo) || await retry(fetchDownloadInfoCallback, this.options.retryFetchDownloadInfo);
         if (throwErr) {
             throw throwErr;
         }
@@ -175,20 +205,29 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public async fetchChunks(callback: WriteCallback) {
         let lastStartLocation = this.state.startChunk;
         let retryResolvers = retryAsyncStatementSimple(this.options.retry);
+        let retryingOn = false;
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
             try {
-                return await this.fetchWithoutRetryChunks(callback);
+                return await this.fetchWithoutRetryChunks((...args) => {
+                    if (retryingOn) {
+                        retryingOn = false;
+                        this.emit("retryingOff");
+                    }
+                    callback(...args);
+                });
             } catch (error: any) {
                 if (error?.name === "AbortError") return;
+                this.errorCount.value++;
+                this.emit("errorCountIncreased", this.errorCount.value, error);
+
                 if (error instanceof HttpError && !this.retryOnServerError(error)) {
                     throw error;
                 }
 
-                this.errorCount.value++;
-                this.emit("errorCountIncreased", this.errorCount.value, error);
-
+                retryingOn = true;
+                this.emit("retryingOn", error, this.errorCount.value);
                 if (error instanceof StatusCodeError && error.retryAfter) {
                     await sleep(error.retryAfter * 1000);
                     continue;

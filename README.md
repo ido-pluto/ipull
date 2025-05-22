@@ -25,6 +25,7 @@ npx ipull http://example.com/file.large
 ## Features
 
 - Download using parallels connections
+- Maximize download speed (automatic parallelization, 3+)
 - Pausing and resuming downloads
 - Node.js and browser support
 - Smart retry on fail
@@ -73,8 +74,9 @@ import {downloadFileBrowser} from "ipull/dist/browser.js";
 
 const downloader = await downloadFileBrowser({
     url: 'https://example.com/file.large',
-    onWrite: (cursor: number, buffer: Uint8Array, options) => {
-        console.log(`Writing ${buffer.length} bytes at cursor ${cursor}, with options: ${JSON.stringify(options)}`);
+    onWrite: (cursor: number, buffers: Uint8Array[], options) => {
+        const totalLength = buffers.reduce((acc, buffer) => acc + buffer.length, 0);
+        console.log(`Writing ${totalLength} bytes at cursor ${cursor}, with options: ${JSON.stringify(options)}`);
     }
 });
 
@@ -234,12 +236,12 @@ If the maximum reties was reached the download will fail and an error will be th
 ```ts
 import {downloadFile} from 'ipull';
 
-const downloader = await downloadFile({
-    url: 'https://example.com/file.large',
-    directory: './this/path'
-});
-
 try {
+    const downloader = await downloadFile({
+        url: 'https://example.com/file.large',
+        directory: './this/path'
+    });
+
     await downloader.download();
 } catch (error) {
     console.error(`Download failed: ${error.message}`);
@@ -250,6 +252,8 @@ try {
 
 In some edge cases, the re-try mechanism may give the illusion that the download is stuck.
 
+(You can see this in the progress object that "retrying" is true)
+
 To debug this, disable the re-try mechanism:
 
 ```js
@@ -257,6 +261,9 @@ const downloader = await downloadFile({
     url: 'https://example.com/file.large',
     directory: './this/path',
     retry: {
+        retries: 0
+    },
+    retryFetchDownloadInfo: {
         retries: 0
     }
 });
@@ -284,6 +291,27 @@ const downloader = await downloadFile({
 downloader.on("progress", (progress) => {
     console.log(`Downloaded ${progress.transferred} bytes`);
 });
+```
+
+### Remote Download Listing
+
+If you want to show in the CLI the progress of a file downloading in remote.
+
+```ts
+const originaldownloader = await downloadFile({
+    url: 'https://example.com/file.large',
+    directory: './this/path'
+});
+
+const remoteDownloader = downloadFileRemote({
+    cliProgress: true
+});
+
+originaldownloader.on("progress", (progress) => {
+    remoteDownloader.emitRemoteProgress(progress);
+});
+
+await originaldownloader.download();
 ```
 
 ### Download multiple files

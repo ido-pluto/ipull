@@ -23,6 +23,7 @@ describe("File Download", () => {
         const downloader = new DownloadEngineFile(file, {
             parallelStreams: randomNumber,
             chunkSize: 1024 ** 2,
+            autoIncreaseParallelStreams: false,
             fetchStream,
             writeStream
         });
@@ -46,7 +47,7 @@ describe("File Download", () => {
         let totalBytesWritten = 0;
         const fetchStream = new DownloadEngineFetchStreamFetch();
         const writeStream = new DownloadEngineWriteStreamBrowser((cursor, data) => {
-            totalBytesWritten += data.byteLength;
+            totalBytesWritten += data.reduce((sum, buffer) => sum + buffer.length, 0);
         });
 
         const file = await createDownloadFile(BIG_FILE);

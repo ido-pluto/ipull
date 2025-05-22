@@ -15,10 +15,12 @@ describe("Dynamic content download", async () => {
     beforeAll(async () => {
         regularDownload = await ensureLocalFile(DYNAMIC_DOWNLOAD_FILE, ORIGINAL_FILE);
         originalFileHash = await fileHash(regularDownload);
-    });
+    }, 1000 * 30);
 
     afterAll(async () => {
-        await fs.remove(regularDownload);
+        if (regularDownload) {
+            await fs.remove(regularDownload);
+        }
     });
 
 
@@ -26,7 +28,11 @@ describe("Dynamic content download", async () => {
         const downloader = await downloadFile({
             url: DYNAMIC_DOWNLOAD_FILE,
             directory: ".",
-            fileName: IPUll_FILE
+            fileName: IPUll_FILE,
+            defaultFetchDownloadInfo: {
+                acceptRange: false,
+                length: 0
+            }
         });
 
         await downloader.download();
@@ -39,7 +45,11 @@ describe("Dynamic content download", async () => {
 
     test.concurrent("Browser Download", async (context) => {
         const downloader = await downloadFileBrowser({
-            url: DYNAMIC_DOWNLOAD_FILE
+            url: DYNAMIC_DOWNLOAD_FILE,
+            defaultFetchDownloadInfo: {
+                acceptRange: false,
+                length: 0
+            }
         });
 
         await downloader.download();

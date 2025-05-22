@@ -4,12 +4,12 @@ import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.j
 import WriterIsClosedError from "./errors/writer-is-closed-error.js";
 import WriterNotDefineError from "./errors/writer-not-define-error.js";
 
-type DownloadEngineWriteStreamOptionsBrowser = {
+export type DownloadEngineWriteStreamOptionsBrowser = {
     retry?: retry.Options
     file?: DownloadFile
 };
 
-export type DownloadEngineWriteStreamBrowserWriter = (cursor: number, buffer: Uint8Array, options: DownloadEngineWriteStreamOptionsBrowser) => Promise<void> | void;
+export type DownloadEngineWriteStreamBrowserWriter = (cursor: number, buffers: Uint8Array[], options: DownloadEngineWriteStreamOptionsBrowser) => Promise<void> | void;
 
 export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngineWriteStream {
     protected readonly _writer?: DownloadEngineWriteStreamBrowserWriter;
@@ -44,18 +44,26 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
         return this._memory = newMemory;
     }
 
-    public write(cursor: number, buffer: Uint8Array) {
+    public write(cursor: number, buffers: Uint8Array[]) {
         if (this.writerClosed) {
             throw new WriterIsClosedError();
         }
 
         if (!this._writer) {
-            this._ensureBuffer(cursor + buffer.byteLength)
-                .set(buffer, cursor);
-            this._bytesWritten += buffer.byteLength;
+            const totalLength = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
+            const bigBuffer = this._ensureBuffer(cursor + totalLength);
+            let writeLocation = cursor;
+
+            for (const buffer of buffers) {
+                bigBuffer.set(buffer, writeLocation);
+                writeLocation += buffer.length;
+            }
+
+            this._bytesWritten += totalLength;
             return;
         }
-        return this._writer(cursor, buffer, this.options);
+
+        return this._writer(cursor, buffers, this.options);
     }
 
     public get result() {
