@@ -14,7 +14,11 @@ import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
 const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
 export type InputURLOptions = { partURLs: string[] } | { url: string };
 
-export type BaseDownloadEngineOptions = InputURLOptions & BaseDownloadEngineFetchStreamOptions & {
+export type CreateDownloadFileOptions = {
+    reuseRedirectURL?: boolean
+};
+
+export type BaseDownloadEngineOptions = CreateDownloadFileOptions & InputURLOptions & BaseDownloadEngineFetchStreamOptions & {
     chunkSize?: number;
     parallelStreams?: number;
     retry?: retry.Options
@@ -139,7 +143,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         return this._engine.close();
     }
 
-    protected static async _createDownloadFile(parts: string[], fetchStream: BaseDownloadEngineFetchStream) {
+    protected static async _createDownloadFile(parts: string[], fetchStream: BaseDownloadEngineFetchStream, {reuseRedirectURL}: CreateDownloadFileOptions = {}) {
         const localFileName = decodeURIComponent(new URL(parts[0], "https://example").pathname.split("/")
             .pop() || "");
         const downloadFile: DownloadFile = {
@@ -148,36 +152,34 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
             localFileName
         };
 
-        let counter = 0;
-        for (const part of parts) {
+        downloadFile.parts = await Promise.all(parts.map(async (part, index) => {
             try {
                 const {length, acceptRange, newURL, fileName} = await fetchStream.fetchDownloadInfo(part);
-                const downloadURL = newURL ?? part;
+                const downloadURL = reuseRedirectURL ? (newURL ?? part) : part;
                 const size = length || 0;
 
                 downloadFile.totalSize += size;
-                downloadFile.parts.push({
+                if (index === 0 && fileName) {
+                    downloadFile.localFileName = fileName;
+                }
+
+                return {
                     downloadURL,
                     size,
                     acceptRange: size > 0 && acceptRange
-                });
-
-                if (counter++ === 0 && fileName) {
-                    downloadFile.localFileName = fileName;
-                }
+                };
             } catch (error: any) {
                 if (error instanceof StatusCodeError && IGNORE_HEAD_STATUS_CODES.includes(error.statusCode)) {
                     // if the server does not support HEAD request, we will skip that step
-                    downloadFile.parts.push({
+                    return {
                         downloadURL: part,
                         size: 0,
                         acceptRange: false
-                    });
-                    continue;
+                    };
                 }
                 throw error;
             }
-        }
+        }));
 
         return downloadFile;
     }
