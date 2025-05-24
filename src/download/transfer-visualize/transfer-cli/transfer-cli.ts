@@ -1,10 +1,10 @@
 import UpdateManager from "stdout-update";
-import debounce from "lodash.debounce";
 import {TransferCliProgressBar} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
 import {FormattedStatus} from "../format-transfer-status.js";
 import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
 import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
+import {abortableDebounce} from "../utils/abortableDebounce.js";
 
 export type TransferCliOptions = {
     name?: string,
@@ -32,7 +32,8 @@ export default class TransferCli {
     protected stdoutManager = UpdateManager.getInstance();
     protected latestProgress: [FormattedStatus[], FormattedStatus, number] = null!;
     private _cliStopped = true;
-    private readonly _updateStatuesDebounce: () => void;
+    private _updateStatuesDebounce: () => void = this._updateStatues;
+    private _abortDebounce = new AbortController();
     private _multiProgressBar: BaseMultiProgressBar;
     public isFirstPrint = true;
     private _lastProgressLong = "";
@@ -41,12 +42,18 @@ export default class TransferCli {
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
         this._multiProgressBar = new this.options.createProgressBar.multiProgressBar(this.options);
 
-        const maxDebounceWait = this._multiProgressBar.updateIntervalMs || this.options.maxDebounceWait;
-        this._updateStatuesDebounce = debounce(this._updateStatues.bind(this), maxDebounceWait, {
-            maxWait: maxDebounceWait
-        });
-
+        this._updateStatues = this._updateStatues.bind(this);
         this._processExit = this._processExit.bind(this);
+        this._resetDebounce();
+    }
+
+    private _resetDebounce() {
+        const maxDebounceWait = this._multiProgressBar.updateIntervalMs || this.options.maxDebounceWait;
+        this._abortDebounce = new AbortController();
+        this._updateStatuesDebounce = abortableDebounce(this._updateStatues.bind(this), {
+            wait: maxDebounceWait,
+            signal: this._abortDebounce.signal
+        });
     }
 
     start() {
@@ -66,6 +73,8 @@ export default class TransferCli {
             this.stdoutManager.unhook(false);
         }
         process.off("SIGINT", this._processExit);
+        this._abortDebounce.abort();
+        this._resetDebounce();
     }
 
     private _processExit() {

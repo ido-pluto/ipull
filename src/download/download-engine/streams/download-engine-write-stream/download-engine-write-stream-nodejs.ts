@@ -109,7 +109,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     async ensureBytesSynced() {
-        await this._writeDebounce.writeAll();
+        await this._writeDebounce.writeAllAndFinish();
     }
 
     async ftruncate(size = this._fileSize) {

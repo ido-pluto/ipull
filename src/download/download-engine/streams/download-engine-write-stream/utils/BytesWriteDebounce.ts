@@ -1,4 +1,5 @@
-import sleep from "sleep-promise";
+import {abortableSleep} from "./abortableSleep.js";
+import WriterIsClosedError from "../errors/writer-is-closed-error.js";
 
 export type BytesWriteDebounceOptions = {
     maxTime: number;
@@ -14,12 +15,18 @@ export class BytesWriteDebounce {
     private _lastWriteTime = Date.now();
     private _totalSizeOfChunks = 0;
     private _checkWriteInterval = false;
+    private _abortSleep = new AbortController();
+    private _finished = false;
 
     constructor(private _options: BytesWriteDebounceOptions) {
 
     }
 
     async addChunk(index: number, buffers: Uint8Array[]) {
+        if (this._finished) {
+            throw new WriterIsClosedError("Cannot write to a finished stream");
+        }
+
         let writeIndex = index;
         for (const buffer of buffers) {
             this._writeChunks.push({index: writeIndex, buffer});
@@ -43,10 +50,10 @@ export class BytesWriteDebounce {
         }
         this._checkWriteInterval = true;
 
-        while (this._writeChunks.length > 0) {
+        while (this._writeChunks.length > 0 && !this._finished) {
             await this._writeIfNeeded();
             const timeUntilMaxLimitAfterWrite = this._options.maxTime - (Date.now() - this._lastWriteTime);
-            await sleep(Math.max(timeUntilMaxLimitAfterWrite, 0));
+            await abortableSleep(Math.max(timeUntilMaxLimitAfterWrite, 0), this._abortSleep.signal);
         }
 
         this._checkWriteInterval = false;
@@ -92,5 +99,12 @@ export class BytesWriteDebounce {
         this._totalSizeOfChunks = 0;
         this._lastWriteTime = Date.now();
         return Promise.all(writePromises);
+    }
+
+
+    writeAllAndFinish() {
+        this._finished = true;
+        this._abortSleep.abort();
+        return this.writeAll();
     }
 }
