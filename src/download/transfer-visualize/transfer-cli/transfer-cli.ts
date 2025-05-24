@@ -34,7 +34,7 @@ export default class TransferCli {
     private _cliStopped = true;
     private readonly _updateStatuesDebounce: () => void;
     private _multiProgressBar: BaseMultiProgressBar;
-    private _isFirstPrint = true;
+    public isFirstPrint = true;
     private _lastProgressLong = "";
 
     public constructor(options: Partial<TransferCliOptions>) {
@@ -76,8 +76,8 @@ export default class TransferCli {
     updateStatues(statues: FormattedStatus[], oneStatus: FormattedStatus, loadingDownloads = 0) {
         this.latestProgress = [statues, oneStatus, loadingDownloads];
 
-        if (this._isFirstPrint) {
-            this._isFirstPrint = false;
+        if (this.isFirstPrint) {
+            this.isFirstPrint = false;
             this._updateStatues();
         } else {
             this._updateStatuesDebounce();

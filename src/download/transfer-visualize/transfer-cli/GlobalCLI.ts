@@ -7,6 +7,7 @@ import cliSpinners from "cli-spinners";
 import {DownloadStatus} from "../../download-engine/download-file/progress-status-file.js";
 import BaseDownloadEngine from "../../download-engine/engine/base-download-engine.js";
 import {DownloadEngineRemote} from "../../download-engine/engine/DownloadEngineRemote.js";
+import {FormattedStatus} from "../format-transfer-status.js";
 
 type AllowedDownloadEngine = DownloadEngineMultiDownload | BaseDownloadEngine | DownloadEngineRemote;
 
@@ -53,7 +54,8 @@ class GlobalCLI {
             unpackInnerMultiDownloadsStatues: true,
             finalizeDownloadAfterAllSettled: false,
             naturalDownloadStart: true,
-            parallelDownloads: Number.MAX_VALUE
+            parallelDownloads: Number.MAX_VALUE,
+            downloadName: "Global CLI"
         });
     }
 
@@ -97,11 +99,6 @@ class GlobalCLI {
             }
         };
 
-        this._multiDownloadEngine.on("finished", () => {
-            this._multiDownloadEngine = this._createMultiDownloadEngine();
-            this._eventsRegistered = new Set();
-        });
-
         const eventsRegistered = this._eventsRegistered;
         this._multiDownloadEngine.on("childDownloadStarted", function registerEngineStatus(engine) {
             if (eventsRegistered.has(engine)) return;
@@ -120,7 +117,7 @@ class GlobalCLI {
 
         const getCLIEngines = (multiEngine: DownloadEngineMultiDownload) => {
             const enginesToShow: AllowedDownloadEngine[] = [];
-            for (const engine of multiEngine.activeDownloads) {
+            for (const engine of multiEngine.downloads) {
                 const isShowEngine = this._downloadOptions.get(engine)?.cliProgress;
                 if (engine instanceof DownloadEngineMultiDownload) {
                     if (isShowEngine) {
@@ -136,11 +133,25 @@ class GlobalCLI {
             return enginesToShow.filter((engine, index, self) => self.indexOf(engine) === index);
         };
 
-        this._multiDownloadEngine.on("progress", (progress) => {
-            if (!this._cliActive) return;
+        const printProgress = (progress: FormattedStatus) => {
             const statues = getCLIEngines(this._multiDownloadEngine)
                 .map(x => x.status);
             this._transferCLI.updateStatues(statues, progress, this._multiDownloadEngine.loadingDownloads);
+        };
+
+        this._multiDownloadEngine.on("progress", (progress) => {
+            if (!this._cliActive) return;
+            printProgress(progress);
+        });
+
+        this._multiDownloadEngine.on("finished", () => {
+            if (this._transferCLI.isFirstPrint) {
+                printProgress(this._multiDownloadEngine.status);
+            }
+            this._transferCLI.isFirstPrint = true;
+            this._multiDownloadEngine = this._createMultiDownloadEngine();
+            this._eventsRegistered = new Set();
+            this._registerCLIEvents();
         });
     }
 

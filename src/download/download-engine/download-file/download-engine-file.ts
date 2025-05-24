@@ -129,7 +129,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         const streamContexts = Object.values(this._activeStreamContext);
 
         thisStatus.retrying = streamContexts.some(c => c.isRetrying);
-        thisStatus.retryingTotalAttempts = Math.max(...streamContexts.map(x => x.retryingAttempts));
+        thisStatus.retryingTotalAttempts = Math.max(0, ...streamContexts.map(x => x.retryingAttempts));
         thisStatus.streamsNotResponding = streamContexts.reduce((acc, cur) => acc + (cur.isStreamNotResponding ? 1 : 0), 0);
 
         return thisStatus;
@@ -170,14 +170,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         return this.options.fetchStream.defaultProgramType;
     }
 
-    protected _emptyChunksForPart(part: number) {
+    protected _chunksForPart(part: number, fill = ChunkStatus.NOT_STARTED) {
         const partInfo = this.file.parts[part];
         if (partInfo.size === 0) {
             return [ChunkStatus.NOT_STARTED];
         }
 
         const chunksCount = Math.ceil(partInfo.size / this.options.chunkSize);
-        return new Array(chunksCount).fill(ChunkStatus.NOT_STARTED);
+        return new Array(chunksCount).fill(fill);
     }
 
     private _initEventReloadStatus() {
@@ -189,7 +189,8 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     private _initProgress() {
         if (this.options.skipExisting) {
             this._progress.part = this.file.parts.length - 1;
-            this._downloadStatus = DownloadStatus.Finished;
+            this._progress.chunks = this._chunksForPart(this._progress.part, ChunkStatus.COMPLETE);
+            this._progress.chunkSize = this.options.chunkSize;
             this.options.comment = pushComment("Skipping existing", this.options.comment);
         } else if (this.file.downloadProgress) {
             this._progress = this.file.downloadProgress;
@@ -199,7 +200,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             this._progress = {
                 part: 0,
                 downloadId: uid(),
-                chunks: this._emptyChunksForPart(0),
+                chunks: this._chunksForPart(0),
                 chunkSize: this.options.chunkSize,
                 parallelStreams: this.options.parallelStreams
             };
@@ -215,15 +216,16 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this._progressStatus.started();
         this.emit("start");
         await this.options.onStartedAsync?.();
+        this._sendProgressDownloadPart();
 
-        for (let i = this._progress.part; i < this.file.parts.length && this._downloadStatus !== DownloadStatus.Finished; i++) {
+        for (let i = this._progress.part; i < this.file.parts.length && !this.options.skipExisting; i++) {
             if (this._closed) return;
             // If we are starting a new part, we need to reset the progress
             if (i > this._progress.part || !this._activePart.acceptRange) {
                 this._progress.part = i;
                 this._progress.chunkSize = this.options.chunkSize;
                 this._progress.parallelStreams = this.options.parallelStreams;
-                this._progress.chunks = this._emptyChunksForPart(i);
+                this._progress.chunks = this._chunksForPart(i);
             }
 
             // Reset in progress chunks

@@ -231,8 +231,8 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
                 }
             }
 
-            this._downloadEndPromise = promiseWithResolvers();
             this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
+
             this.emit("finished");
             await this._finishEnginesDownload();
             await this.close();
@@ -240,6 +240,8 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         } catch (error) {
             this._downloadEndPromise.reject(error);
             throw error;
+        } finally {
+            this._downloadEndPromise = promiseWithResolvers();
         }
     }
 
