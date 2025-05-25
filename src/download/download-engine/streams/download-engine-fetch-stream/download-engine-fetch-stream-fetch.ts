@@ -101,8 +101,14 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         const fileName = parseContentDisposition(response.headers.get("content-disposition"));
 
         let length = parseInt(response.headers.get("content-length")!) || 0;
-        if (response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
-            length = acceptRange ? await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? response : undefined) : 0;
+        const contentEncoding = response.headers.get("content-encoding");
+
+        if (contentEncoding && contentEncoding !== "identity") {
+            length = 0; // If content is encoded, we cannot determine the length reliably
+        }
+
+        if (acceptRange && length === 0 && browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
+            length = await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? response : undefined);
         }
 
         return {

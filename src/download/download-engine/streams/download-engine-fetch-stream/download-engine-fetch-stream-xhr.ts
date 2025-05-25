@@ -204,14 +204,22 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             xhr.onload = async () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
-                    const length = MIN_LENGTH_FOR_MORE_INFO_REQUEST < contentLength ? await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? xhr : undefined) : 0;
                     const fileName = parseContentDisposition(xhr.getResponseHeader("content-disposition"));
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
+                    const contentEncoding = xhr.getResponseHeader("content-encoding");
+
+                    let length = parseInt(xhr.getResponseHeader("content-length")!) || 0;
+                    if (contentEncoding && contentEncoding !== "identity") {
+                        length = 0; // If content is encoded, we cannot determine the length reliably
+                    }
+
+                    if (acceptRange && length === 0 && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
+                        length = await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? xhr : undefined);
+                    }
 
                     resolve({
-                        length,
                         acceptRange,
+                        length,
                         newURL: xhr.responseURL,
                         fileName
                     });
