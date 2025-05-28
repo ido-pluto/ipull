@@ -1,0 +1,37 @@
+{
+    "compilerOptions": {
+        "lib": [
+            "es2022",
+            "DOM"
+        ],
+        "module": "NodeNext",
+        "target": "es2022",
+        "esModuleInterop": true,
+        "noImplicitAny": true,
+        "noImplicitReturns": true,
+        "noImplicitThis": true,
+        "noImplicitOverride": true,
+        "removeComments": false,
+        "allowSyntheticDefaultImports": true,
+        "forceConsistentCasingInFileNames": true,
+        "noFallthroughCasesInSwitch": true,
+        "skipLibCheck": true,
+        "moduleResolution": "NodeNext",
+        "resolveJsonModule": true,
+        "strictNullChecks": true,
+        "isolatedModules": true,
+        "noEmit": false,
+        "outDir": "./dist",
+        "strict": true,
+        "sourceMap": false,
+        "composite": false,
+        "declaration": true,
+        "stripInternal": true
+    },
+    "files": [
+        "./src/index.ts"
+    ],
+    "include": [
+        "./src"
+    ]
+}

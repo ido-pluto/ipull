@@ -16,7 +16,7 @@ jobs:
       - name: Install modules
         run: npm ci --ignore-scripts
       - name: Build
-        run: npm run build
+        run: npm run build:prod
       - name: Test
         run: npm run test
       - name: Generate docs
