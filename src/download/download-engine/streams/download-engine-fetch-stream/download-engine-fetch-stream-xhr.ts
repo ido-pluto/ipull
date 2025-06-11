@@ -42,7 +42,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 ...this.options.headers
             };
 
-            if (this.state.rangeSupport) {
+            if (this.state.activePart.acceptRange) {
                 headers.range = `bytes=${start}-${end - 1}`;
             }
 
@@ -90,7 +90,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 clearStreamTimeout();
                 const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
 
-                if (this.state.rangeSupport && contentLength !== end - start) {
+                if (this.state.activePart.acceptRange && contentLength !== end - start) {
                     throw new InvalidContentLengthError(end - start, contentLength);
                 }
 
@@ -133,7 +133,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
     }
 
     public override async fetchChunks(callback: WriteCallback) {
-        if (this.state.rangeSupport) {
+        if (this.state.activePart.acceptRange) {
             return await this._fetchChunksRangeSupport(callback);
         }
 
@@ -149,14 +149,14 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             await this.paused;
             if (this.aborted) return;
 
-            const chunk = await this.fetchBytes(this.state.url, this._startSize, this._endSize, this.state.onProgress);
+            const chunk = await this.fetchBytes(this.state.activePart.downloadURL, this._startSize, this._endSize, this.state.onProgress);
             callback([chunk], this._startSize, this.state.startChunk++);
         }
     }
 
     protected async _fetchChunksWithoutRange(callback: WriteCallback) {
         const relevantContent = await (async (): Promise<Uint8Array> => {
-            const result = await this.fetchBytes(this.state.url, 0, this._endSize, this.state.onProgress);
+            const result = await this.fetchBytes(this.state.activePart.downloadURL, 0, this._endSize, this.state.onProgress);
             return result.slice(this._startSize, this._endSize || result.length);
         })();
 

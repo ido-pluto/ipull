@@ -38,6 +38,10 @@ export type BaseDownloadEngineEvents = {
     [key: string]: any
 };
 
+export const DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS: Partial<BaseDownloadEngineOptions> = {
+    reuseRedirectURL: true
+};
+
 export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineEvents> {
     public readonly options: DownloadEngineFileOptions;
     protected readonly _engine: DownloadEngineFile;
@@ -165,6 +169,8 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
                 return {
                     downloadURL,
+                    originalURL: part,
+                    downloadURLUpdateDate: Date.now(),
                     size,
                     acceptRange: size > 0 && acceptRange
                 };
@@ -173,6 +179,8 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
                     // if the server does not support HEAD request, we will skip that step
                     return {
                         downloadURL: part,
+                        originalURL: part,
+                        downloadURLUpdateDate: Date.now(),
                         size: 0,
                         acceptRange: false
                     };
