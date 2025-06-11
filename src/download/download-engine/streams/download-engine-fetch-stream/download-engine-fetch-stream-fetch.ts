@@ -32,7 +32,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             ...this.options.headers
         };
 
-        if (this.state.rangeSupport) {
+        if (this.state.activePart.acceptRange) {
             headers.range = `bytes=${this._startSize}-${this._endSize - 1}`;
         }
 
@@ -49,18 +49,18 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         });
 
 
-        response = await fetch(this.appendToURL(this.state.url), {
+        response = await fetch(this.appendToURL(this.state.activePart.downloadURL), {
             headers,
             signal: this._activeController.signal
         });
 
         if (response.status < 200 || response.status >= 300) {
-            throw new StatusCodeError(this.state.url, response.status, response.statusText, headers);
+            throw new StatusCodeError(this.state.activePart.downloadURL, response.status, response.statusText, headers);
         }
 
         const contentLength = parseHttpContentRange(response.headers.get("content-range"))?.length ?? parseInt(response.headers.get("content-length")!);
         const expectedContentLength = this._endSize - this._startSize;
-        if (this.state.rangeSupport && contentLength !== expectedContentLength) {
+        if (this.state.activePart.acceptRange && contentLength !== expectedContentLength) {
             throw new InvalidContentLengthError(expectedContentLength, contentLength);
         }
 

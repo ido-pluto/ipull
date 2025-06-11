@@ -3,7 +3,7 @@ import DownloadEngineFile from "../download-file/download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFetchStreamXhr from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-xhr.js";
 import DownloadEngineWriteStreamBrowser, {DownloadEngineWriteStreamBrowserWriter} from "../streams/download-engine-write-stream/download-engine-write-stream-browser.js";
-import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-engine.js";
+import BaseDownloadEngine, {BaseDownloadEngineOptions, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS} from "./base-download-engine.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 
@@ -44,6 +44,8 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
      * Download file
      */
     public static async createFromOptions(options: DownloadEngineOptionsBrowser) {
+        options = Object.assign({}, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS, options);
+
         DownloadEngineBrowser._validateOptions(options);
         const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 

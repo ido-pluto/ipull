@@ -4,7 +4,7 @@ import DownloadEngineFile from "../download-file/download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineWriteStreamNodejs from "../streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
 import DownloadEngineFetchStreamLocalFile from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
-import BaseDownloadEngine, {BaseDownloadEngineOptions} from "./base-download-engine.js";
+import BaseDownloadEngine, {BaseDownloadEngineOptions, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS} from "./base-download-engine.js";
 import SavePathError from "./error/save-path-error.js";
 import fs from "fs-extra";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
@@ -134,6 +134,8 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
      * By default, it will guess the strategy based on the URL
      */
     public static async createFromOptions(options: DownloadEngineOptionsNodejs) {
+        options = Object.assign({}, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS, options);
+
         DownloadEngineNodejs._validateOptions(options);
         const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 
@@ -146,7 +148,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     }
 
     protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsNodejsCustomFetch) {
-        const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partURLs, options.fetchStream);
+        const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partURLs, options.fetchStream, options);
         const downloadLocation = DownloadEngineNodejs._createDownloadLocation(downloadFile, options);
         downloadFile.localFileName = path.basename(downloadLocation);
 

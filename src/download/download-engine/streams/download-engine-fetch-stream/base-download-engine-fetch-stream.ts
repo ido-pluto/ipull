@@ -5,10 +5,12 @@ import {AvailablePrograms} from "../../download-file/download-programs/switch-pr
 import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import sleep from "sleep-promise";
+import {withLock} from "lifecycle-utils";
 
 export const STREAM_NOT_RESPONDING_TIMEOUT = 1000 * 3;
-
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
+
+const TOKEN_EXPIRED_ERROR_CODES = [401, 403, 419, 440, 498, 499];
 
 export type BaseDownloadEngineFetchStreamOptions = {
     retry?: retry.Options
@@ -50,14 +52,18 @@ export type DownloadInfoResponse = {
 };
 
 export type FetchSubState = {
-    url: string,
     startChunk: number,
     endChunk: number,
     lastChunkEndsFile: boolean,
-    totalSize: number,
     chunkSize: number,
-    rangeSupport?: boolean,
     onProgress?: (length: number) => void,
+    activePart: {
+        size: number,
+        acceptRange?: boolean,
+        downloadURL: string,
+        originalURL: string,
+        downloadURLUpdateDate: number
+    }
 };
 
 export type BaseDownloadEngineFetchStreamEvents = {
@@ -102,6 +108,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public aborted = false;
     protected _pausedResolve?: () => void;
     public errorCount = {value: 0};
+    public lastFetchTime = 0;
 
     constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
         super();
@@ -114,7 +121,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     }
 
     protected get _endSize() {
-        return Math.min(this.state.endChunk * this.state.chunkSize, this.state.totalSize);
+        return Math.min(this.state.endChunk * this.state.chunkSize, this.state.activePart.size);
     }
 
     protected initEvents() {
@@ -210,6 +217,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         // eslint-disable-next-line no-constant-condition
         while (true) {
             try {
+                this.lastFetchTime = Date.now();
                 return await this.fetchWithoutRetryChunks((...args) => {
                     if (retryingOn) {
                         retryingOn = false;
@@ -219,10 +227,12 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 });
             } catch (error: any) {
                 if (error?.name === "AbortError") return;
+
                 this.errorCount.value++;
                 this.emit("errorCountIncreased", this.errorCount.value, error);
 
-                if (error instanceof HttpError && !this.retryOnServerError(error)) {
+                const needToRecreateURL = this.shouldRecreateURL(error);
+                if (!needToRecreateURL && error instanceof HttpError && !this.retryOnServerError(error)) {
                     throw error;
                 }
 
@@ -238,9 +248,29 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     retryResolvers = retryAsyncStatementSimple(this.options.retry);
                 }
 
-                await retryResolvers(error);
+                await Promise.all([
+                    retryResolvers(error),
+                    needToRecreateURL && this.recreateDownloadURL()
+                ]);
             }
         }
+    }
+
+    shouldRecreateURL(error: Error): boolean {
+        return error instanceof StatusCodeError && TOKEN_EXPIRED_ERROR_CODES.includes(error.statusCode) &&
+            this.state.activePart.downloadURL !== this.state.activePart.originalURL;
+    }
+
+    recreateDownloadURL() {
+        return withLock(this.state.activePart, "_recreateURLLock", async () => {
+            if (this.state.activePart.downloadURLUpdateDate > this.lastFetchTime) {
+                return; // The URL was updated while we were waiting for the lock
+            }
+
+            const downloadInfo = await this.fetchDownloadInfo(this.state.activePart.originalURL);
+            this.state.activePart.downloadURL = downloadInfo.newURL || this.state.activePart.originalURL;
+            this.state.activePart.downloadURLUpdateDate = Date.now();
+        });
     }
 
     protected abstract fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> | void;

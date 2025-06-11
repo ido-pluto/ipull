@@ -278,9 +278,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             startChunk,
             endChunk: endChunk,
             lastChunkEndsFile: endChunk === Infinity || endChunk === this._progress.chunks.length,
-            totalSize: this._activePart.size,
-            url: this._activePart.downloadURL!,
-            rangeSupport: this._activePart.acceptRange,
+            activePart: this._activePart,
             onProgress: (length: number) => {
                 getContext().streamBytes = length;
                 this._sendProgressDownloadPart();
