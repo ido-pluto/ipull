@@ -1,6 +1,16 @@
 {
     "branches": [
-        "main"
+        "main",
+        {
+            "name": "maintenance/v3",
+            "range": "3.x",
+            "prerelease": false
+        },
+        {
+            "name": "beta/maintenance/v3",
+            "prerelease": true,
+            "range": "3.x"
+        }
     ],
     "ci": true,
     "plugins": [
