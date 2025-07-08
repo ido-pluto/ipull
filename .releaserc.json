@@ -32,7 +32,13 @@
             }
         ],
         "@semantic-release/release-notes-generator",
-        "@semantic-release/npm",
+        [
+            "@semantic-release/npm",
+            {
+                "npmPublish": false,
+                "tag": false
+            }
+        ],
         "@semantic-release/github",
         [
             "@semantic-release/exec",
