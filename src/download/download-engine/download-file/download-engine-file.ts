@@ -409,9 +409,9 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         }
         this._closed = true;
         this._activeProgram?.abort();
-        await this.options.onCloseAsync?.();
         await this.options.writeStream.close();
         await this.options.fetchStream.close();
+        await this.options.onCloseAsync?.();
         this.emit("closed");
     }
 
