@@ -115,7 +115,7 @@
     "express": "^4.21.1",
     "hash.js": "^1.1.7",
     "husky": "^8.0.3",
-    "semantic-release": "^24.0.0",
+    "semantic-release": "^25.0.3",
     "tslib": "^2.6.1",
     "typedoc": "^0.26.3",
     "typedoc-material-theme": "^1.1.0",
