@@ -87,4 +87,4 @@ describe("Fetch download info", () => {
         context.expect(fileSize)
             .toMatchInlineSnapshot(`599171040`);
     });
-}, {timeout: 0});
+});

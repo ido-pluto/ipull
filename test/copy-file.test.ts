@@ -49,4 +49,4 @@ describe("File Copy", async () => {
         context.expect(copiedFileHash)
             .toBe(originalFileHash);
     });
-}, {timeout: 1000 * 60 * 3});
+});
