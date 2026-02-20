@@ -9,7 +9,7 @@ import DownloadEngineFetchStreamFetch from "../../src/download/download-engine/s
 import {withLock} from "lifecycle-utils";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
-export const BIG_FILE_EXAMPLE = path.join(__dirname, "files", "big-file.jpg");
+export const BIG_FILE_EXAMPLE = path.join(__dirname, "files", "big-file.bin");
 export const TEXT_FILE_EXAMPLE = path.join(__dirname, "files", "example.txt");
 
 const lockScope = {};

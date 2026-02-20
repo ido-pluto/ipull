@@ -1,1 +1,1 @@
-export const BIG_FILE = "https://upload.wikimedia.org/wikipedia/commons/9/9e/1_dubrovnik_pano_-_edit1.jpg"; // 40mb
+export const BIG_FILE = "https://huggingface.co/datasets/ChaoticNeutrals/Creative_Writing-ShareGPT/resolve/main/Creative_Writing-ShareGPT.jsonl?download=true"; // 27.5mb

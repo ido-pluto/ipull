@@ -25,4 +25,4 @@ describe("Fetch download info", () => {
         context.expect(downloader.file.totalSize > 0)
             .toBeTruthy();
     });
-}, {timeout: 0});
+});

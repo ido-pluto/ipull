@@ -17,6 +17,14 @@ const DEFAULT_OPTIONS: DownloadEngineWriteStreamOptionsNodeJS = {
 const NOT_ENOUGH_SPACE_ERROR_CODE = "ENOSPC";
 
 export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineWriteStream {
+    private static _allFd = new Set<FileHandle>();
+    private static _finalizationRegistry = new FinalizationRegistry(async (fd: FileHandle) => {
+        if (fd.fd != null) {
+            await fd.close();
+        }
+        DownloadEngineWriteStreamNodejs._allFd.delete(fd);
+    });
+
     private _fd: FileHandle | null = null;
     private _fileWriteFinished = false;
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
@@ -35,7 +43,10 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
             return await retry(async () => {
                 await fsExtra.ensureFile(this.path);
-                return this._fd = await fs.open(this.path, this.options.mode);
+                this._fd = await fs.open(this.path, this.options.mode);
+                DownloadEngineWriteStreamNodejs._allFd.add(this._fd);
+                DownloadEngineWriteStreamNodejs._finalizationRegistry.register(this, this._fd, this);
+                return this._fd;
             }, this.options.retry);
         });
     }
@@ -103,8 +114,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
                 return JSON.parse(metadataString);
             } catch {}
         } finally {
-            this._fd = null;
-            await fd.close();
+            await this.close();
         }
     }
 
@@ -115,7 +125,15 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     override async close() {
-        await this._fd?.close();
+        if (!this._fd) {
+            return;
+        }
+
+        if (this._fd.fd != null) {
+            await this._fd.close();
+        }
+        DownloadEngineWriteStreamNodejs._allFd.delete(this._fd);
+        DownloadEngineWriteStreamNodejs._finalizationRegistry.unregister(this);
         this._fd = null;
     }
 }

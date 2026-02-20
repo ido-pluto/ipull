@@ -22,7 +22,7 @@ describe("File Download", () => {
         let maxInParallelConnections = 0;
         const downloader = new DownloadEngineFile(file, {
             parallelStreams: randomNumber,
-            chunkSize: 1024 ** 2,
+            chunkSize: 1024 ** 1.5,
             fetchStream,
             writeStream
         });
@@ -60,4 +60,4 @@ describe("File Download", () => {
         context.expect(totalBytesWritten)
             .toBe(file.totalSize);
     });
-}, {timeout: 1000 * 60 * 3});
+});
