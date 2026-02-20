@@ -4,7 +4,7 @@ import {Command, Option} from "commander";
 import {packageJson} from "../const.js";
 import {downloadFile, downloadSequence} from "../download/node-download.js";
 import {setCommand} from "./commands/set.js";
-import findDownloadDir, {downloadToDirectory, findFileName} from "./utils/find-download-dir.js";
+import findDownloadDir, {findFileName} from "./utils/find-download-dir.js";
 import {AvailableCLIProgressStyle} from "../download/transfer-visualize/transfer-cli/progress-bars/switch-cli-progress-style.js";
 
 
@@ -29,11 +29,25 @@ pullCommand
             process.exit(0);
         }
 
+        const saveLocationIsDirectory = saveLocation && path.extname(saveLocation) === "";
+
         const fileDownloads = await Promise.all(
-            files.map(async (file) => {
-                const isDirectory = saveLocation && await downloadToDirectory(saveLocation);
-                const directory = isDirectory ? saveLocation : await findDownloadDir(findFileName(file));
-                const fileName = isDirectory || !saveLocation ? "" : path.basename(saveLocation);
+            files.map(async (file, index) => {
+
+                let fileName: string | undefined;
+                let directory = await findDownloadDir(findFileName(file));
+
+                if (saveLocation) {
+                    if (saveLocationIsDirectory) {
+                        directory = saveLocation;
+                    } else {
+                        directory = path.dirname(saveLocation);
+
+                        const basename = path.basename(saveLocation);
+                        const fileIndex = file.length > 1 ? ((index + 1) + "-") : "";
+                        fileName = fileIndex + basename;
+                    }
+                }
 
                 return await downloadFile({
                     url: file,
