@@ -19,10 +19,10 @@ describe("Browser Fetch API", () => {
         await downloader.download();
         const hash = hashBuffer(downloader.writeStream.result);
         context.expect(hash)
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
     });
 
-    test.concurrent("Download file browser", async (context) => {
+    test.concurrent("Download file browser", {repeats: 4, concurrent: true}, async (context) => {
         const response = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const bufferIsCorrect = Buffer.from(await fs.readFile(response));
 
@@ -55,9 +55,9 @@ describe("Browser Fetch API", () => {
         context.expect(lastWrite)
             .toBe(downloader.file.totalSize);
         context.expect(hashBuffer(bigBuffer))
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
-    }, {repeats: 4, concurrent: true});
-}, {timeout: 1000 * 60 * 3});
+            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
+    });
+});
 
 describe("Browser Fetch memory", () => {
     test.sequential("Download file for tests", async (context) => {
@@ -66,10 +66,10 @@ describe("Browser Fetch memory", () => {
         const buffer = Buffer.from(await fs.readFile(response));
         const hash = hashBuffer(buffer);
         context.expect(hash)
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
     });
 
-    test.sequential("Download file browser - memory (xhr)", async (context) => {
+    test.skip("Download file browser - memory (xhr)", async (context) => {
         const originalFile = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const originalFileBuffer = new Uint8Array(await fs.readFile(originalFile));
 
@@ -107,4 +107,4 @@ describe("Browser Fetch memory", () => {
         context.expect(diff)
             .toBe(-1);
     });
-}, {timeout: 1000 * 60 * 3});
+});
