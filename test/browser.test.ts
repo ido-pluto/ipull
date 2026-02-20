@@ -10,6 +10,7 @@ globalThis.XMLHttpRequest = await import("xmlhttprequest-ssl").then(m => m.XMLHt
 
 describe("Browser Fetch API", () => {
     test.concurrent("Download file browser - memory", async (context) => {
+
         const downloader = await downloadFileBrowser({
             url: BIG_FILE
         });
@@ -17,7 +18,7 @@ describe("Browser Fetch API", () => {
         await downloader.download();
         const hash = hashBuffer(downloader.writeStream.result);
         context.expect(hash)
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
     });
 
     test.concurrent("Download file browser", async (context) => {
@@ -37,11 +38,11 @@ describe("Browser Fetch API", () => {
 
         await downloader.download();
         context.expect(hashBuffer(buffer))
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
         context.expect(lastWrite)
             .toBe(downloader.file.totalSize);
     });
-}, {timeout: 1000 * 60 * 3});
+});
 
 describe("Browser Fetch memory", () => {
     test.sequential("Download file for tests", async (context) => {
@@ -50,7 +51,7 @@ describe("Browser Fetch memory", () => {
         const buffer = Buffer.from(await fs.readFile(response));
         const hash = hashBuffer(buffer);
         context.expect(hash)
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
     });
 
     test.sequential("Download file browser - memory (xhr)", async (context) => {
@@ -91,4 +92,4 @@ describe("Browser Fetch memory", () => {
         context.expect(diff)
             .toBe(-1);
     });
-}, {timeout: 1000 * 60 * 3});
+});

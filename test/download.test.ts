@@ -60,4 +60,4 @@ describe("File Download", () => {
         context.expect(totalBytesWritten)
             .toBe(file.totalSize);
     });
-}, {timeout: 1000 * 60 * 3});
+});
