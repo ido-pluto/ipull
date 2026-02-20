@@ -25,6 +25,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         DownloadEngineWriteStreamNodejs._allFd.delete(fd);
     });
 
+    private _finalToken = {};
     private _fd: FileHandle | null = null;
     private _fileWriteFinished = false;
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
@@ -45,7 +46,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
                 await fsExtra.ensureFile(this.path);
                 this._fd = await fs.open(this.path, this.options.mode);
                 DownloadEngineWriteStreamNodejs._allFd.add(this._fd);
-                DownloadEngineWriteStreamNodejs._finalizationRegistry.register(this, this._fd, this);
+                DownloadEngineWriteStreamNodejs._finalizationRegistry.register(this, this._fd, this._finalToken);
                 return this._fd;
             }, this.options.retry);
         });
@@ -133,7 +134,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
             await this._fd.close();
         }
         DownloadEngineWriteStreamNodejs._allFd.delete(this._fd);
-        DownloadEngineWriteStreamNodejs._finalizationRegistry.unregister(this);
+        DownloadEngineWriteStreamNodejs._finalizationRegistry.unregister(this._finalToken);
         this._fd = null;
     }
 }
