@@ -4,11 +4,11 @@ import retry from "async-retry";
 import {withLock} from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
 import WriterIsClosedError from "./errors/writer-is-closed-error.js";
-import {BytesWriteDebounce} from "./utils/BytesWriteDebounce.js";
 
 export type DownloadEngineWriteStreamOptionsNodeJS = {
     retry?: retry.Options
     mode: string;
+    /**@deprecated This functionality had been remove duo to performance issues **/
     debounceWrite?: {
         maxTime?: number
         maxSize?: number
@@ -16,23 +16,26 @@ export type DownloadEngineWriteStreamOptionsNodeJS = {
 };
 
 const DEFAULT_OPTIONS = {
-    mode: "r+",
-    debounceWrite: {
-        maxTime: 1000 * 5, // 5 seconds
-        maxSize: 1024 * 1024 * 2 // 2 MB
-    }
+    mode: "r+"
 } satisfies DownloadEngineWriteStreamOptionsNodeJS;
-const MAX_AUTO_DEBOUNCE_SIZE = 1024 * 1024 * 100; // 100 MB
-const AUTO_DEBOUNCE_SIZE_PERCENT = 0.05;
 const MAX_META_SIZE = 10485760; // 10 MB
 
 const NOT_ENOUGH_SPACE_ERROR_CODE = "ENOSPC";
 
 export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineWriteStream {
+    private static _allFd = new Set<FileHandle>();
+    private static _finalizationRegistry = new FinalizationRegistry(async (fd: FileHandle) => {
+        if (fd.fd != null) {
+            await fd.close();
+        }
+        DownloadEngineWriteStreamNodejs._allFd.delete(fd);
+    });
+
+    private _finalToken = {};
     private _fd: FileHandle | null = null;
     private _fileWriteFinished = false;
-    private _writeDebounce: BytesWriteDebounce;
     private _fileSize = 0;
+    private _lastWritePromise: Promise<any> | null = null;
 
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
     public autoDebounceMaxSize = false;
@@ -41,19 +44,10 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         super();
 
         this.autoDebounceMaxSize = !options.debounceWrite?.maxSize;
-        const optionsWithDefaults = this.options = {
+        this.options = {
             ...DEFAULT_OPTIONS,
-            ...options,
-            debounceWrite: {
-                ...DEFAULT_OPTIONS.debounceWrite,
-                ...options.debounceWrite
-            }
+            ...options
         };
-
-        this._writeDebounce = new BytesWriteDebounce({
-            ...optionsWithDefaults.debounceWrite,
-            writev: (cursor, buffers) => this._writeWithoutDebounce(cursor, buffers)
-        });
     }
 
     public get fileSize() {
@@ -62,13 +56,6 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
     public set fileSize(value) {
         this._fileSize = value;
-
-        if (this.autoDebounceMaxSize) {
-            this.options.debounceWrite!.maxSize = Math.max(
-                Math.min(value * AUTO_DEBOUNCE_SIZE_PERCENT, MAX_AUTO_DEBOUNCE_SIZE),
-                DEFAULT_OPTIONS.debounceWrite.maxSize
-            );
-        }
     }
 
     private async _ensureFileOpen() {
@@ -79,16 +66,15 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
             return await retry(async () => {
                 await fsExtra.ensureFile(this.path);
-                return this._fd = await fs.open(this.path, this.options.mode);
+                this._fd = await fs.open(this.path, this.options.mode);
+                DownloadEngineWriteStreamNodejs._allFd.add(this._fd);
+                DownloadEngineWriteStreamNodejs._finalizationRegistry.register(this, this._fd, this._finalToken);
+                return this._fd;
             }, this.options.retry);
         });
     }
 
     async write(cursor: number, buffers: Uint8Array[]) {
-        await this._writeDebounce.addChunk(cursor, buffers);
-    }
-
-    async _writeWithoutDebounce(cursor: number, buffers: Uint8Array[]) {
         let throwError: Error | false = false;
 
         await retry(async () => {
@@ -109,7 +95,9 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     async ensureBytesSynced() {
-        await this._writeDebounce.writeAllAndFinish();
+        if (this._lastWritePromise) {
+            await this._lastWritePromise;
+        }
     }
 
     async ftruncate(size = this._fileSize) {
@@ -159,21 +147,28 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
                 return JSON.parse(metadataString);
             } catch {}
         } finally {
-            this._fd = null;
-            await fd.close();
+            await this.close();
         }
     }
 
     private async _writeWithoutRetry(cursor: number, buffers: Uint8Array[]) {
-        return await withLock(this, "lockWriteOperation", async () => {
+        return await (this._lastWritePromise = withLock(this, "lockWriteOperation", async () => {
             const fd = await this._ensureFileOpen();
             const {bytesWritten} = await fd.writev(buffers, cursor);
             return bytesWritten;
-        });
+        }));
     }
 
     override async close() {
-        await this._fd?.close();
+        if (!this._fd) {
+            return;
+        }
+
+        if (this._fd.fd != null) {
+            await this._fd.close();
+        }
+        DownloadEngineWriteStreamNodejs._allFd.delete(this._fd);
+        DownloadEngineWriteStreamNodejs._finalizationRegistry.unregister(this._finalToken);
         this._fd = null;
     }
 }
