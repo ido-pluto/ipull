@@ -22,7 +22,7 @@ describe("File Download", () => {
         let maxInParallelConnections = 0;
         const downloader = new DownloadEngineFile(file, {
             parallelStreams: randomNumber,
-            chunkSize: 1024 ** 2,
+            chunkSize: 1024,
             fetchStream,
             writeStream
         });
