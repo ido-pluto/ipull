@@ -31,6 +31,7 @@ export default class TransferCli {
     protected options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
     protected latestProgress: [FormattedStatus[], FormattedStatus, number] = null!;
+    protected latestProgressGetter: (() => [FormattedStatus[], FormattedStatus, number]) | null = null;
     private _cliStopped = true;
     private _updateStatuesDebounce: () => void = this._updateStatues;
     private _abortDebounce = new AbortController();
@@ -83,6 +84,7 @@ export default class TransferCli {
     }
 
     updateStatues(statues: FormattedStatus[], oneStatus: FormattedStatus, loadingDownloads = 0) {
+        this.latestProgressGetter = null;
         this.latestProgress = [statues, oneStatus, loadingDownloads];
 
         if (this.isFirstPrint) {
@@ -93,9 +95,20 @@ export default class TransferCli {
         }
     }
 
+    updateStatuesLazy(getLatestProgress: () => [FormattedStatus[], FormattedStatus, number]) {
+        this.latestProgressGetter = getLatestProgress;
+        if (this.isFirstPrint) {
+            this.isFirstPrint = false;
+            this._updateStatues();
+        } else {
+            this._updateStatuesDebounce();
+        }
+    }
+
     private _updateStatues() {
-        if (!this.latestProgress) return;
-        const printLog = this._multiProgressBar.createMultiProgressBar(...this.latestProgress);
+        const latestProgress = this.latestProgressGetter?.() ?? this.latestProgress;
+        if (!latestProgress) return;
+        const printLog = this._multiProgressBar.createMultiProgressBar(...latestProgress);
         if (printLog && this._lastProgressLong != printLog) {
             this._lastProgressLong = printLog;
             this._logUpdate(printLog);
