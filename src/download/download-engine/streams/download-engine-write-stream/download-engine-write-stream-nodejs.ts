@@ -1,26 +1,28 @@
-import fs, {FileHandle} from "fs/promises";
-import fsExtra from "fs-extra";
 import retry from "async-retry";
-import {withLock} from "lifecycle-utils";
+import fsExtra from "fs-extra";
+import fs, { FileHandle } from "fs/promises";
+import { withLock } from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
-import WriterIsClosedError from "./errors/writer-is-closed-error.js";
+import WriteQueue from "./utils/WriteQueue.js";
 
 export type DownloadEngineWriteStreamOptionsNodeJS = {
-    retry?: retry.Options
+    retry?: retry.Options;
     mode: string;
-    /**@deprecated This functionality had been remove duo to performance issues **/
+    /** @deprecated Use writeBufferMaxBytes instead */
     debounceWrite?: {
-        maxTime?: number
-        maxSize?: number
-    }
+        maxTime?: number;
+        maxSize?: number;
+    };
+
+    /** Maximum bytes to buffer before flushing to disk (default: adaptive 5% of file size, min 2MB, max 64MB) */
+    writeBufferMaxBytes?: number;
 };
+
+const MAX_META_SIZE = 10485760; // 10 MB
 
 const DEFAULT_OPTIONS = {
     mode: "r+"
 } satisfies DownloadEngineWriteStreamOptionsNodeJS;
-const MAX_META_SIZE = 10485760; // 10 MB
-
-const NOT_ENOUGH_SPACE_ERROR_CODE = "ENOSPC";
 
 export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineWriteStream {
     private static _allFd = new Set<FileHandle>();
@@ -33,21 +35,33 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
     private _finalToken = {};
     private _fd: FileHandle | null = null;
-    private _fileWriteFinished = false;
     private _fileSize = 0;
-    private _lastWritePromise: Promise<any> | null = null;
+    private _writeQueue: WriteQueue;
+    private _metadataToSave: any = null;
 
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
-    public autoDebounceMaxSize = false;
 
     constructor(public path: string, public finalPath: string, options: Partial<DownloadEngineWriteStreamOptionsNodeJS> = {}) {
         super();
 
-        this.autoDebounceMaxSize = !options.debounceWrite?.maxSize;
         this.options = {
             ...DEFAULT_OPTIONS,
             ...options
         };
+
+        this._writeQueue = new WriteQueue({
+            getFd: this._ensureFileOpen.bind(this),
+            writeBufferMaxBytes: this.options.writeBufferMaxBytes || this.options.debounceWrite?.maxSize,
+            flushMetadata: () => {
+                if (this._metadataToSave) {
+                    const metadata = this._metadataToSave;
+                    this._metadataToSave = null;
+                    return this._saveMetadata(metadata);
+                }
+
+                return Promise.resolve();
+            }
+        });
     }
 
     public get fileSize() {
@@ -56,10 +70,15 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
     public set fileSize(value) {
         this._fileSize = value;
+        this._writeQueue.setFileSize(value);
     }
 
-    private async _ensureFileOpen() {
-        return await withLock(this, "_lock", async () => {
+    private _ensureFileOpen() {
+        if (this._fd) {
+            return this._fd;
+        }
+
+        return withLock(this, "_lock", async () => {
             if (this._fd) {
                 return this._fd;
             }
@@ -74,52 +93,39 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         });
     }
 
-    async write(cursor: number, buffers: Uint8Array[]) {
-        let throwError: Error | false = false;
-
-        await retry(async () => {
-            try {
-                return await this._writeWithoutRetry(cursor, buffers);
-            } catch (error: any) {
-                if (error?.code === NOT_ENOUGH_SPACE_ERROR_CODE) {
-                    throwError = error;
-                    return;
-                }
-                throw error;
-            }
-        }, this.options.retry);
-
-        if (throwError) {
-            throw throwError;
-        }
+    /**
+     * Buffer a write for the given cursor position.
+     * Fragments are concatenated into a single Buffer, contiguous regions merged,
+     * and auto-flushed when the adaptive threshold is exceeded.
+     * Returns void (synchronous queue); errors surface via ensureBytesSynced() / close().
+     */
+    write(cursor: number, buffers: Uint8Array[]) {
+        return this._writeQueue.addWrite(cursor, buffers);
     }
 
-    async ensureBytesSynced() {
-        if (this._lastWritePromise) {
-            await this._lastWritePromise;
-        }
+    ensureBytesSynced() {
+        return this._writeQueue.drain();
     }
 
     async ftruncate(size = this._fileSize) {
         await this.ensureBytesSynced();
-        this._fileWriteFinished = true;
         await retry(async () => {
             const fd = await this._ensureFileOpen();
             await fd.truncate(size);
         }, this.options.retry);
     }
 
-    async saveMetadataAfterFile(data: any) {
-        if (this._fileWriteFinished) {
-            throw new WriterIsClosedError();
-        }
+    saveMetadataAfterFlush(data: any) {
+        this._metadataToSave = data;
+    }
 
+    private async _saveMetadata(data: any) {
         const jsonString = JSON.stringify(data);
+        const uint8Array = new TextEncoder().encode(jsonString);
 
-        const encoder = new TextEncoder();
-        const uint8Array = encoder.encode(jsonString);
-
-        await this.write(this._fileSize, [uint8Array]);
+        const fdResult = this._ensureFileOpen();
+        const fd = fdResult instanceof Promise ? await fdResult : fdResult;
+        await fd.write(uint8Array, 0, uint8Array.length, this._fileSize);
     }
 
     async loadMetadataAfterFileWithoutRetry() {
@@ -145,21 +151,16 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
             try {
                 return JSON.parse(metadataString);
-            } catch {}
+            } catch { }
         } finally {
             await this.close();
         }
     }
 
-    private async _writeWithoutRetry(cursor: number, buffers: Uint8Array[]) {
-        return await (this._lastWritePromise = withLock(this, "lockWriteOperation", async () => {
-            const fd = await this._ensureFileOpen();
-            const {bytesWritten} = await fd.writev(buffers, cursor);
-            return bytesWritten;
-        }));
-    }
-
     override async close() {
+        this._writeQueue.close();
+        await this._writeQueue.drain();
+
         if (!this._fd) {
             return;
         }

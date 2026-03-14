@@ -49,9 +49,9 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
     protected override _initEvents() {
         super._initEvents();
 
-        this._engine.options.onSaveProgressAsync = async (progress) => {
+        this._engine.options.onSaveProgress = (progress) => {
             if (this.options.skipExisting) return;
-            await this.options.writeStream.saveMetadataAfterFile(progress);
+            this.options.writeStream.saveMetadataAfterFlush(progress);
         };
 
         this._engine.options.onPausedAsync = async () => {

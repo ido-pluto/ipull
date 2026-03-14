@@ -22,7 +22,7 @@ export type DownloadEngineFileOptions = {
     onStartedAsync?: () => Promise<void>
     onCloseAsync?: () => Promise<void>
     onPausedAsync?: () => Promise<void>
-    onSaveProgressAsync?: (progress: SaveProgressInfo) => Promise<void>
+    onSaveProgress?: (progress: SaveProgressInfo) => void
     programType?: AvailablePrograms
     autoIncreaseParallelStreams?: boolean
 
@@ -33,6 +33,7 @@ export type DownloadEngineFileOptions = {
 export type DownloadEngineFileOptionsWithDefaults = DownloadEngineFileOptions & {
     chunkSize: number;
     parallelStreams: number;
+    progressThrottleMs: number;
 };
 
 export type DownloadEngineFileEvents = {
@@ -52,7 +53,8 @@ const DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM = 1024 * 1024; // 1MB
 const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {
     chunkSize: 0,
     parallelStreams: 3,
-    autoIncreaseParallelStreams: true
+    autoIncreaseParallelStreams: true,
+    progressThrottleMs: 50
 };
 
 export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileEvents> {
@@ -283,7 +285,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             activePart: this._activePart,
             onProgress: (length: number) => {
                 getContext().streamBytes = length;
-                this._sendProgressDownloadPart();
+                this._throttledSendProgress();
             }
         });
 
@@ -361,23 +363,27 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected _saveProgress() {
-        const thisProgress = this._latestProgressDate = Date.now();
-        this._sendProgressDownloadPart();
+        this._throttledSendProgress();
 
         if (!this._activePart.acceptRange)
             return;
 
         this.emit("save", this._progress);
-        return withLock(this, "_saveLock", async () => {
-            if (thisProgress === this._latestProgressDate && !this._closed && this._downloadStatus !== DownloadStatus.Finished) {
-                await this.options.onSaveProgressAsync?.(this._progress);
-            }
-        });
+        this.options.onSaveProgress?.(this._progress);
     }
 
     protected _sendProgressDownloadPart() {
         if (this._closed) return;
         this.emit("progress", this.status);
+    }
+
+    private _throttledSendProgress() {
+        if (this._closed) return;
+
+        if (Date.now() - this._latestProgressDate >= this.options.progressThrottleMs) {
+            this._sendProgressDownloadPart();
+            return;
+        }
     }
 
     public async pause() {
