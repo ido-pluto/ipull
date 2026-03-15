@@ -44,7 +44,7 @@ pullCommand
                         directory = path.dirname(saveLocation);
 
                         const basename = path.basename(saveLocation);
-                        const fileIndex = file.length > 1 ? ((index + 1) + "-") : "";
+                        const fileIndex = files.length > 1 ? ((index + 1) + "-") : "";
                         fileName = fileIndex + basename;
                     }
                 }
