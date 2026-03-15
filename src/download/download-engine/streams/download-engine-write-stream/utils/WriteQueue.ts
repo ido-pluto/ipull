@@ -1,4 +1,5 @@
 import { FileHandle } from "fs/promises";
+import WriterIsClosedError from "../errors/writer-is-closed-error.js";
 
 const MIN_BUFFER_SIZE = 2 * 1024 * 1024; // 2 MB
 const MAX_BUFFER_SIZE = 64 * 1024 * 1024; // 64 MB
@@ -57,7 +58,9 @@ export default class WriteQueue {
      * merges with adjacent regions, and flushes when threshold is exceeded.
      */
     addWrite(cursor: number, buffers: Uint8Array[]): void | Promise<void> {
-        if (this._closed) return;
+        if (this._closed) {
+            throw new WriterIsClosedError("Cannot add write to closed WriteQueue");
+        }
 
         const length = buffers.reduce((sum, buf) => sum + buf.length, 0);
 

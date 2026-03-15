@@ -153,14 +153,17 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
                 return JSON.parse(metadataString);
             } catch { }
         } finally {
-            await this.close();
+            await this._closeFd();
         }
     }
 
     override async close() {
         this._writeQueue.close();
         await this._writeQueue.drain();
+        await this._closeFd();
+    }
 
+    private async _closeFd(){
         if (!this._fd) {
             return;
         }
