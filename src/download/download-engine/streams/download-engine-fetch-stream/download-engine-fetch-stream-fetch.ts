@@ -27,7 +27,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected override async fetchWithoutRetryChunks(callback: WriteCallback) {
-        const headers: { [key: string]: any } = {
+        const headers: { [key: string]: any; } = {
             accept: "*/*",
             ...this.options.headers
         };
@@ -105,13 +105,14 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         const fileName = parseContentDisposition(response.headers.get("content-disposition"));
 
         let length = parseInt(response.headers.get("content-length")!) || 0;
-        const contentEncoding = response.headers.get("content-encoding");
+        const someLengthInfo = length;
 
+        const contentEncoding = response.headers.get("content-encoding");
         if (contentEncoding && contentEncoding !== "identity") {
             length = 0; // If content is encoded, we cannot determine the length reliably
         }
 
-        if (acceptRange && length === 0 && browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
+        if (length === 0 && (acceptRange || browserCheck() && (method === "GET" || MIN_LENGTH_FOR_MORE_INFO_REQUEST < someLengthInfo))) {
             length = await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? response : undefined);
         }
 
@@ -194,8 +195,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
 
-    protected static convertHeadersToRecord(headers: Headers): { [key: string]: string } {
-        const headerObj: { [key: string]: string } = {};
+    protected static convertHeadersToRecord(headers: Headers): { [key: string]: string; } {
+        const headerObj: { [key: string]: string; } = {};
         headers.forEach((value, key) => {
             headerObj[key] = value;
         });

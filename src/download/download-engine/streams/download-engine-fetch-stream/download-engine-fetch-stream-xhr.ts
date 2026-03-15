@@ -215,11 +215,13 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                     const contentEncoding = xhr.getResponseHeader("content-encoding");
 
                     let length = parseInt(xhr.getResponseHeader("content-length")!) || 0;
+                    const someLengthInfo = length;
+
                     if (contentEncoding && contentEncoding !== "identity") {
                         length = 0; // If content is encoded, we cannot determine the length reliably
                     }
 
-                    if (acceptRange && length === 0 && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
+                    if (length === 0 && (acceptRange || method === "GET" || MIN_LENGTH_FOR_MORE_INFO_REQUEST < someLengthInfo)) {
                         length = await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? xhr : undefined);
                     }
 
