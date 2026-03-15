@@ -1,7 +1,7 @@
 import retry from "async-retry";
 import fsExtra from "fs-extra";
-import fs, {FileHandle} from "fs/promises";
-import {withLock} from "lifecycle-utils";
+import fs, { FileHandle } from "fs/promises";
+import { withLock } from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
 import WriteQueue from "./utils/WriteQueue.js";
 
@@ -26,11 +26,12 @@ const DEFAULT_OPTIONS = {
 
 export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineWriteStream {
     private static _allFd = new Set<FileHandle>();
-    private static _finalizationRegistry = new FinalizationRegistry(async (fd: FileHandle) => {
+    private static _finalizationRegistry = new FinalizationRegistry((fd: FileHandle) => {
         if (fd.fd != null) {
-            await fd.close();
+            fd.close().catch(() => { }).finally(() => {
+                DownloadEngineWriteStreamNodejs._allFd.delete(fd);
+            });
         }
-        DownloadEngineWriteStreamNodejs._allFd.delete(fd);
     });
 
     private _finalToken = {};
@@ -163,7 +164,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
         await this._closeFd();
     }
 
-    private async _closeFd(){
+    private async _closeFd() {
         if (!this._fd) {
             return;
         }
