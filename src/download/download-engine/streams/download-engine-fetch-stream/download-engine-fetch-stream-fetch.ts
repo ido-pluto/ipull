@@ -42,30 +42,34 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
         let response: Response | null = null;
         this._activeController = new AbortController();
-        this.on("aborted", () => {
+        const abortPendingRequest = () => {
             if (!response) {
                 this._activeController?.abort();
             }
-        });
+        };
+        this.on("aborted", abortPendingRequest);
 
+        try {
+            response = await fetch(this.appendToURL(this.state.activePart.downloadURL), {
+                headers,
+                signal: this._activeController.signal
+            });
 
-        response = await fetch(this.appendToURL(this.state.activePart.downloadURL), {
-            headers,
-            signal: this._activeController.signal
-        });
+            if (response.status < 200 || response.status >= 300) {
+                throw new StatusCodeError(this.state.activePart.downloadURL, response.status, response.statusText, headers);
+            }
 
-        if (response.status < 200 || response.status >= 300) {
-            throw new StatusCodeError(this.state.activePart.downloadURL, response.status, response.statusText, headers);
+            const contentLength = parseHttpContentRange(response.headers.get("content-range"))?.length ?? parseInt(response.headers.get("content-length")!);
+            const expectedContentLength = this._endSize - this._startSize;
+            if (this.state.activePart.acceptRange && contentLength !== expectedContentLength) {
+                throw new InvalidContentLengthError(expectedContentLength, contentLength);
+            }
+
+            const reader = response.body!.getReader();
+            return await this.chunkGenerator(callback, () => reader.read());
+        } finally {
+            this.off("aborted", abortPendingRequest);
         }
-
-        const contentLength = parseHttpContentRange(response.headers.get("content-range"))?.length ?? parseInt(response.headers.get("content-length")!);
-        const expectedContentLength = this._endSize - this._startSize;
-        if (this.state.activePart.acceptRange && contentLength !== expectedContentLength) {
-            throw new InvalidContentLengthError(expectedContentLength, contentLength);
-        }
-
-        const reader = response.body!.getReader();
-        return await this.chunkGenerator(callback, () => reader.read());
     }
 
     protected override async fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse> {

@@ -107,6 +107,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public paused?: Promise<void>;
     public aborted = false;
     protected _pausedResolve?: () => void;
+    protected _cleanupClonedStateListeners?: () => void;
     public errorCount = {value: 0};
     public lastFetchTime = 0;
 
@@ -148,11 +149,23 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     protected cloneState<Fetcher extends BaseDownloadEngineFetchStream>(state: FetchSubState, fetchStream: Fetcher): Fetcher {
         fetchStream.state = state;
         fetchStream.errorCount = this.errorCount;
-        fetchStream.on("errorCountIncreased", this.emit.bind(this, "errorCountIncreased"));
+        const forwardErrorCount = this.emit.bind(this, "errorCountIncreased");
+        const forwardAborted = fetchStream.emit.bind(fetchStream, "aborted");
+        const forwardPaused = fetchStream.emit.bind(fetchStream, "paused");
+        const forwardResumed = fetchStream.emit.bind(fetchStream, "resumed");
 
-        this.on("aborted", fetchStream.emit.bind(fetchStream, "aborted"));
-        this.on("paused", fetchStream.emit.bind(fetchStream, "paused"));
-        this.on("resumed", fetchStream.emit.bind(fetchStream, "resumed"));
+        fetchStream.on("errorCountIncreased", forwardErrorCount);
+        this.on("aborted", forwardAborted);
+        this.on("paused", forwardPaused);
+        this.on("resumed", forwardResumed);
+
+        fetchStream._cleanupClonedStateListeners = () => {
+            fetchStream.off("errorCountIncreased", forwardErrorCount);
+            this.off("aborted", forwardAborted);
+            this.off("paused", forwardPaused);
+            this.off("resumed", forwardResumed);
+            fetchStream._cleanupClonedStateListeners = undefined;
+        };
 
         return fetchStream;
     }
@@ -214,45 +227,49 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         let retryResolvers = retryAsyncStatementSimple(this.options.retry);
         let retryingOn = false;
 
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            try {
-                this.lastFetchTime = Date.now();
-                return await this.fetchWithoutRetryChunks((...args) => {
-                    if (retryingOn) {
-                        retryingOn = false;
-                        this.emit("retryingOff");
+        try {
+            // eslint-disable-next-line no-constant-condition
+            while (true) {
+                try {
+                    this.lastFetchTime = Date.now();
+                    return await this.fetchWithoutRetryChunks((...args) => {
+                        if (retryingOn) {
+                            retryingOn = false;
+                            this.emit("retryingOff");
+                        }
+                        callback(...args);
+                    });
+                } catch (error: any) {
+                    if (error?.name === "AbortError") return;
+
+                    this.errorCount.value++;
+                    this.emit("errorCountIncreased", this.errorCount.value, error);
+
+                    const needToRecreateURL = this.shouldRecreateURL(error);
+                    if (!needToRecreateURL && error instanceof HttpError && !this.retryOnServerError(error)) {
+                        throw error;
                     }
-                    callback(...args);
-                });
-            } catch (error: any) {
-                if (error?.name === "AbortError") return;
 
-                this.errorCount.value++;
-                this.emit("errorCountIncreased", this.errorCount.value, error);
+                    retryingOn = true;
+                    this.emit("retryingOn", error, this.errorCount.value);
+                    if (error instanceof StatusCodeError && error.retryAfter) {
+                        await sleep(error.retryAfter * 1000);
+                        continue;
+                    }
 
-                const needToRecreateURL = this.shouldRecreateURL(error);
-                if (!needToRecreateURL && error instanceof HttpError && !this.retryOnServerError(error)) {
-                    throw error;
+                    if (lastStartLocation !== this.state.startChunk) {
+                        lastStartLocation = this.state.startChunk;
+                        retryResolvers = retryAsyncStatementSimple(this.options.retry);
+                    }
+
+                    await Promise.all([
+                        retryResolvers(error),
+                        needToRecreateURL && this.recreateDownloadURL()
+                    ]);
                 }
-
-                retryingOn = true;
-                this.emit("retryingOn", error, this.errorCount.value);
-                if (error instanceof StatusCodeError && error.retryAfter) {
-                    await sleep(error.retryAfter * 1000);
-                    continue;
-                }
-
-                if (lastStartLocation !== this.state.startChunk) {
-                    lastStartLocation = this.state.startChunk;
-                    retryResolvers = retryAsyncStatementSimple(this.options.retry);
-                }
-
-                await Promise.all([
-                    retryResolvers(error),
-                    needToRecreateURL && this.recreateDownloadURL()
-                ]);
             }
+        } finally {
+            this._cleanupClonedStateListeners?.();
         }
     }
 
@@ -276,6 +293,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     protected abstract fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> | void;
 
     public close(): void | Promise<void> {
+        this._cleanupClonedStateListeners?.();
         this.emit("aborted");
     }
 

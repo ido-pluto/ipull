@@ -122,13 +122,19 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 }
             };
 
-            xhr.send();
-            createStreamTimeout();
-
-            this.on("aborted", () => {
+            const abortXhr = () => {
                 clearStreamTimeout();
                 xhr.abort();
-            });
+                this.off("aborted", abortXhr);
+            };
+
+            xhr.onloadend = () => {
+                this.off("aborted", abortXhr);
+            };
+
+            xhr.send();
+            createStreamTimeout();
+            this.on("aborted", abortXhr);
         });
     }
 
