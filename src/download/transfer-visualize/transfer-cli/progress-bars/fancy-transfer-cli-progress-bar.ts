@@ -1,12 +1,11 @@
 import chalk from "chalk";
-import {PRETTY_MS_OPTIONS} from "../../format-transfer-status.js";
-import {DataLine, renderDataLine} from "../../utils/data-line.js";
-import prettyMilliseconds from "pretty-ms";
 import sliceAnsi from "slice-ansi";
 import stripAnsi from "strip-ansi";
-import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
+import { DownloadStatus } from "../../../download-engine/download-file/progress-status-file.js";
+import { DataLine, renderDataLine } from "../../utils/data-line.js";
+import prettyMillisecondsCompact from "../../utils/prettyMSFast.js";
+import { STATUS_ICONS } from "../../utils/progressBarIcons.js";
 import BaseTransferCliProgressBar from "./base-transfer-cli-progress-bar.js";
-import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
 
 /**
  * A class to display transfer progress in the terminal, with a progress bar and other information.
@@ -79,8 +78,8 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
 
         const downloadTime = (endTime || Date.now()) - startTime;
         const finishedText = wasSuccessful
-            ? `downloaded ${this.status.formatTransferred} in ${prettyMilliseconds(downloadTime, PRETTY_MS_OPTIONS)}`
-            : `failed downloading after ${prettyMilliseconds(endTime - startTime, PRETTY_MS_OPTIONS)}`;
+            ? `downloaded ${this.status.formatTransferred} in ${prettyMillisecondsCompact(downloadTime)}`
+            : `failed downloading after ${prettyMillisecondsCompact(endTime - startTime)}`;
 
         return renderDataLine([{
             type: "status",

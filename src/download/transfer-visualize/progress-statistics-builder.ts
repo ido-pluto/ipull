@@ -3,7 +3,7 @@ import {EventEmitter} from "eventemitter3";
 import TransferStatistics from "./transfer-statistics.js";
 import {createFormattedStatus, FormattedStatus} from "./format-transfer-status.js";
 import DownloadEngineFile from "../download-engine/download-file/download-engine-file.js";
-import ProgressStatusFile, {DownloadStatus, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
+import {DownloadStatus, EMPTY_PROGRESS_STATUS, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
 import {DownloadEngineRemote} from "../download-engine/engine/DownloadEngineRemote.js";
 
@@ -179,11 +179,9 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
 
     static loadingStatusEmptyStatistics() {
         const statistics = TransferStatistics.oneStatistics(0, 0);
-        const status = new ProgressStatusFile(0, "???");
-        status.downloadStatus = DownloadStatus.Loading;
 
         return createFormattedStatus({
-            ...status,
+            ...EMPTY_PROGRESS_STATUS,
             ...statistics
         });
     }

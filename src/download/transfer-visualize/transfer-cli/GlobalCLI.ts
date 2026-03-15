@@ -1,13 +1,13 @@
-import DownloadEngineMultiDownload, {DownloadEngineMultiAllowedEngines} from "../../download-engine/engine/download-engine-multi-download.js";
-import TransferCli, {TransferCliOptions} from "./transfer-cli.js";
-import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
-import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./progress-bars/switch-cli-progress-style.js";
-import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
+import DownloadEngineMultiDownload, { DownloadEngineMultiAllowedEngines } from "../../download-engine/engine/download-engine-multi-download.js";
+import TransferCli, { TransferCliOptions } from "./transfer-cli.js";
+import { BaseMultiProgressBar } from "./multiProgressBars/BaseMultiProgressBar.js";
+import switchCliProgressStyle, { AvailableCLIProgressStyle } from "./progress-bars/switch-cli-progress-style.js";
+import { CliFormattedStatus } from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
-import {DownloadStatus} from "../../download-engine/download-file/progress-status-file.js";
+import { DownloadStatus } from "../../download-engine/download-file/progress-status-file.js";
 import BaseDownloadEngine from "../../download-engine/engine/base-download-engine.js";
-import {DownloadEngineRemote} from "../../download-engine/engine/DownloadEngineRemote.js";
-import {FormattedStatus} from "../format-transfer-status.js";
+import { DownloadEngineRemote } from "../../download-engine/engine/DownloadEngineRemote.js";
+import { FormattedStatus } from "../format-transfer-status.js";
 
 type AllowedDownloadEngine = DownloadEngineMultiDownload | BaseDownloadEngine | DownloadEngineRemote;
 
@@ -131,12 +131,12 @@ class GlobalCLI {
             invalidateCache();
         });
 
-        const printProgress = (progress: FormattedStatus) =>
-            this._transferCLI.updateStatuesLazy(() => [
+        const printProgress = (progress: FormattedStatus, debounce = true) =>
+            this._transferCLI.updateStatues(() => [
                 this._getCLIStatuses(),
                 progress,
                 this._multiDownloadEngine.loadingDownloads
-            ]);
+            ], debounce);
 
         this._multiDownloadEngine.on("progress", (progress) => {
             if (!this._cliActive) return;
@@ -144,10 +144,7 @@ class GlobalCLI {
         });
 
         this._multiDownloadEngine.on("finished", () => {
-            if (this._transferCLI.isFirstPrint) {
-                printProgress(this._multiDownloadEngine.status);
-            }
-            this._transferCLI.isFirstPrint = true;
+            printProgress(this._multiDownloadEngine.status, false);
             this._multiDownloadEngine = this._createMultiDownloadEngine();
             this._eventsRegistered = new Set();
             this._cachedCliEngines = [];
@@ -192,7 +189,7 @@ class GlobalCLI {
     }
 
     private static _createOptions(options: CliProgressDownloadEngineOptions) {
-        const cliOptions: Partial<TransferCliOptions> = {...options};
+        const cliOptions: Partial<TransferCliOptions> = { ...options };
         cliOptions.createProgressBar ??= typeof options.cliStyle === "function" ?
             {
                 createStatusLine: options.cliStyle,

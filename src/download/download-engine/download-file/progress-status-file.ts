@@ -31,74 +31,21 @@ export enum DownloadFlags {
     DownloadSequence = "DownloadSequence"
 }
 
-export default class ProgressStatusFile {
-    public readonly totalDownloadParts: number;
-    public readonly fileName: string;
-    public readonly comment?: string;
-    public readonly downloadPart: number;
-    public readonly transferredBytes: number;
-    public readonly transferAction: string;
-    public downloadStatus: DownloadStatus = DownloadStatus.Active;
-    public downloadFlags: DownloadFlags[] = [];
-    public totalBytes: number = 0;
-    public startTime: number = 0;
-    public endTime: number = 0;
-    public downloadId: string = "";
-    public retrying = false;
-    public retryingTotalAttempts = 0;
-    public streamsNotResponding = 0;
 
-    public constructor(
-        totalDownloadParts: number,
-        fileName: string,
-        transferAction = "Transferring",
-        downloadFlags: DownloadFlags[] = [],
-        comment?: string,
-        downloadPart = 0,
-        transferredBytes = 0,
-        downloadStatus = DownloadStatus.Active
-    ) {
-        this.transferAction = transferAction;
-        this.transferredBytes = transferredBytes;
-        this.downloadPart = downloadPart;
-        this.comment = comment;
-        this.fileName = fileName;
-        this.totalDownloadParts = totalDownloadParts;
-        this.downloadFlags = downloadFlags;
-        this.downloadStatus = downloadStatus;
-    }
-
-    public started() {
-        this.startTime = Date.now();
-    }
-
-    public finished() {
-        this.endTime = Date.now();
-    }
-
-    public createStatus(
-        downloadPart: number,
-        transferredBytes: number,
-        totalBytes = this.totalBytes,
-        downloadStatus = DownloadStatus.Active,
-        comment = this.comment
-    ): ProgressStatusFile {
-        const newStatus = new ProgressStatusFile(
-            this.totalDownloadParts,
-            this.fileName,
-            this.transferAction,
-            this.downloadFlags,
-            comment,
-            downloadPart,
-            transferredBytes,
-            downloadStatus
-        );
-
-        newStatus.totalBytes = totalBytes;
-        newStatus.startTime = this.startTime;
-        newStatus.endTime = this.endTime;
-        newStatus.downloadId = this.downloadId;
-
-        return newStatus;
-    }
-}
+export const EMPTY_PROGRESS_STATUS: ProgressStatus = {
+    transferAction: "Transferring",
+    downloadStatus: DownloadStatus.Loading,
+    downloadFlags: [],
+    retrying: false,
+    retryingTotalAttempts: 0,
+    streamsNotResponding: 0,
+    downloadId: "",
+    totalBytes: 0,
+    totalDownloadParts: 0,
+    fileName: "???",
+    comment: "",
+    downloadPart: 0,
+    transferredBytes: 0,
+    startTime: 0,
+    endTime: 0
+};

@@ -1,30 +1,29 @@
-import ProgressStatusFile, {DownloadFlags, DownloadStatus, ProgressStatus} from "./progress-status-file.js";
-import {ChunkStatus, DownloadFile, SaveProgressInfo} from "../types.js";
+import { DownloadFlags, DownloadStatus, ProgressStatus } from "./progress-status-file.js";
+import { ChunkStatus, DownloadFile, SaveProgressInfo } from "../types.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import retry from "async-retry";
-import {EventEmitter} from "eventemitter3";
-import {withLock} from "lifecycle-utils";
-import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
+import { EventEmitter } from "eventemitter3";
+import switchProgram, { AvailablePrograms } from "./download-programs/switch-program.js";
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
-import {pushComment} from "./utils/push-comment.js";
-import {uid} from "uid";
-import {DownloaderProgramManager} from "./downloaderProgramManager.js";
+import { pushComment } from "./utils/push-comment.js";
+import { uid } from "uid";
+import { DownloaderProgramManager } from "./downloaderProgramManager.js";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
     parallelStreams?: number;
-    retry?: retry.Options
-    comment?: string
+    retry?: retry.Options;
+    comment?: string;
     fetchStream: BaseDownloadEngineFetchStream,
     writeStream: BaseDownloadEngineWriteStream,
-    onFinishAsync?: () => Promise<void>
-    onStartedAsync?: () => Promise<void>
-    onCloseAsync?: () => Promise<void>
-    onPausedAsync?: () => Promise<void>
-    onSaveProgress?: (progress: SaveProgressInfo) => void
-    programType?: AvailablePrograms
-    autoIncreaseParallelStreams?: boolean
+    onFinishAsync?: () => Promise<void>;
+    onStartedAsync?: () => Promise<void>;
+    onCloseAsync?: () => Promise<void>;
+    onPausedAsync?: () => Promise<void>;
+    onSaveProgress?: (progress: SaveProgressInfo) => void;
+    programType?: AvailablePrograms;
+    autoIncreaseParallelStreams?: boolean;
 
     /** @internal */
     skipExisting?: boolean;
@@ -37,14 +36,14 @@ export type DownloadEngineFileOptionsWithDefaults = DownloadEngineFileOptions & 
 };
 
 export type DownloadEngineFileEvents = {
-    start: () => void
-    paused: () => void
-    resumed: () => void
-    progress: (progress: ProgressStatus) => void
-    save: (progress: SaveProgressInfo) => void
-    finished: () => void
-    closed: () => void
-    [key: string]: any
+    start: () => void;
+    paused: () => void;
+    resumed: () => void;
+    progress: (progress: ProgressStatus) => void;
+    save: (progress: SaveProgressInfo) => void;
+    finished: () => void;
+    closed: () => void;
+    [key: string]: any;
 };
 
 const DEFAULT_CHUNKS_SIZE_FOR_CHUNKS_PROGRAM = 1024 * 1024 * 5; // 5MB
@@ -54,7 +53,7 @@ const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream"
     chunkSize: 0,
     parallelStreams: 3,
     autoIncreaseParallelStreams: true,
-    progressThrottleMs: 50
+    progressThrottleMs: 10
 };
 
 export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileEvents> {
@@ -70,14 +69,14 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     };
 
     protected _closed = false;
-    protected _progressStatus: ProgressStatusFile;
+    protected _progressStatus: Partial<ProgressStatus>;
     protected _activeStreamContext: {
         [key: number]: {
             streamBytes: number,
-            retryingAttempts: number
+            retryingAttempts: number;
             isRetrying?: boolean,
-            isStreamNotResponding?: boolean
-        }
+            isStreamNotResponding?: boolean;
+        };
     } = {};
 
     protected _activeProgram?: BaseDownloadProgram;
@@ -87,8 +86,13 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
         super();
         this.file = file;
-        this.options = {...DEFAULT_OPTIONS, ...options};
-        this._progressStatus = new ProgressStatusFile(file.parts.length, file.localFileName, options.fetchStream.transferAction, this._createProgressFlags());
+        this.options = { ...DEFAULT_OPTIONS, ...options };
+        this._progressStatus = {
+            totalDownloadParts: file.parts.length,
+            fileName: file.localFileName,
+            transferAction: options.fetchStream.transferAction, 
+            downloadFlags: this._createProgressFlags(),
+        };
         this._setDefaultByOptions();
         this._initProgress();
 
@@ -127,7 +131,16 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     public get status(): ProgressStatus {
-        const thisStatus = this._progressStatus.createStatus(this._progress.part + 1, this.transferredBytes, this.downloadSize, this._downloadStatus, this.options.comment);
+        const thisStatus: ProgressStatus = {
+            ...this._progressStatus as ProgressStatus,
+            downloadId: this._progress.downloadId,
+            downloadPart: this._progress.part + 1,
+            transferredBytes: this.transferredBytes,
+            totalBytes: this.downloadSize,
+            downloadStatus: this._downloadStatus,
+            comment: this.options.comment
+        };
+        
         const streamContexts = Object.values(this._activeStreamContext);
 
         thisStatus.retrying = streamContexts.some(c => c.isRetrying);
@@ -215,7 +228,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
             this._downloadStatus = DownloadStatus.Active;
         }
 
-        this._progressStatus.started();
+        this._progressStatus.startTime = Date.now();
         this.emit("start");
         await this.options.onStartedAsync?.();
         this._sendProgressDownloadPart();
@@ -267,7 +280,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         if (this._closed) return;
 
-        this._progressStatus.finished();
+        this._progressStatus.endTime = Date.now();
         this._downloadStatus = DownloadStatus.Finished;
         this._sendProgressDownloadPart();
         this.emit("finished");
@@ -275,7 +288,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected async _downloadSlice(startChunk: number, endChunk: number) {
-        const getContext = () => this._activeStreamContext[startChunk] ??= {streamBytes: 0, retryingAttempts: 0};
+        const getContext = () => this._activeStreamContext[startChunk] ??= { streamBytes: 0, retryingAttempts: 0 };
 
         const fetchState = this.options.fetchStream.withSubState({
             chunkSize: this._progress.chunkSize,
@@ -382,6 +395,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         if (Date.now() - this._latestProgressDate >= this.options.progressThrottleMs) {
             this._sendProgressDownloadPart();
+            this._latestProgressDate = Date.now();
             return;
         }
     }
@@ -411,7 +425,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public async close() {
         if (this._closed) return;
         if (this._downloadStatus !== DownloadStatus.Finished) {
-            this._progressStatus.finished();
+            this._progressStatus.endTime = Date.now();
             this._downloadStatus = DownloadStatus.Cancelled;
             this._sendProgressDownloadPart();
         }

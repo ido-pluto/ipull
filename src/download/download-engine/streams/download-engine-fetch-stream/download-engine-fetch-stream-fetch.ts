@@ -12,7 +12,7 @@ import StatusCodeError from "./errors/status-code-error.js";
 import {parseHttpContentRange} from "./utils/httpRange.js";
 import {browserCheck} from "./utils/browserCheck.js";
 import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
-import prettyMilliseconds from "pretty-ms";
+import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
@@ -164,7 +164,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
             const timeoutMaxStreamWait = setTimeout(() => {
                 timeoutMaxStreamWaitThrows = true;
-                reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
+                reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`));
                 this._activeController?.abort();
             }, this.options.maxStreamWait);
 

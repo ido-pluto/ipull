@@ -1,3 +1,6 @@
+import retry from "async-retry";
+import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
+import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
 import BaseDownloadEngineFetchStream, {
     DownloadInfoResponse,
     FetchSubState,
@@ -6,15 +9,12 @@ import BaseDownloadEngineFetchStream, {
     WriteCallback
 } from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
+import { EmptyStreamTimeoutError } from "./errors/EmptyStreamTimeoutError.js";
+import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
-import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
-import retry from "async-retry";
-import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
-import {parseContentDisposition} from "./utils/content-disposition.js";
-import {parseHttpContentRange} from "./utils/httpRange.js";
-import prettyMilliseconds from "pretty-ms";
-import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
+import { parseContentDisposition } from "./utils/content-disposition.js";
+import { parseHttpContentRange } from "./utils/httpRange.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
@@ -80,7 +80,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 }, STREAM_NOT_RESPONDING_TIMEOUT);
 
                 lastMaxStreamWaitTimeoutIndex = setTimeout(() => {
-                    reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
+                    reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`));
                     xhr.abort();
                 }, this.options.maxStreamWait);
             };
