@@ -1,9 +1,9 @@
 import UpdateManager from "stdout-update";
-import { TransferCliProgressBar } from "./progress-bars/base-transfer-cli-progress-bar.js";
+import {TransferCliProgressBar} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
-import { FormattedStatus } from "../format-transfer-status.js";
+import {FormattedStatus} from "../format-transfer-status.js";
 import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
-import { BaseMultiProgressBar } from "./multiProgressBars/BaseMultiProgressBar.js";
+import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
 
 export type TransferCliOptions = {
     name?: string,
@@ -34,10 +34,10 @@ export default class TransferCli {
     private _lastProgressLong = "";
     private _lastUpdateTime = 0;
     private _shouldExitOnSIGINT = false;
-    private _debounceWait: number
+    private _debounceWait: number;
 
     public constructor(options: Partial<TransferCliOptions>) {
-        this.options = { ...DEFAULT_TRANSFER_CLI_OPTIONS, ...options };
+        this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
         this._multiProgressBar = new this.options.createProgressBar.multiProgressBar(this.options);
         this._debounceWait = this._multiProgressBar.updateIntervalMs || this.options.debounceWait;
 
@@ -76,7 +76,7 @@ export default class TransferCli {
     updateStatues(getLatestProgress: () => [FormattedStatus[], FormattedStatus, number], debounce = true) {
         this.latestProgressGetter = getLatestProgress;
 
-        if(debounce && Date.now() - this._lastUpdateTime < this._debounceWait) {
+        if (debounce && Date.now() - this._lastUpdateTime < this._debounceWait) {
             return;
         }
         

@@ -1,13 +1,13 @@
-import DownloadEngineMultiDownload, { DownloadEngineMultiAllowedEngines } from "../../download-engine/engine/download-engine-multi-download.js";
-import TransferCli, { TransferCliOptions } from "./transfer-cli.js";
-import { BaseMultiProgressBar } from "./multiProgressBars/BaseMultiProgressBar.js";
-import switchCliProgressStyle, { AvailableCLIProgressStyle } from "./progress-bars/switch-cli-progress-style.js";
-import { CliFormattedStatus } from "./progress-bars/base-transfer-cli-progress-bar.js";
+import DownloadEngineMultiDownload, {DownloadEngineMultiAllowedEngines} from "../../download-engine/engine/download-engine-multi-download.js";
+import TransferCli, {TransferCliOptions} from "./transfer-cli.js";
+import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
+import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./progress-bars/switch-cli-progress-style.js";
+import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import cliSpinners from "cli-spinners";
-import { DownloadStatus } from "../../download-engine/download-file/progress-status-file.js";
+import {DownloadStatus} from "../../download-engine/download-file/progress-status-file.js";
 import BaseDownloadEngine from "../../download-engine/engine/base-download-engine.js";
-import { DownloadEngineRemote } from "../../download-engine/engine/DownloadEngineRemote.js";
-import { FormattedStatus } from "../format-transfer-status.js";
+import {DownloadEngineRemote} from "../../download-engine/engine/DownloadEngineRemote.js";
+import {FormattedStatus} from "../format-transfer-status.js";
 
 type AllowedDownloadEngine = DownloadEngineMultiDownload | BaseDownloadEngine | DownloadEngineRemote;
 
@@ -189,7 +189,7 @@ class GlobalCLI {
     }
 
     private static _createOptions(options: CliProgressDownloadEngineOptions) {
-        const cliOptions: Partial<TransferCliOptions> = { ...options };
+        const cliOptions: Partial<TransferCliOptions> = {...options};
         cliOptions.createProgressBar ??= typeof options.cliStyle === "function" ?
             {
                 createStatusLine: options.cliStyle,

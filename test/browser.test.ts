@@ -19,7 +19,7 @@ describe("Browser Fetch API", () => {
         await downloader.download();
         const hash = hashBuffer(downloader.writeStream.result);
         context.expect(hash)
-            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
+            .toMatchInlineSnapshot("\"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26\"");
     });
 
     test.concurrent("Download file browser", {repeats: 4, concurrent: true}, async (context) => {
@@ -55,7 +55,7 @@ describe("Browser Fetch API", () => {
         context.expect(lastWrite)
             .toBe(downloader.file.totalSize);
         context.expect(hashBuffer(bigBuffer))
-            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
+            .toMatchInlineSnapshot("\"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26\"");
     });
 });
 
@@ -66,7 +66,7 @@ describe("Browser Fetch memory", () => {
         const buffer = Buffer.from(await fs.readFile(response));
         const hash = hashBuffer(buffer);
         context.expect(hash)
-            .toMatchInlineSnapshot(`"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26"`);
+            .toMatchInlineSnapshot("\"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26\"");
     });
 
     test.skip("Download file browser - memory (xhr)", async (context) => {

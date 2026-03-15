@@ -1,10 +1,10 @@
 import chalk from "chalk";
 import sliceAnsi from "slice-ansi";
 import stripAnsi from "strip-ansi";
-import { DownloadStatus } from "../../../download-engine/download-file/progress-status-file.js";
-import { DataLine, renderDataLine } from "../../utils/data-line.js";
+import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
+import {DataLine, renderDataLine} from "../../utils/data-line.js";
 import prettyMillisecondsCompact from "../../utils/prettyMSFast.js";
-import { STATUS_ICONS } from "../../utils/progressBarIcons.js";
+import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
 import BaseTransferCliProgressBar from "./base-transfer-cli-progress-bar.js";
 
 /**

@@ -1,11 +1,11 @@
 import BaseDownloadEngine from "../download-engine/engine/base-download-engine.js";
-import { EventEmitter } from "eventemitter3";
+import {EventEmitter} from "eventemitter3";
 import TransferStatistics from "./transfer-statistics.js";
-import { createFormattedStatus, FormattedStatus } from "./format-transfer-status.js";
+import {createFormattedStatus, FormattedStatus} from "./format-transfer-status.js";
 import DownloadEngineFile from "../download-engine/download-file/download-engine-file.js";
-import { DownloadStatus, EMPTY_PROGRESS_STATUS, ProgressStatus } from "../download-engine/download-file/progress-status-file.js";
+import {DownloadStatus, EMPTY_PROGRESS_STATUS, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
-import { DownloadEngineRemote } from "../download-engine/engine/DownloadEngineRemote.js";
+import {DownloadEngineRemote} from "../download-engine/engine/DownloadEngineRemote.js";
 
 export type ProgressStatusWithIndex = FormattedStatus & {
     index: number,
@@ -85,10 +85,10 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
 
         const latestStatus = engine.status;
         const addFileNameFunc = () => {
-            if(addFileName){
+            if (addFileName){
                 this._allFileNames += this._allFileNames ? ", " + latestStatus.fileName : latestStatus.fileName;
             }
-        }
+        };
 
         if (engine instanceof DownloadEngineMultiDownload) {
             addFileNameFunc();
@@ -147,7 +147,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
     }
 
     private _calcCommonTransferAction() {
-        this._commonTransferAction = Object.entries(this._commonTransferActionMap).reduce((a, b) => a[1] >= b[1] ? a : b)[0];
+        this._commonTransferAction = Object.entries(this._commonTransferActionMap).reduce((a, b) => (a[1] >= b[1] ? a : b))[0];
     }
 
     /**

@@ -45,7 +45,7 @@ describe("Fetch download info", () => {
                 return;
             }
             res.setHeader("Content-Type", "application/octet-stream");
-            res.setHeader("Content-Disposition", `attachment; filename="file.gguf"`);
+            res.setHeader("Content-Disposition", "attachment; filename=\"file.gguf\"");
             res.setHeader("Accept-Ranges", "bytes");
             res.setHeader("Content-Length", response.headers.get("Content-Length") || "0");
             Readable.fromWeb(response.body as any)
@@ -85,6 +85,6 @@ describe("Fetch download info", () => {
         await downloader.download();
         const fileSize = (await fsPromise.stat(downloader.finalFileAbsolutePath)).size;
         context.expect(fileSize)
-            .toMatchInlineSnapshot(`599171040`);
+            .toMatchInlineSnapshot("599171040");
     });
 });

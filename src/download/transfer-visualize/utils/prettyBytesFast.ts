@@ -10,13 +10,13 @@ export interface PrettyBytesOptions {
     fixedWidth?: number;
 }
 
-const BYTE_UNITS = ['B', 'kB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB'];
-const BIBYTE_UNITS = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB', 'YiB'];
-const BIT_UNITS = ['b', 'kbit', 'Mbit', 'Gbit', 'Tbit', 'Pbit', 'Ebit', 'Zbit', 'Ybit'];
-const BIBIT_UNITS = ['b', 'kibit', 'Mibit', 'Gibit', 'Tibit', 'Pibit', 'Eibit', 'Zibit', 'Yibit'];
+const BYTE_UNITS = ["B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+const BIBYTE_UNITS = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"];
+const BIT_UNITS = ["b", "kbit", "Mbit", "Gbit", "Tbit", "Pbit", "Ebit", "Zbit", "Ybit"];
+const BIBIT_UNITS = ["b", "kibit", "Mibit", "Gibit", "Tibit", "Pibit", "Eibit", "Zibit", "Yibit"];
 
 const DECIMAL_DIVISORS = [1, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24];
-const BINARY_DIVISORS = Array.from({ length: 9 }, (_, i) => 1024 ** i);
+const BINARY_DIVISORS = Array.from({length: 9}, (_, i) => 1024 ** i);
 const LOG10_1024 = Math.log10(1024);
 
 const SIG3_GE100 = new Array<string>(901);
@@ -30,15 +30,15 @@ for (let i = 0; i <= 900; i++) {
 
     const hi10 = (v / 10) | 0;
     const lo10 = v - hi10 * 10;
-    SIG3_GE10[i] = lo10 === 0 ? String(hi10) : hi10 + '.' + lo10;
+    SIG3_GE10[i] = lo10 === 0 ? String(hi10) : hi10 + "." + lo10;
 
     const hi1 = (v / 100) | 0;
     const rem1 = v - hi1 * 100;
     const d1 = (rem1 / 10) | 0;
     const d2 = rem1 - d1 * 10;
     SIG3_GE1[i] = d2 === 0
-        ? (d1 === 0 ? String(hi1) : hi1 + '.' + d1)
-        : hi1 + '.' + d1 + '' + d2;
+        ? (d1 === 0 ? String(hi1) : hi1 + "." + d1)
+        : hi1 + "." + d1 + "" + d2;
 }
 
 function sig3(n: number): string {
@@ -80,26 +80,26 @@ export function formatTrunc(n: number, minFrac: number, maxFrac: number): string
     if (digits === 0) return String(intPart);
 
     let fracStr = String(fracInt);
-    while (fracStr.length < digits) fracStr = '0' + fracStr;
-    return intPart + '.' + fracStr;
+    while (fracStr.length < digits) fracStr = "0" + fracStr;
+    return intPart + "." + fracStr;
 }
 
 function toLocaleStr(
     num: number,
     locale: string | string[] | boolean,
-    opts: Intl.NumberFormatOptions | undefined,
+    opts: Intl.NumberFormatOptions | undefined
 ): string {
-    if (typeof locale === 'string' || Array.isArray(locale)) {
+    if (typeof locale === "string" || Array.isArray(locale)) {
         return num.toLocaleString(locale as string | string[], opts);
     }
     return num.toLocaleString(undefined, opts);
 }
 
 function applyFixedWidth(result: string, fixedWidth: number): string {
-    if (typeof fixedWidth !== 'number' || !Number.isSafeInteger(fixedWidth) || fixedWidth < 0) {
+    if (typeof fixedWidth !== "number" || !Number.isSafeInteger(fixedWidth) || fixedWidth < 0) {
         throw new TypeError(`Expected fixedWidth to be a non-negative integer, got ${typeof fixedWidth}: ${fixedWidth}`);
     }
-    return fixedWidth > 0 && result.length < fixedWidth ? result.padStart(fixedWidth, ' ') : result;
+    return fixedWidth > 0 && result.length < fixedWidth ? result.padStart(fixedWidth, " ") : result;
 }
 
 function decimalExp(n: number): number {
@@ -121,7 +121,7 @@ function binaryExp(n: number): number {
 
 function bigintLog10(n: bigint): number {
     const s = n.toString(10);
-    return s.length + Math.log10(Number('0.' + s.slice(0, 15)));
+    return s.length + Math.log10(Number("0." + s.slice(0, 15)));
 }
 
 function bigintDivide(n: bigint, divisor: number): number {
@@ -130,7 +130,7 @@ function bigintDivide(n: bigint, divisor: number): number {
 }
 
 export default function prettyBytes(number: number | bigint, options?: PrettyBytesOptions): string {
-    if (options === undefined && typeof number === 'number') {
+    if (options === undefined && typeof number === "number") {
         if (!Number.isFinite(number)) {
             throw new TypeError(`Expected a finite number, got ${typeof number}: ${number}`);
         }
@@ -139,34 +139,34 @@ export default function prettyBytes(number: number | bigint, options?: PrettyByt
 
         let s: string;
         if (number < 1) {
-            s = number + ' B';
+            s = number + " B";
         } else if (number < 1e3) {
-            s = sig3(number) + ' B';
+            s = sig3(number) + " B";
         } else if (number < 1e6) {
-            s = sig3(number / 1e3) + ' kB';
+            s = sig3(number / 1e3) + " kB";
         } else if (number < 1e9) {
-            s = sig3(number / 1e6) + ' MB';
+            s = sig3(number / 1e6) + " MB";
         } else if (number < 1e12) {
-            s = sig3(number / 1e9) + ' GB';
+            s = sig3(number / 1e9) + " GB";
         } else if (number < 1e15) {
-            s = sig3(number / 1e12) + ' TB';
+            s = sig3(number / 1e12) + " TB";
         } else if (number < 1e18) {
-            s = sig3(number / 1e15) + ' PB';
+            s = sig3(number / 1e15) + " PB";
         } else if (number < 1e21) {
-            s = sig3(number / 1e18) + ' EB';
+            s = sig3(number / 1e18) + " EB";
         } else if (number < 1e24) {
-            s = sig3(number / 1e21) + ' ZB';
+            s = sig3(number / 1e21) + " ZB";
         } else {
-            s = sig3(number / 1e24) + ' YB';
+            s = sig3(number / 1e24) + " YB";
         }
-        return neg ? '-' + s : s;
+        return neg ? "-" + s : s;
     }
 
     return prettyBytesFull(number, options);
 }
 
 function prettyBytesFull(number: number | bigint, options: PrettyBytesOptions | undefined): string {
-    if (typeof number !== 'bigint' && !Number.isFinite(number)) {
+    if (typeof number !== "bigint" && !Number.isFinite(number)) {
         throw new TypeError(`Expected a finite number, got ${typeof number}: ${number}`);
     }
 
@@ -182,18 +182,18 @@ function prettyBytesFull(number: number | bigint, options: PrettyBytesOptions | 
     const units = bits
         ? (binary ? BIBIT_UNITS : BIT_UNITS)
         : (binary ? BIBYTE_UNITS : BYTE_UNITS);
-    const separator = space ? (options?.nonBreakingSpace ? '\u00A0' : ' ') : '';
+    const separator = space ? (options?.nonBreakingSpace ? "\u00A0" : " ") : "";
 
-    const isZero = typeof number === 'number' ? number === 0 : number === 0n;
+    const isZero = typeof number === "number" ? number === 0 : number === 0n;
     if (signed && isZero) {
         const result = ` 0${separator}${units[0]}`;
         return fixedWidth !== undefined ? applyFixedWidth(result, fixedWidth) : result;
     }
 
     const isNegative = number < 0;
-    const prefix = isNegative ? '-' : (signed ? '+' : '');
+    const prefix = isNegative ? "-" : (signed ? "+" : "");
     if (isNegative) {
-        number = typeof number === 'bigint' ? -number : -(number as number);
+        number = typeof number === "bigint" ? -number : -(number as number);
     }
 
     const hasFracOpts = minimumFractionDigits !== undefined || maximumFractionDigits !== undefined;
@@ -201,15 +201,15 @@ function prettyBytesFull(number: number | bigint, options: PrettyBytesOptions | 
 
     let result: string;
 
-    const ltOne = typeof number === 'bigint' ? number < 1n : (number as number) < 1;
+    const ltOne = typeof number === "bigint" ? number < 1n : (number as number) < 1;
     if (ltOne) {
         const n = Number(number);
         let ns: string;
         if (useLocale) {
             const localeOpts = hasFracOpts ? {
-                ...(minimumFractionDigits !== undefined && { minimumFractionDigits }),
-                ...(maximumFractionDigits !== undefined && { maximumFractionDigits }),
-                roundingMode: 'trunc',
+                ...(minimumFractionDigits !== undefined && {minimumFractionDigits}),
+                ...(maximumFractionDigits !== undefined && {maximumFractionDigits}),
+                roundingMode: "trunc"
             } as Intl.NumberFormatOptions : undefined;
             ns = toLocaleStr(n, locale, localeOpts);
         } else if (hasFracOpts) {
@@ -222,7 +222,7 @@ function prettyBytesFull(number: number | bigint, options: PrettyBytesOptions | 
         let exp: number;
         let divided: number;
 
-        if (typeof number === 'bigint') {
+        if (typeof number === "bigint") {
             const l = bigintLog10(number);
             exp = Math.min(Math.floor(binary ? l / LOG10_1024 : l / 3), units.length - 1);
             divided = bigintDivide(number, (binary ? 1024 : 1000) ** exp);
@@ -234,9 +234,9 @@ function prettyBytesFull(number: number | bigint, options: PrettyBytesOptions | 
         let ns: string;
         if (useLocale) {
             const localeOpts = hasFracOpts ? {
-                ...(minimumFractionDigits !== undefined && { minimumFractionDigits }),
-                ...(maximumFractionDigits !== undefined && { maximumFractionDigits }),
-                roundingMode: 'trunc',
+                ...(minimumFractionDigits !== undefined && {minimumFractionDigits}),
+                ...(maximumFractionDigits !== undefined && {maximumFractionDigits}),
+                roundingMode: "trunc"
             } as Intl.NumberFormatOptions : undefined;
             const val = hasFracOpts ? divided : Number(binary ? sig3Binary(divided) : sig3(divided));
             ns = toLocaleStr(val, locale, localeOpts);

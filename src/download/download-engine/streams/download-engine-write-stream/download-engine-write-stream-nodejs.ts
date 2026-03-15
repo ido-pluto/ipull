@@ -1,7 +1,7 @@
 import retry from "async-retry";
 import fsExtra from "fs-extra";
-import fs, { FileHandle } from "fs/promises";
-import { withLock } from "lifecycle-utils";
+import fs, {FileHandle} from "fs/promises";
+import {withLock} from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
 import WriteQueue from "./utils/WriteQueue.js";
 

@@ -2,7 +2,6 @@
  * Creates a debounced function that can be aborted using an AbortSignal.
  * The function will execute after a specified wait time, but can also execute immediately
  * if the maximum wait time is reached since the last call.
- *
  * @param func - The function to debounce.
  * @param options - Options for the debounce behavior.
  * @returns A debounced version of the provided function.

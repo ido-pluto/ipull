@@ -1,6 +1,6 @@
-import { DownloadStatus, ProgressStatus } from "../download-engine/download-file/progress-status-file.js";
-import { TransferProgressInfo } from "./transfer-statistics.js";
-import prettyBytes, { PrettyBytesOptions, formatTrunc } from "./utils/prettyBytesFast.js";
+import {DownloadStatus, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
+import {TransferProgressInfo} from "./transfer-statistics.js";
+import prettyBytes, {PrettyBytesOptions, formatTrunc} from "./utils/prettyBytesFast.js";
 import prettyMillisecondsCompact from "./utils/prettyMSFast.js";
 
 const DEFAULT_LOCALIZATION: Intl.LocalesArgument = "en-US";
@@ -28,7 +28,7 @@ const NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
 
 const PERCENTAGE_FRACTION_DIGITS = 4;
 
-const PRETTY_BYTES_OPTIONS: PrettyBytesOptions = {...NUMBER_FORMAT_OPTIONS, space: false };
+const PRETTY_BYTES_OPTIONS: PrettyBytesOptions = {...NUMBER_FORMAT_OPTIONS, space: false};
 
 const DEFAULT_CLI_INFO_STATUS: CliInfoStatus = {
     speed: 0,

@@ -1,6 +1,6 @@
 import retry from "async-retry";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
+import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import BaseDownloadEngineFetchStream, {
     DownloadInfoResponse,
     FetchSubState,
@@ -9,12 +9,12 @@ import BaseDownloadEngineFetchStream, {
     WriteCallback
 } from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
-import { EmptyStreamTimeoutError } from "./errors/EmptyStreamTimeoutError.js";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
-import { parseContentDisposition } from "./utils/content-disposition.js";
-import { parseHttpContentRange } from "./utils/httpRange.js";
+import {parseContentDisposition} from "./utils/content-disposition.js";
+import {parseHttpContentRange} from "./utils/httpRange.js";
 
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {

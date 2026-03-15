@@ -1,14 +1,14 @@
-import { DownloadFlags, DownloadStatus, ProgressStatus } from "./progress-status-file.js";
-import { ChunkStatus, DownloadFile, SaveProgressInfo } from "../types.js";
+import {DownloadFlags, DownloadStatus, ProgressStatus} from "./progress-status-file.js";
+import {ChunkStatus, DownloadFile, SaveProgressInfo} from "../types.js";
 import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import retry from "async-retry";
-import { EventEmitter } from "eventemitter3";
-import switchProgram, { AvailablePrograms } from "./download-programs/switch-program.js";
+import {EventEmitter} from "eventemitter3";
+import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
-import { pushComment } from "./utils/push-comment.js";
-import { uid } from "uid";
-import { DownloaderProgramManager } from "./downloaderProgramManager.js";
+import {pushComment} from "./utils/push-comment.js";
+import {uid} from "uid";
+import {DownloaderProgramManager} from "./downloaderProgramManager.js";
 
 export type DownloadEngineFileOptions = {
     chunkSize?: number;
@@ -86,12 +86,12 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
         super();
         this.file = file;
-        this.options = { ...DEFAULT_OPTIONS, ...options };
+        this.options = {...DEFAULT_OPTIONS, ...options};
         this._progressStatus = {
             totalDownloadParts: file.parts.length,
             fileName: file.localFileName,
             transferAction: options.fetchStream.transferAction, 
-            downloadFlags: this._createProgressFlags(),
+            downloadFlags: this._createProgressFlags()
         };
         this._setDefaultByOptions();
         this._initProgress();
@@ -288,7 +288,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected async _downloadSlice(startChunk: number, endChunk: number) {
-        const getContext = () => this._activeStreamContext[startChunk] ??= { streamBytes: 0, retryingAttempts: 0 };
+        const getContext = () => this._activeStreamContext[startChunk] ??= {streamBytes: 0, retryingAttempts: 0};
 
         const fetchState = this.options.fetchStream.withSubState({
             chunkSize: this._progress.chunkSize,
