@@ -34,10 +34,12 @@ export default class TransferCli {
     private _lastProgressLong = "";
     private _lastUpdateTime = 0;
     private _shouldExitOnSIGINT = false;
+    private _debounceWait: number
 
     public constructor(options: Partial<TransferCliOptions>) {
         this.options = { ...DEFAULT_TRANSFER_CLI_OPTIONS, ...options };
         this._multiProgressBar = new this.options.createProgressBar.multiProgressBar(this.options);
+        this._debounceWait = this._multiProgressBar.updateIntervalMs || this.options.debounceWait;
 
         this.updateStatues = this.updateStatues.bind(this);
         this._processExit = this._processExit.bind(this);
@@ -73,7 +75,8 @@ export default class TransferCli {
 
     updateStatues(getLatestProgress: () => [FormattedStatus[], FormattedStatus, number], debounce = true) {
         this.latestProgressGetter = getLatestProgress;
-        if(debounce && Date.now() - this._lastUpdateTime < this.options.debounceWait) {
+
+        if(debounce && Date.now() - this._lastUpdateTime < this._debounceWait) {
             return;
         }
         
