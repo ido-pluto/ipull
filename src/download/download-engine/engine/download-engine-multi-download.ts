@@ -238,10 +238,9 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             await this.close();
             this._downloadEndPromise.resolve();
         } catch (error) {
+            await this.close();
             this._downloadEndPromise.reject(error);
             throw error;
-        } finally {
-            this._downloadEndPromise = promiseWithResolvers();
         }
     }
 
