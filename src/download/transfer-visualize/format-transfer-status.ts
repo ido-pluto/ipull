@@ -3,8 +3,6 @@ import {TransferProgressInfo} from "./transfer-statistics.js";
 import prettyBytes, {PrettyBytesOptions, formatTrunc} from "./utils/prettyBytesFast.js";
 import prettyMillisecondsCompact from "./utils/prettyMSFast.js";
 
-const DEFAULT_LOCALIZATION: Intl.LocalesArgument = "en-US";
-
 export type CliInfoStatus = TransferProgressInfo & {
     fileName?: string,
     comment?: string
