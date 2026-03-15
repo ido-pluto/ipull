@@ -32,7 +32,7 @@ export default class WriteQueue {
     private _options: WriteQueueOptions;
     private _regions: PendingRegion[] = [];
     private _totalBuffered = 0;
-    private _maxBufferedBytes: number = 0;
+    private _maxBufferedBytes: number = MIN_BUFFER_SIZE;
     private _inFlightWrites = new Set<Promise<void>>();
     private _closed = false;
 
