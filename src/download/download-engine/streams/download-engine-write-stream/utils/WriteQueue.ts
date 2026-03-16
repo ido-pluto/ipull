@@ -70,7 +70,7 @@ export default class WriteQueue {
         }
 
         this._totalBuffered += length;
-        if (this._totalBuffered >= this._maxBufferedBytes) {
+        if (this._inFlightWrites.size === 0 && this._totalBuffered >= this._maxBufferedBytes) {
             return this._flushNow();
         }
     }
@@ -104,22 +104,30 @@ export default class WriteQueue {
      * Flush all buffered regions to disk as parallel positional writes.
      * Non-overlapping positional writes via fd.write(buf, 0, len, position) are safe concurrently.
      */
-    private _flushNow(): void | Promise<void> {
+    private _flushNow(flashMetadata = true, flashAll = false): void | Promise<void> {
         if (this._regions.length === 0) return;
 
         const regionsToFlush = this._regions;
         this._regions = [];
         this._totalBuffered = 0;
 
-        const flushPromise = this._doFlush(regionsToFlush)
+        const flushPromise = this._doFlush(regionsToFlush, flashMetadata)
             .finally(() => this._inFlightWrites.delete(flushPromise));
 
         this._inFlightWrites.add(flushPromise);
 
-        return flushPromise;
+        return flushPromise.then(async () => {
+            if(this._inFlightWrites.size > 0){
+                await this._waitForInFlight();
+            }
+
+            if(this._totalBuffered >= this._maxBufferedBytes || flashAll && this._regions.length > 0){
+                return this._flushNow(flashMetadata, flashAll);
+            }
+        });
     }
 
-    private async _doFlush(regions: PendingRegion[]): Promise<void> {
+    private async _doFlush(regions: PendingRegion[], flashMetadata = true): Promise<void> {
         const fdResult = this._options.getFd();
         const fd = fdResult instanceof Promise ? await fdResult : fdResult;
 
@@ -128,19 +136,24 @@ export default class WriteQueue {
             fd.writev(region.buffers, region.cursor)
         );
 
-        writes.push(this._options.flushMetadata());
-
         await Promise.all(writes);
+
+        if(flashMetadata){
+            await this._options.flushMetadata();
+        }
     }
 
     /**
-     * Flush all buffered data and wait for all in-flight writes to complete.
+     * Flush all buffered data and wait for all in-flight writes to complete, after it flushes metadata.
      * Called by ensureBytesSynced(), close(), ftruncate().
-     * Re-throws the first write error encountered since last drain.
      */
     async drain(): Promise<void> {
-        this._flushNow();
-        await this._waitForInFlight();
+        if(this._inFlightWrites.size > 0){
+            await this._waitForInFlight();
+        }
+
+        await this._flushNow(false, true);
+        await this._options.flushMetadata();
     }
 
     private async _waitForInFlight(): Promise<void> {
