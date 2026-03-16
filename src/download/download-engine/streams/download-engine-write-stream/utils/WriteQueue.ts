@@ -1,4 +1,4 @@
-import {FileHandle} from "fs/promises";
+import { FileHandle } from "fs/promises";
 import WriterIsClosedError from "../errors/writer-is-closed-error.js";
 
 const MIN_BUFFER_SIZE = 2 * 1024 * 1024; // 2 MB
@@ -66,7 +66,7 @@ export default class WriteQueue {
 
         const merged = this._tryMerge(cursor, buffers, length);
         if (!merged) {
-            this._regions.push({cursor, buffers, length});
+            this._regions.push({ cursor, buffers, length });
         }
 
         this._totalBuffered += length;
@@ -86,14 +86,16 @@ export default class WriteQueue {
             if (cursor === regionEnd) {
                 region.buffers.push(...buffers);
                 region.length += length;
-                return true;
-            }
-
-            if (cursor + length === region.cursor) {
+            } else if (cursor + length === region.cursor) {
                 region.cursor = cursor;
                 region.buffers.unshift(...buffers);
                 region.length += length;
-                return true;
+            } else {
+                continue;
+            }
+
+            if (this._tryMerge(region.cursor, region.buffers, region.length)) {
+                this._regions.splice(i, 1);
             }
         }
 
@@ -104,30 +106,30 @@ export default class WriteQueue {
      * Flush all buffered regions to disk as parallel positional writes.
      * Non-overlapping positional writes via fd.write(buf, 0, len, position) are safe concurrently.
      */
-    private _flushNow(flashMetadata = true, flashAll = false): void | Promise<void> {
+    private _flushNow(flushMetadata = true, flashAll = false): void | Promise<void> {
         if (this._regions.length === 0) return;
 
         const regionsToFlush = this._regions;
         this._regions = [];
         this._totalBuffered = 0;
 
-        const flushPromise = this._doFlush(regionsToFlush, flashMetadata)
+        const flushPromise = this._doFlush(regionsToFlush, flushMetadata)
             .finally(() => this._inFlightWrites.delete(flushPromise));
 
         this._inFlightWrites.add(flushPromise);
 
         return flushPromise.then(async () => {
-            if (this._inFlightWrites.size > 0){
+            if (this._inFlightWrites.size > 0) {
                 await this._waitForInFlight();
             }
 
-            if (this._totalBuffered >= this._maxBufferedBytes || flashAll && this._regions.length > 0){
-                return this._flushNow(flashMetadata, flashAll);
+            if (this._totalBuffered >= this._maxBufferedBytes || flashAll && this._regions.length > 0) {
+                return this._flushNow(flushMetadata, flashAll);
             }
         });
     }
 
-    private async _doFlush(regions: PendingRegion[], flashMetadata = true): Promise<void> {
+    private async _doFlush(regions: PendingRegion[], flushMetadata = true): Promise<void> {
         const fdResult = this._options.getFd();
         const fd = fdResult instanceof Promise ? await fdResult : fdResult;
 
@@ -138,7 +140,7 @@ export default class WriteQueue {
 
         await Promise.all(writes);
 
-        if (flashMetadata){
+        if (flushMetadata) {
             await this._options.flushMetadata();
         }
     }
@@ -148,7 +150,7 @@ export default class WriteQueue {
      * Called by ensureBytesSynced(), close(), ftruncate().
      */
     async drain(): Promise<void> {
-        if (this._inFlightWrites.size > 0){
+        if (this._inFlightWrites.size > 0) {
             await this._waitForInFlight();
         }
 

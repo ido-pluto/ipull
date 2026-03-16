@@ -100,7 +100,6 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
      * Buffer a write for the given cursor position.
      * Fragments are concatenated into a single Buffer, contiguous regions merged,
      * and auto-flushed when the adaptive threshold is exceeded.
-     * Returns void (synchronous queue); errors surface via ensureBytesSynced() / close().
      */
     write(cursor: number, buffers: Uint8Array[]) {
         return this._writeQueue.addWrite(cursor, buffers);
