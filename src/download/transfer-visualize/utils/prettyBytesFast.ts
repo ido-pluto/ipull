@@ -69,7 +69,7 @@ function getTruncScale(maxFrac: number): number {
     return maxFrac < TRUNC_POWERS.length ? TRUNC_POWERS[maxFrac] : 10 ** maxFrac;
 }
 
-function formatTrunc(n: number, minFrac: number, maxFrac: number): string {
+export function formatTrunc(n: number, minFrac: number, maxFrac: number): string {
     const intPart = Math.trunc(n);
     const frac = n - intPart;
 
