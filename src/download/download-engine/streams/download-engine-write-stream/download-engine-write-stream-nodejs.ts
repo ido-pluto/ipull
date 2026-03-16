@@ -40,6 +40,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     private _fileSize = 0;
     private _writeQueue: WriteQueue;
     private _metadataToSave: any = null;
+    private _fileOpenLock = {};
 
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
 
@@ -80,7 +81,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
             return this._fd;
         }
 
-        return withLock(this, "_lock", async () => {
+        return withLock([this._fileOpenLock, "_lock"], async () => {
             if (this._fd) {
                 return this._fd;
             }

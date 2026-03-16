@@ -12,6 +12,7 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
     public override transferAction = "Copying";
     private _fd: FileHandle | null = null;
     private _fsPath: string | null = null;
+    private _fileOpenLock = {};
 
     override withSubState(state: FetchSubState): this {
         const fetchStream = new DownloadEngineFetchStreamLocalFile(this.options);
@@ -19,7 +20,7 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
     }
 
     private async _ensureFileOpen(path: string) {
-        return await withLock(this, "_lock", async () => {
+        return await withLock([this._fileOpenLock, "_lock"], async () => {
             if (this._fd && this._fsPath === path) {
                 return this._fd;
             }

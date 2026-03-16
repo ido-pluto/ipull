@@ -14,7 +14,7 @@ pullCommand
     .argument("[files...]", "Files to pull/copy")
     .option("-s --save [path]", "Save location (directory/file)")
     .option("-c --connections [number]", "Number of parallel connections", "4")
-    .addOption(new Option("-st --style [type]", "The style of the CLI progress bar").choices(["basic", "fancy", "ci", "summary"]))
+    .addOption(new Option("--style [type]", "The style of the CLI progress bar").choices(["basic", "fancy", "ci", "summary"]))
     .addOption(new Option("-p --program [type]", "The download strategy").choices(["stream", "chunks"]))
     .option("-t --truncate-name", "Truncate file names in the CLI status to make them appear shorter")
     .action(async (files: string[] = [], {save: saveLocation, truncateName, number, program, style}: {

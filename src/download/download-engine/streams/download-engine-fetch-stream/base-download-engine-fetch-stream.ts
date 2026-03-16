@@ -279,7 +279,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     }
 
     recreateDownloadURL() {
-        return withLock(this.state.activePart, "_recreateURLLock", async () => {
+        return withLock([this.state.activePart, "_recreateURLLock"], async () => {
             if (this.state.activePart.downloadURLUpdateDate > this.lastFetchTime) {
                 return; // The URL was updated while we were waiting for the lock
             }

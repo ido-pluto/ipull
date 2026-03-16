@@ -1,9 +1,9 @@
+import { SpinnerName } from "cli-spinners";
 import UpdateManager from "stdout-update";
-import {TransferCliProgressBar} from "./progress-bars/base-transfer-cli-progress-bar.js";
-import cliSpinners from "cli-spinners";
-import {FormattedStatus} from "../format-transfer-status.js";
+import { FormattedStatus } from "../format-transfer-status.js";
+import { BaseMultiProgressBar } from "./multiProgressBars/BaseMultiProgressBar.js";
+import { TransferCliProgressBar } from "./progress-bars/base-transfer-cli-progress-bar.js";
 import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
-import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
 
 export type TransferCliOptions = {
     name?: string,
@@ -12,7 +12,7 @@ export type TransferCliOptions = {
     debounceWait: number;
     createProgressBar: TransferCliProgressBar;
     createMultiProgressBar: typeof BaseMultiProgressBar,
-    loadingAnimation: cliSpinners.SpinnerName,
+    loadingAnimation: SpinnerName,
 };
 
 export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {

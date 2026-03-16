@@ -6,7 +6,7 @@ import {DownloadStatus} from "../../../download-engine/download-file/progress-st
 import {BaseMultiProgressBar} from "../multiProgressBars/BaseMultiProgressBar.js";
 import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
 import {DataLine, DataPart, renderDataLine} from "../../utils/data-line.js";
-import cliSpinners, {Spinner} from "cli-spinners";
+import cliSpinners, {Spinner, SpinnerName} from "cli-spinners";
 
 const SKIP_ETA_START_TIME = 1000 * 2;
 const MIN_NAME_LENGTH = 20;
@@ -19,7 +19,7 @@ export type CliFormattedStatus = FormattedStatus & {
 
 export type BaseCliOptions = {
     truncateName?: boolean | number
-    loadingSpinner?: cliSpinners.SpinnerName
+    loadingSpinner?: SpinnerName
 };
 
 export interface TransferCliProgressBar {

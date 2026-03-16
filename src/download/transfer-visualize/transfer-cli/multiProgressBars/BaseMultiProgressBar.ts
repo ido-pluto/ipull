@@ -2,13 +2,13 @@ import {TransferCliProgressBar} from "../progress-bars/base-transfer-cli-progres
 import {FormattedStatus} from "../../format-transfer-status.js";
 import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
 import chalk from "chalk";
-import cliSpinners from "cli-spinners";
+import {SpinnerName} from "cli-spinners";
 import prettyBytes from "../../utils/prettyBytesFast.js";
 
 export type MultiProgressBarOptions = {
     maxViewDownloads: number;
     createProgressBar: TransferCliProgressBar
-    loadingAnimation: cliSpinners.SpinnerName,
+    loadingAnimation: SpinnerName,
 };
 
 export type CLIProgressPrintType = "update" | "log";
