@@ -17,6 +17,9 @@ const BIBIT_UNITS = ["b", "kibit", "Mibit", "Gibit", "Tibit", "Pibit", "Eibit", 
 
 const DECIMAL_DIVISORS = [1, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24];
 const BINARY_DIVISORS = Array.from({length: 9}, (_, i) => 1024 ** i);
+const DECIMAL_DIVISORS_BIGINT = [1n, 1000n, 1000000n, 1000000000n, 1000000000000n, 1000000000000000n, 1000000000000000000n, 1000000000000000000000n, 1000000000000000000000000n];
+const BINARY_DIVISORS_BIGINT = [1n, 1024n, 1048576n, 1073741824n, 1099511627776n, 1125899906842624n, 1152921504606846976n, 1180591620717411303424n, 1208925819614629174706176n];
+
 const LOG10_1024 = Math.log10(1024);
 
 const SIG3_GE100 = new Array<string>(901);
@@ -128,9 +131,8 @@ function bigintLog10(n: bigint): number {
     return s.length + Math.log10(Number("0." + s.slice(0, 15)));
 }
 
-function bigintDivide(n: bigint, divisor: number): number {
-    const d = BigInt(divisor);
-    return Number(n / d) + (Number(n % d) / divisor);
+function bigintDivide(n: bigint, divisor: bigint): number {
+    return Number(n / divisor) + (Number(n % divisor) / Number(divisor));
 }
 
 export default function prettyBytes(number: number | bigint, options?: PrettyBytesOptions): string {
@@ -229,7 +231,7 @@ function prettyBytesFull(number: number | bigint, options: PrettyBytesOptions | 
         if (typeof number === "bigint") {
             const l = bigintLog10(number);
             exp = Math.min(Math.floor(binary ? l / LOG10_1024 : l / 3), units.length - 1);
-            divided = bigintDivide(number, (binary ? 1024 : 1000) ** exp);
+            divided = bigintDivide(number, binary ? BINARY_DIVISORS_BIGINT[exp] : DECIMAL_DIVISORS_BIGINT[exp]);
         } else {
             exp = binary ? binaryExp(number as number) : decimalExp(number as number);
             divided = (number as number) / (binary ? BINARY_DIVISORS[exp] : DECIMAL_DIVISORS[exp]);
