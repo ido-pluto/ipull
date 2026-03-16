@@ -1,39 +1,38 @@
+import filenamify from "filenamify";
+import fs from "fs-extra";
 import path from "path";
-import {DownloadFile} from "../types.js";
 import DownloadEngineFile from "../download-file/download-engine-file.js";
+import {DownloadStatus} from "../download-file/progress-status-file.js";
+import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
-import DownloadEngineWriteStreamNodejs from "../streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
 import DownloadEngineFetchStreamLocalFile from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
+import DownloadEngineWriteStreamNodejs from "../streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
 import BaseDownloadEngine, {BaseDownloadEngineOptions, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS} from "./base-download-engine.js";
 import SavePathError from "./error/save-path-error.js";
-import fs from "fs-extra";
-import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
-import filenamify from "filenamify";
-import {DownloadStatus} from "../download-file/progress-status-file.js";
 
 export const PROGRESS_FILE_EXTENSION = ".ipull";
 
-type PathOptions = { directory: string } | { savePath: string };
+type PathOptions = { directory: string; } | { savePath: string; };
 export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOptions & {
     fileName?: string;
     fetchStrategy?: "local" | "remote";
     skipExisting?: boolean;
     debounceWrite?: {
-        maxTime: number
-        maxSize: number
-    }
+        maxTime: number;
+        maxSize: number;
+    };
 };
 
 export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
     partURLs: string[];
-    fetchStream: BaseDownloadEngineFetchStream
+    fetchStream: BaseDownloadEngineFetchStream;
 };
 
 export type DownloadEngineOptionsNodejsConstructor<WriteStream = DownloadEngineWriteStreamNodejs> =
     DownloadEngineOptionsNodejsCustomFetch
     & {
-    writeStream: WriteStream
-};
+        writeStream: WriteStream;
+    };
 
 /**
  * Download engine for Node.js
@@ -68,7 +67,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
                 await fs.remove(this.options.writeStream.path);
                 await reflinkFile(this.options.partURLs[0], this.options.writeStream.path);
                 this._engine.finished("cloned");
-            } catch {}
+            } catch { }
         };
 
         this._engine.options.onFinishAsync = async () => {
@@ -117,13 +116,13 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
      * @param deleteTempFile {boolean} - delete the temp file (when the download is **not finished**).
      * @param deleteFile {boolean} - delete the **temp** or **final file** (clean everything up).
      */
-    override async close({deleteTempFile, deleteFile}: { deleteTempFile?: boolean, deleteFile?: boolean } = {}): Promise<void> {
+    override async close({deleteTempFile, deleteFile}: { deleteTempFile?: boolean, deleteFile?: boolean; } = {}): Promise<void> {
         await super.close();
 
         if (deleteFile || deleteTempFile && this.status.downloadStatus != DownloadStatus.Finished) {
             try {
                 await fs.unlink(this.fileAbsolutePath);
-            } catch {}
+            } catch { }
         }
     }
 
@@ -149,8 +148,17 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
 
     protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsNodejsCustomFetch) {
         const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partURLs, options.fetchStream, options);
-        const downloadLocation = DownloadEngineNodejs._createDownloadLocation(downloadFile, options);
-        downloadFile.localFileName = path.basename(downloadLocation);
+        let downloadLocation = "", fileName = "";
+
+        if ("savePath" in options) {
+            downloadLocation = options.savePath;
+            fileName = path.basename(options.savePath);
+        } else {
+            fileName = filenamify(options.fileName || downloadFile.localFileName);
+            downloadLocation = path.join(options.directory, fileName);
+        }
+
+        downloadFile.localFileName = fileName;
 
         const writeStream = new DownloadEngineWriteStreamNodejs(downloadLocation + PROGRESS_FILE_EXTENSION, downloadLocation, options);
         writeStream.fileSize = downloadFile.totalSize;
@@ -165,22 +173,13 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
                     if (stat.isFile() && stat.size === downloadFile.totalSize) {
                         options.skipExisting = true;
                     }
-                } catch {}
+                } catch { }
             }
         }
 
         const allOptions: DownloadEngineOptionsNodejsConstructor = {...options, writeStream};
         const engine = new DownloadEngineFile(downloadFile, allOptions);
         return new DownloadEngineNodejs(engine, allOptions);
-    }
-
-    protected static _createDownloadLocation(download: DownloadFile, options: DownloadEngineOptionsNodejs) {
-        if ("savePath" in options) {
-            return options.savePath;
-        }
-
-        const fileName = options.fileName || download.localFileName;
-        return path.join(options.directory, filenamify(fileName));
     }
 
     protected static override _validateOptions(options: DownloadEngineOptionsNodejs) {
@@ -201,7 +200,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         try {
             new URL(url);
             return "remote";
-        } catch {}
+        } catch { }
 
         return "local";
     }
