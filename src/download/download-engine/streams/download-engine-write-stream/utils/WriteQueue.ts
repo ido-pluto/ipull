@@ -117,11 +117,11 @@ export default class WriteQueue {
         this._inFlightWrites.add(flushPromise);
 
         return flushPromise.then(async () => {
-            if(this._inFlightWrites.size > 0){
+            if (this._inFlightWrites.size > 0){
                 await this._waitForInFlight();
             }
 
-            if(this._totalBuffered >= this._maxBufferedBytes || flashAll && this._regions.length > 0){
+            if (this._totalBuffered >= this._maxBufferedBytes || flashAll && this._regions.length > 0){
                 return this._flushNow(flashMetadata, flashAll);
             }
         });
@@ -138,7 +138,7 @@ export default class WriteQueue {
 
         await Promise.all(writes);
 
-        if(flashMetadata){
+        if (flashMetadata){
             await this._options.flushMetadata();
         }
     }
@@ -148,7 +148,7 @@ export default class WriteQueue {
      * Called by ensureBytesSynced(), close(), ftruncate().
      */
     async drain(): Promise<void> {
-        if(this._inFlightWrites.size > 0){
+        if (this._inFlightWrites.size > 0){
             await this._waitForInFlight();
         }
 

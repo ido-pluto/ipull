@@ -87,8 +87,8 @@ export function formatTrunc(n: number, minFrac: number, maxFrac: number): string
     if (digits === 0) return String(intPart);
 
     let fracStr = String(fracInt);
-    while (fracStr.length < digits) fracStr = '0' + fracStr;
-    return intPart + '.' + fracStr;
+    while (fracStr.length < digits) fracStr = "0" + fracStr;
+    return intPart + "." + fracStr;
 }
 
 function toLocaleStr(
