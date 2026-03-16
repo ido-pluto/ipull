@@ -6,7 +6,7 @@ import {downloadFile, downloadSequence} from "../download/node-download.js";
 import {setCommand} from "./commands/set.js";
 import findDownloadDir, {findFileName} from "./utils/find-download-dir.js";
 import {AvailableCLIProgressStyle} from "../download/transfer-visualize/transfer-cli/progress-bars/switch-cli-progress-style.js";
-
+import fs from "fs/promises";
 
 const pullCommand = new Command();
 pullCommand
@@ -29,7 +29,15 @@ pullCommand
             process.exit(0);
         }
 
-        const saveLocationIsDirectory = saveLocation && path.extname(saveLocation) === "";
+        let saveLocationIsDirectory = false;
+        if (saveLocation) {
+            try {
+                const stat = await fs.lstat(saveLocation);
+                saveLocationIsDirectory = stat.isDirectory();
+            } catch {
+                saveLocationIsDirectory = saveLocation.endsWith(path.sep);
+            }
+        }
 
         const fileDownloads = await Promise.all(
             files.map(async (file, index) => {
