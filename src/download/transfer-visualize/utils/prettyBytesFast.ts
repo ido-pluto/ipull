@@ -62,26 +62,30 @@ function sig3Binary(n: number): string {
 // Fast trunc-mode fraction formatter — avoids toLocaleString when no locale is set
 const TRUNC_POWERS = [1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10];
 
-export function formatTrunc(n: number, minFrac: number, maxFrac: number): string {
-    const intPart = (n | 0);
+function getTruncScale(maxFrac: number): number {
+    return maxFrac < TRUNC_POWERS.length ? TRUNC_POWERS[maxFrac] : 10 ** maxFrac;
+}
+
+function formatTrunc(n: number, minFrac: number, maxFrac: number): string {
+    const intPart = Math.trunc(n);
     const frac = n - intPart;
 
     if (maxFrac === 0 || (frac === 0 && minFrac === 0)) return String(intPart);
 
-    const scale = TRUNC_POWERS[maxFrac];
-    let fracInt = (frac * scale) | 0;
+    const scale = getTruncScale(maxFrac);
+    let fracInt = Math.trunc(frac * scale);
 
     let digits = maxFrac;
     while (digits > minFrac && fracInt % 10 === 0) {
-        fracInt = (fracInt / 10) | 0;
+        fracInt = Math.trunc(fracInt / 10);
         digits--;
     }
 
     if (digits === 0) return String(intPart);
 
     let fracStr = String(fracInt);
-    while (fracStr.length < digits) fracStr = "0" + fracStr;
-    return intPart + "." + fracStr;
+    while (fracStr.length < digits) fracStr = '0' + fracStr;
+    return intPart + '.' + fracStr;
 }
 
 function toLocaleStr(
