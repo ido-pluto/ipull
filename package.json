@@ -121,8 +121,8 @@
     "stream-throttle": "^0.1.3",
     "tslib": "^2.6.1",
     "typedoc": "^0.28.18",
-    "typedoc-material-theme": "^1.1.0",
-    "typedoc-plugin-missing-exports": "^3.0.0",
+    "typedoc-material-theme": "^1.4.1",
+    "typedoc-plugin-missing-exports": "^4.1.3",
     "typescript": "^5.9.3",
     "vitest": "^4.1.0",
     "xmlhttprequest-ssl": "^4.0.0"
