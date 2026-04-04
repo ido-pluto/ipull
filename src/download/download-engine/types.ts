@@ -1,9 +1,16 @@
-export type DownloadFilePart = {
+import {DownloadEngineFilePerPartOptions} from "./download-file/download-engine-file.js";
+import {InputRange} from "./engine/base-download-engine.js";
+import BaseDownloadEngineFetchStream from "./streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
+
+export type DownloadFilePart = DownloadEngineFilePerPartOptions & {
     downloadURL: string
     originalURL: string
     acceptRange: boolean
-    size: number
+    remoteFileSize: number;
+    downloadSize: number
     downloadURLUpdateDate: number
+    fetchStream: BaseDownloadEngineFetchStream;
+    range: InputRange;
 };
 
 export enum ChunkStatus {
@@ -16,8 +23,7 @@ export type SaveProgressInfo = {
     downloadId: string,
     part: number,
     chunks: ChunkStatus[],
-    chunkSize: number,
-    parallelStreams: number
+    chunkSize: number;
 };
 
 export type DownloadFile = {

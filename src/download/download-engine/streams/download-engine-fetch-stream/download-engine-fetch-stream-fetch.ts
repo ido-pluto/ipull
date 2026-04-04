@@ -17,7 +17,7 @@ import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyM
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = false;
-    private _activeController?: AbortController;
+    private _activeController?: { signal: AbortSignal; abort: () => void; };
     public override transferAction = "Downloading";
     public override readonly supportDynamicStreamLength = true;
 
@@ -32,7 +32,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             ...this.options.headers
         };
 
-        if (this.state.activePart.acceptRange) {
+        const expectedContentLength = this._endSize - this._startSize;
+        if (this.state.activePart.acceptRange && expectedContentLength > 0) {
             headers.range = `bytes=${this._startSize}-${this._endSize - 1}`;
         }
 
@@ -40,35 +41,31 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             this._activeController?.abort();
         }
 
-        let response: Response | null = null;
-        this._activeController = new AbortController();
-        const abortPendingRequest = () => {
-            if (!response) {
-                this._activeController?.abort();
-            }
-        };
-        this.on("aborted", abortPendingRequest);
+        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+        this._activeController = {abort, signal};
+        this.on("aborted", abort);
 
         try {
-            response = await fetch(this.appendToURL(this.state.activePart.downloadURL), {
+            const response = await fetch(this.appendToURL(this.state.activePart.downloadURL), {
                 headers,
-                signal: this._activeController.signal
+                signal
             });
+
+            clearAbortTimeout();
 
             if (response.status < 200 || response.status >= 300) {
                 throw new StatusCodeError(this.state.activePart.downloadURL, response.status, response.statusText, headers);
             }
 
             const contentLength = parseHttpContentRange(response.headers.get("content-range"))?.length ?? parseInt(response.headers.get("content-length")!);
-            const expectedContentLength = this._endSize - this._startSize;
-            if (this.state.activePart.acceptRange && contentLength !== expectedContentLength) {
+            if (this._endSize > 0 && (this.state.activePart.acceptRange && contentLength !== expectedContentLength || contentLength && contentLength < expectedContentLength)) {
                 throw new InvalidContentLengthError(expectedContentLength, contentLength);
             }
 
             const reader = response.body!.getReader();
             return await this.chunkGenerator(callback, () => reader.read());
         } finally {
-            this.off("aborted", abortPendingRequest);
+            this.off("aborted", abort);
         }
     }
 
@@ -88,14 +85,22 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
+        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+
         const response = await fetch(url, {
             method: method,
             headers: {
                 "Accept-Encoding": "identity",
                 ...this.options.headers
-            }
+            },
+            signal
         });
 
+        clearAbortTimeout();
+
+        if (response.body) {
+            abort();
+        }
 
         if (response.status < 200 || response.status >= 300) {
             throw new StatusCodeError(url, response.status, response.statusText, this.options.headers, DownloadEngineFetchStreamFetch.convertHeadersToRecord(response.headers));
@@ -113,7 +118,12 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         }
 
         if (length === 0 && (acceptRange || browserCheck() && (method === "GET" || MIN_LENGTH_FOR_MORE_INFO_REQUEST < someLengthInfo))) {
-            length = await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? response : undefined);
+            if (method !== "GET") {
+                return this.fetchDownloadInfoWithoutRetryByMethod(url, "GET");
+            }
+
+            const contentRange = response.headers.get("content-range");
+            length = parseHttpContentRange(contentRange)?.size || 0;
         }
 
         return {
@@ -124,31 +134,42 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         };
     }
 
-    protected async fetchDownloadInfoWithoutRetryContentRange(url: string, response?: Response) {
-        const responseGet = response ?? await fetch(url, {
-            method: "GET",
-            headers: {
-                accept: "*/*",
-                ...this.options.headers,
-                range: "bytes=0-0"
-            }
-        });
-
-        const contentRange = responseGet.headers.get("content-range");
-        return parseHttpContentRange(contentRange)?.size || 0;
-    }
-
     async chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
         const smartSplit = new SmartChunkSplit(callback, this.state);
+        let dynamicContentLengthReached = false;
 
         // eslint-disable-next-line no-constant-condition
         while (true) {
             const chunkInfo = await this._wrapperStreamNotResponding(getNextChunk());
+
             await this.paused;
             if (!chunkInfo || this.aborted || chunkInfo.done) break;
 
-            smartSplit.addChunk(chunkInfo.value);
+            let value = chunkInfo.value;
+
+            this.noRangeFetchSize += chunkInfo.value.length;
+
+            if (!this.state.activePart.acceptRange && this._startSize > 0) {
+                if (!dynamicContentLengthReached) {
+                    if (this._startSize > this.noRangeFetchSize) {
+                        this.state.onProgress?.(this.noRangeFetchSize);
+                        continue;
+                    }
+
+                    const skipBytes = chunkInfo.value.length - (this.noRangeFetchSize - this._startSize);
+                    value = chunkInfo.value.subarray(skipBytes);
+
+                    dynamicContentLengthReached = true;
+                }
+            }
+
+            smartSplit.addChunk(value);
             this.state.onProgress?.(smartSplit.savedLength);
+
+            if (dynamicContentLengthReached && this._endSize && this.noRangeFetchSize >= this._endSize) {
+                this._activeController?.abort();
+                break;
+            }
         }
 
         smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
@@ -178,8 +199,11 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             promise
                 .then(resolve)
                 .catch(error => {
-                    if (timeoutMaxStreamWaitThrows || this.aborted) {
+                    if (timeoutMaxStreamWaitThrows) {
                         return;
+                    }
+                    if (this.aborted) {
+                        return resolve();
                     }
                     reject(error);
                 })

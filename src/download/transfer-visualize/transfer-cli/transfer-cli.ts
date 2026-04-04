@@ -1,8 +1,8 @@
-import { SpinnerName } from "cli-spinners";
+import {SpinnerName} from "cli-spinners";
 import UpdateManager from "stdout-update";
-import { FormattedStatus } from "../format-transfer-status.js";
-import { BaseMultiProgressBar } from "./multiProgressBars/BaseMultiProgressBar.js";
-import { TransferCliProgressBar } from "./progress-bars/base-transfer-cli-progress-bar.js";
+import {FormattedStatus} from "../format-transfer-status.js";
+import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
+import {TransferCliProgressBar} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
 
 export type TransferCliOptions = {

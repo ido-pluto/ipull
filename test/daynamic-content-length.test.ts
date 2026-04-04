@@ -24,7 +24,7 @@ describe("Dynamic content download", async () => {
     });
 
 
-    test.concurrent("Nodejs Download", async (context) => {
+    test.concurrent("Nodejs Download", async ({expect}) => {
         const downloader = await downloadFile({
             url: DYNAMIC_DOWNLOAD_FILE,
             directory: ".",
@@ -39,11 +39,11 @@ describe("Dynamic content download", async () => {
         const ipullFileHash = await fileHash(downloader.fileAbsolutePath);
         await fs.remove(downloader.fileAbsolutePath);
 
-        context.expect(ipullFileHash)
+        expect(ipullFileHash)
             .toBe(originalFileHash);
     });
 
-    test.concurrent("Browser Download", async (context) => {
+    test.concurrent("Browser Download", async ({expect}) => {
         const downloader = await downloadFileBrowser({
             url: DYNAMIC_DOWNLOAD_FILE,
             defaultFetchDownloadInfo: {
@@ -55,7 +55,7 @@ describe("Dynamic content download", async () => {
         await downloader.download();
         const ipullFileHash = hashBuffer(downloader.writeStream.result);
 
-        context.expect(ipullFileHash)
+        expect(ipullFileHash)
             .toBe(originalFileHash);
     });
 });

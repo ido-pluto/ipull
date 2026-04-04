@@ -10,3 +10,8 @@ node_modules
 /.eslintcache
 /test/utils/files/big-image.jpg
 /test/utils/files/big-file.jpg
+
+# tests
+test/utils/files/big-file.bin
+file.gguf
+fileCreateToken.gguf

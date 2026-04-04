@@ -1,4 +1,4 @@
-import { FileHandle } from "fs/promises";
+import {FileHandle} from "fs/promises";
 import WriterIsClosedError from "../errors/writer-is-closed-error.js";
 
 const MIN_BUFFER_SIZE = 2 * 1024 * 1024; // 2 MB
@@ -66,7 +66,7 @@ export default class WriteQueue {
 
         const merged = this._tryMerge(cursor, buffers, length);
         if (!merged) {
-            this._regions.push({ cursor, buffers, length });
+            this._regions.push({cursor, buffers, length});
         }
 
         this._totalBuffered += length;

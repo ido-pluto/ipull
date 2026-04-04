@@ -3,11 +3,10 @@ import fs from "fs-extra";
 import path from "path";
 import DownloadEngineFile from "../download-file/download-engine-file.js";
 import {DownloadStatus} from "../download-file/progress-status-file.js";
-import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFetchStreamLocalFile from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-local-file.js";
 import DownloadEngineWriteStreamNodejs from "../streams/download-engine-write-stream/download-engine-write-stream-nodejs.js";
-import BaseDownloadEngine, {BaseDownloadEngineOptions, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS} from "./base-download-engine.js";
+import BaseDownloadEngine, {BaseDownloadEngineOptions, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS, FullPartURLInternal} from "./base-download-engine.js";
 import SavePathError from "./error/save-path-error.js";
 
 export const PROGRESS_FILE_EXTENSION = ".ipull";
@@ -24,8 +23,7 @@ export type DownloadEngineOptionsNodejs = PathOptions & BaseDownloadEngineOption
 };
 
 export type DownloadEngineOptionsNodejsCustomFetch = DownloadEngineOptionsNodejs & {
-    partURLs: string[];
-    fetchStream: BaseDownloadEngineFetchStream;
+    fullPartURLInternal: FullPartURLInternal[];
 };
 
 export type DownloadEngineOptionsNodejsConstructor<WriteStream = DownloadEngineWriteStreamNodejs> =
@@ -59,13 +57,13 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
 
         // Try to clone the file if it's a single part download
         this._engine.options.onStartedAsync = async () => {
-            if (this.options.skipExisting || this.options.fetchStrategy !== "local" || this.options.partURLs.length !== 1) return;
+            if (this.options.skipExisting || this.options.fetchStrategy !== "local" || this.options.fullPartURLInternal.length !== 1 || this.options.fullPartURLInternal[0].range) return;
 
             try {
                 const {reflinkFile} = await import("@reflink/reflink");
 
                 await fs.remove(this.options.writeStream.path);
-                await reflinkFile(this.options.partURLs[0], this.options.writeStream.path);
+                await reflinkFile(this.options.fullPartURLInternal[0].url, this.options.writeStream.path);
                 this._engine.finished("cloned");
             } catch { }
         };
@@ -136,18 +134,22 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         options = Object.assign({}, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS, options);
 
         DownloadEngineNodejs._validateOptions(options);
-        const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 
-        options.fetchStrategy ??= DownloadEngineNodejs._guessFetchStrategy(partURLs[0]);
-        const fetchStream = options.fetchStrategy === "local" ?
-            new DownloadEngineFetchStreamLocalFile(options) :
-            new DownloadEngineFetchStreamFetch(options);
+        const fullPartURLInternal = DownloadEngineNodejs._createFullPartURLs(options).map(part => {
+            const fetchStrategy = part.fetchStream || options.fetchStrategy || DownloadEngineNodejs._guessFetchStrategy(part.url);
+            const fetchStream = part.fetchStream || (
+                fetchStrategy === "local" ?
+                    new DownloadEngineFetchStreamLocalFile(part) :
+                    new DownloadEngineFetchStreamFetch(part)
+            );
+            return {...part, fetchStream};
+        });
 
-        return DownloadEngineNodejs._createFromOptionsWithCustomFetch({...options, partURLs, fetchStream});
+        return DownloadEngineNodejs._createFromOptionsWithCustomFetch({...options, fullPartURLInternal});
     }
 
     protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsNodejsCustomFetch) {
-        const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.partURLs, options.fetchStream, options);
+        const downloadFile = await DownloadEngineNodejs._createDownloadFile(options.fullPartURLInternal, options);
         let downloadLocation = "", fileName = "";
 
         if ("savePath" in options) {

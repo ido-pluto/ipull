@@ -16,10 +16,10 @@ export default abstract class BaseDownloadProgram {
     protected _reload?: () => void;
     protected _activeDownloads: Promise<any>[] = [];
 
-    protected constructor(_savedProgress: SaveProgressInfo, _downloadSlice: DownloadSlice) {
+    protected constructor(_savedProgress: SaveProgressInfo, parallelStreams: number, _downloadSlice: DownloadSlice) {
         this._downloadSlice = _downloadSlice;
         this.savedProgress = _savedProgress;
-        this._parallelStreams = this.savedProgress.parallelStreams;
+        this._parallelStreams = parallelStreams;
     }
 
     get parallelStreams() {
@@ -47,10 +47,6 @@ export default abstract class BaseDownloadProgram {
     }
 
     public async download(): Promise<void> {
-        if (this._parallelStreams === 1) {
-            return await this._downloadSlice(0, this.savedProgress.chunks.length);
-        }
-
         this._createFirstSlices();
 
         while (!this._aborted) {

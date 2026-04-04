@@ -71,7 +71,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
     }
 
     public resultAsBlobURL() {
-        const blob = new Blob([this._memory]);
+        const blob = new Blob([this._memory as unknown as Uint8Array<ArrayBuffer>]);
         return URL.createObjectURL(blob);
     }
 

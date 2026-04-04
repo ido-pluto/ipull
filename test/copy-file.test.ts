@@ -8,7 +8,7 @@ import {BIG_FILE} from "./utils/files.js";
 
 describe("File Copy", async () => {
 
-    test.concurrent("copy text parallel streams", async (context) => {
+    test.concurrent("copy text parallel streams", async ({expect}) => {
         const {originalFileHash, fileToCopy, copyFileToName} = await copyFileInfo(TEXT_FILE_EXAMPLE);
 
         const engine = await downloadFile({
@@ -25,11 +25,11 @@ describe("File Copy", async () => {
         const copiedFileHash = await fileHash(copyFileToName);
         await fs.remove(copyFileToName);
 
-        context.expect(copiedFileHash)
+        expect(copiedFileHash)
             .toBe(originalFileHash);
     });
 
-    test.concurrent("copy image one stream", async (context) => {
+    test.concurrent("copy image one stream", async ({expect}) => {
         const imagePath = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const {originalFileHash, fileToCopy, copyFileToName} = await copyFileInfo(imagePath);
 
@@ -46,7 +46,7 @@ describe("File Copy", async () => {
         const copiedFileHash = await fileHash(copyFileToName);
         await fs.remove(copyFileToName);
 
-        context.expect(copiedFileHash)
+        expect(copiedFileHash)
             .toBe(originalFileHash);
     });
 });

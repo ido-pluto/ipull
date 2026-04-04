@@ -6,6 +6,8 @@ import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import sleep from "sleep-promise";
 import {withLock} from "lifecycle-utils";
+import {InputRange} from "../../engine/base-download-engine.js";
+import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
 
 export const STREAM_NOT_RESPONDING_TIMEOUT = 1000 * 3;
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
@@ -13,42 +15,47 @@ export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 const TOKEN_EXPIRED_ERROR_CODES = [401, 403, 419, 440, 498, 499];
 
 export type BaseDownloadEngineFetchStreamOptions = {
-    retry?: retry.Options
-    retryFetchDownloadInfo?: retry.Options
+    retry?: retry.Options;
+    retryFetchDownloadInfo?: retry.Options;
+    range?: InputRange;
     /**
      * Max wait for next data stream
      */
-    maxStreamWait?: number
+    maxStreamWait?: number;
+    /**
+     * Max wait for server to respond with headers (default: 30s)
+     */
+    headersTimeout?: number;
     /**
      * If true, the engine will retry the request if the server returns a status code between 500 and 599
      */
-    retryOnServerError?: boolean
-    headers?: Record<string, string>
+    retryOnServerError?: boolean;
+    headers?: Record<string, string>;
     /**
      * If true, parallel download will be enabled even if the server does not return `accept-range` header, this is good when using cross-origin requests
      */
-    acceptRangeIsKnown?: boolean
-    ignoreIfRangeWithQueryParams?: boolean
+    acceptRangeIsKnown?: boolean;
+    ignoreIfRangeWithQueryParams?: boolean;
 } & (
     {
-        defaultFetchDownloadInfo?: { length: number, acceptRange: boolean }
+        defaultFetchDownloadInfo?: { length: number, acceptRange: boolean; };
     } |
     {
         /**
          * Try different headers to see if any authentication is needed
          */
-        tryHeaders?: Record<string, string>[]
+        tryHeaders?: Record<string, string>[];
         /**
          * Delay between trying different headers
          */
-        tryHeadersDelay?: number
+        tryHeadersDelay?: number;
     });
 
 export type DownloadInfoResponse = {
     length: number,
     acceptRange: boolean,
     newURL?: string,
-    fileName?: string
+    fileName?: string;
 };
 
 export type FetchSubState = {
@@ -56,25 +63,26 @@ export type FetchSubState = {
     endChunk: number,
     lastChunkEndsFile: boolean,
     chunkSize: number,
-    onProgress?: (length: number) => void,
+    onProgress?: (downloadSize: number) => void,
     activePart: {
-        size: number,
+        remoteFileSize: number;
+        downloadSize: number,
         acceptRange?: boolean,
         downloadURL: string,
         originalURL: string,
-        downloadURLUpdateDate: number
-    }
+        downloadURLUpdateDate: number;
+    };
 };
 
 export type BaseDownloadEngineFetchStreamEvents = {
-    paused: () => void
-    resumed: () => void
-    aborted: () => void
-    errorCountIncreased: (errorCount: number, error: Error) => void
-    retryingOn: (error: Error, attempt: number) => void
-    retryingOff: () => void
-    streamNotRespondingOn: () => void
-    streamNotRespondingOff: () => void
+    paused: () => void;
+    resumed: () => void;
+    aborted: () => void;
+    errorCountIncreased: (errorCount: number, error: Error) => void;
+    retryingOn: (error: Error, attempt: number) => void;
+    retryingOff: () => void;
+    streamNotRespondingOn: () => void;
+    streamNotRespondingOff: () => void;
 };
 
 export type WriteCallback = (data: Uint8Array[], position: number, index: number) => void;
@@ -82,6 +90,7 @@ export type WriteCallback = (data: Uint8Array[], position: number, index: number
 const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     retryOnServerError: true,
     maxStreamWait: 1000 * 15,
+    headersTimeout: 1000 * 30,
     retry: {
         retries: 50,
         factor: 1.5,
@@ -94,7 +103,11 @@ const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
         minTimeout: 200,
         maxTimeout: 5_000
     },
-    tryHeadersDelay: 50
+    tryHeadersDelay: 50,
+    range: {
+        start: 0,
+        end: -1
+    }
 };
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
@@ -103,6 +116,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public readonly abstract transferAction: string;
     public readonly supportDynamicStreamLength: boolean = false;
     public readonly options: Partial<BaseDownloadEngineFetchStreamOptions> = {};
+    public noRangeFetchSize = 0;
     public state: FetchSubState = null!;
     public paused?: Promise<void>;
     public aborted = false;
@@ -110,6 +124,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     protected _cleanupClonedStateListeners?: () => void;
     public errorCount = {value: 0};
     public lastFetchTime = 0;
+    private _closed = false;
 
     constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
         super();
@@ -118,11 +133,12 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     }
 
     protected get _startSize() {
-        return this.state.startChunk * this.state.chunkSize;
+        return this.state.startChunk * this.state.chunkSize + this.options.range!.start;
     }
 
     protected get _endSize() {
-        return Math.min(this.state.endChunk * this.state.chunkSize, this.state.activePart.size);
+        const rangeEnd = this.options.range!.end >= 0 ? this.options.range!.end + 1 : Infinity;
+        return Math.min(this._startSize + this.state.endChunk * this.state.chunkSize, rangeEnd, this.state.activePart.remoteFileSize);
     }
 
     protected initEvents() {
@@ -185,6 +201,11 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 }
                 return response;
             } catch (error: any) {
+                if (error?.name === "AbortError" && this.aborted) {
+                    throwErr = error;
+                    return null;
+                }
+
                 this.errorCount.value++;
                 this.emit("errorCountIncreased", this.errorCount.value, error);
 
@@ -240,7 +261,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                         callback(...args);
                     });
                 } catch (error: any) {
-                    if (error?.name === "AbortError") return;
+                    if (error?.name === "AbortError" && this.aborted) return;
 
                     this.errorCount.value++;
                     this.emit("errorCountIncreased", this.errorCount.value, error);
@@ -293,6 +314,9 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     protected abstract fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> | void;
 
     public close(): void | Promise<void> {
+        if (this._closed) return;
+        this._closed = true;
+
         this._cleanupClonedStateListeners?.();
         this.emit("aborted");
     }
@@ -311,5 +335,23 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     protected retryOnServerError(error: Error): error is StatusCodeError {
         return Boolean(this.options.retryOnServerError) && error instanceof StatusCodeError &&
             (error.statusCode >= 500 || error.statusCode === 429);
+    }
+
+    static timeoutAbortController(timeout: number) {
+        const abortController = new AbortController();
+        let headersTimeout: null | ReturnType<typeof setTimeout> = setTimeout(() => {
+            abortController.abort(`Fetch headers timeout after ${prettyMillisecondsCompact(timeout)}`);
+        }, timeout);
+
+        return {
+            signal: abortController.signal,
+            abort: (reason?: string) => abortController.abort(reason),
+            clearAbortTimeout: () => {
+                if (headersTimeout != null) {
+                    clearTimeout(headersTimeout);
+                    headersTimeout = null;
+                }
+            }
+        };
     }
 }

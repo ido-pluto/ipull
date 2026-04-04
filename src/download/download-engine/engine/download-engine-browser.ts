@@ -1,11 +1,10 @@
-import {SaveProgressInfo} from "../types.js";
 import DownloadEngineFile from "../download-file/download-engine-file.js";
 import DownloadEngineFetchStreamFetch from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import DownloadEngineFetchStreamXhr from "../streams/download-engine-fetch-stream/download-engine-fetch-stream-xhr.js";
-import DownloadEngineWriteStreamBrowser, {DownloadEngineWriteStreamBrowserWriter} from "../streams/download-engine-write-stream/download-engine-write-stream-browser.js";
-import BaseDownloadEngine, {BaseDownloadEngineOptions, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS} from "./base-download-engine.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
-import BaseDownloadEngineFetchStream from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
+import DownloadEngineWriteStreamBrowser, {DownloadEngineWriteStreamBrowserWriter} from "../streams/download-engine-write-stream/download-engine-write-stream-browser.js";
+import {SaveProgressInfo} from "../types.js";
+import BaseDownloadEngine, {BaseDownloadEngineOptions, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS, FullPartURLInternal} from "./base-download-engine.js";
 
 export type DownloadEngineOptionsBrowser = BaseDownloadEngineOptions & {
     onWrite?: DownloadEngineWriteStreamBrowserWriter,
@@ -14,15 +13,14 @@ export type DownloadEngineOptionsBrowser = BaseDownloadEngineOptions & {
 };
 
 export type DownloadEngineOptionsCustomFetchBrowser = DownloadEngineOptionsBrowser & {
-    partURLs: string[];
-    fetchStream: BaseDownloadEngineFetchStream
+    fullPartURLInternal: FullPartURLInternal[];
 };
 
 export type DownloadEngineOptionsBrowserConstructor<WriteStream = DownloadEngineWriteStreamBrowser> =
     DownloadEngineOptionsCustomFetchBrowser
     & {
-    writeStream: WriteStream
-};
+        writeStream: WriteStream;
+    };
 
 
 /**
@@ -47,17 +45,17 @@ export default class DownloadEngineBrowser<WriteStream extends BaseDownloadEngin
         options = Object.assign({}, DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS, options);
 
         DownloadEngineBrowser._validateOptions(options);
-        const partURLs = "partURLs" in options ? options.partURLs : [options.url];
 
-        const fetchStream = options.fetchStrategy === "xhr" ?
-            new DownloadEngineFetchStreamXhr(options) : new DownloadEngineFetchStreamFetch(options);
+        const FetchStream = options.fetchStrategy === "xhr" ?
+            DownloadEngineFetchStreamXhr : DownloadEngineFetchStreamFetch;
 
-        return DownloadEngineBrowser._createFromOptionsWithCustomFetch({...options, partURLs, fetchStream});
+        const fullPartURLInternal = DownloadEngineBrowser._createFullPartURLs(options).map(part => ({...part, fetchStream: part.fetchStream || new FetchStream(part)}));
+        return DownloadEngineBrowser._createFromOptionsWithCustomFetch({...options, fullPartURLInternal});
     }
 
 
     protected static async _createFromOptionsWithCustomFetch(options: DownloadEngineOptionsCustomFetchBrowser) {
-        const downloadFile = await DownloadEngineBrowser._createDownloadFile(options.partURLs, options.fetchStream);
+        const downloadFile = await DownloadEngineBrowser._createDownloadFile(options.fullPartURLInternal, options);
         downloadFile.downloadProgress = options.progress;
 
         const writeStream = new DownloadEngineWriteStreamBrowser(options.onWrite, {

@@ -5,12 +5,12 @@ import DownloadProgramStream from "./download-program-stream.js";
 
 export type AvailablePrograms = "stream" | "chunks";
 
-export default function switchProgram(savedProgress: SaveProgressInfo, downloadSlice: DownloadSlice, name?: AvailablePrograms) {
+export default function switchProgram(savedProgress: SaveProgressInfo, parallelStreams: number, downloadSlice: DownloadSlice, name?: AvailablePrograms) {
     switch (name) {
         case "chunks":
-            return new DownloadProgramChunks(savedProgress, downloadSlice);
+            return new DownloadProgramChunks(savedProgress, parallelStreams, downloadSlice);
         case "stream":
         default:
-            return new DownloadProgramStream(savedProgress, downloadSlice);
+            return new DownloadProgramStream(savedProgress, parallelStreams, downloadSlice);
     }
 }

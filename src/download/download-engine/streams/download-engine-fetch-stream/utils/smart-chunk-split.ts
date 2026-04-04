@@ -6,7 +6,7 @@ export type SmartChunkSplitOptions = {
     endChunk: number;
     lastChunkEndsFile: boolean;
     activePart: {
-        size: number;
+        downloadSize: number;
     }
 };
 
@@ -27,7 +27,7 @@ export default class SmartChunkSplit {
     }
 
     public calcLastChunkSize() {
-        return this._options.activePart.size - Math.max(this._options.endChunk - 1, 0) * this._options.chunkSize;
+        return this._options.activePart.downloadSize - Math.max(this._options.endChunk - 1, 0) * this._options.chunkSize;
     }
 
     public addChunk(data: Uint8Array) {
