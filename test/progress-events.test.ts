@@ -1,14 +1,14 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { describe, test } from "vitest";
+import {describe, test} from "vitest";
 import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
 import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
-import { DownloadFile } from "../src/download/download-engine/types.js";
+import {DownloadFile} from "../src/download/download-engine/types.js";
 
 const TEST_URL = "https://www.google.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png";
 
 describe("Progress & Event Emission", () => {
-    test("should emit all progress events in order", async ({ expect }) => {
+    test("should emit all progress events in order", async ({expect}) => {
         const fetchStream = new DownloadEngineFetchStreamFetch();
         const writeStream = new DownloadEngineWriteStreamBrowser(() => { });
         const file: DownloadFile = {
@@ -26,7 +26,7 @@ describe("Progress & Event Emission", () => {
                     parallelStreams: 1,
                     autoIncreaseParallelStreams: false,
                     programType: "stream",
-                    range: { start: 0, end: -1 }
+                    range: {start: 0, end: -1}
                 }
             ]
         };

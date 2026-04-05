@@ -1,7 +1,7 @@
-import { describe, test } from "vitest";
+import {describe, test} from "vitest";
 import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
 import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
-import { DownloadFile } from "../src/download/download-engine/types.js";
+import {DownloadFile} from "../src/download/download-engine/types.js";
 
 class FailingFetchStream {
     aborted = false;
@@ -52,7 +52,7 @@ class FailingFetchStream {
 }
 
 describe("FetchStream Error Propagation", () => {
-    test("should propagate fetchStream errors and not hang", async ({ expect }) => {
+    test("should propagate fetchStream errors and not hang", async ({expect}) => {
         const fetchStream = new FailingFetchStream();
         const writeStream = new DownloadEngineWriteStreamBrowser(() => { });
         const file: DownloadFile = {
@@ -70,11 +70,11 @@ describe("FetchStream Error Propagation", () => {
                     parallelStreams: 1,
                     autoIncreaseParallelStreams: false,
                     programType: "stream",
-                    range: { start: 0, end: -1 }
+                    range: {start: 0, end: -1}
                 }
             ]
         };
-        const downloader = new DownloadEngineFile(file, { writeStream });
+        const downloader = new DownloadEngineFile(file, {writeStream});
         await expect(downloader.download()).rejects.toThrow("Simulated network error");
     });
 });

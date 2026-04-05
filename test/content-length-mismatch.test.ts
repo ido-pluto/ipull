@@ -1,4 +1,4 @@
-import {describe, test, beforeAll, afterAll, expect} from "vitest";
+import {describe, test, beforeAll, afterAll} from "vitest";
 import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
 import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
