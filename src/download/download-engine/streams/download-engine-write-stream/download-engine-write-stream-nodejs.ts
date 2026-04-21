@@ -1,9 +1,9 @@
 import retry from "async-retry";
-import fsExtra from "fs-extra";
 import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
 import WriteQueue from "./utils/WriteQueue.js";
+import { ensureFile, pathExists } from "../../../../utils/fs.js";
 
 export type DownloadEngineWriteStreamOptionsNodeJS = {
     retry?: retry.Options;
@@ -87,7 +87,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
             }
 
             return await retry(async () => {
-                await fsExtra.ensureFile(this.path);
+                await ensureFile(this.path);
                 this._fd = await fs.open(this.path, this.options.mode);
                 DownloadEngineWriteStreamNodejs._allFd.add(this._fd);
                 DownloadEngineWriteStreamNodejs._finalizationRegistry.register(this, this._fd, this._finalToken);
@@ -131,7 +131,7 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
     }
 
     async loadMetadataAfterFileWithoutRetry() {
-        if (!await fsExtra.pathExists(this.path)) {
+        if (!await pathExists(this.path)) {
             return;
         }
 

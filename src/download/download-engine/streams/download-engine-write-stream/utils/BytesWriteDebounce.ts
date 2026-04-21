@@ -1,4 +1,4 @@
-import sleep from "sleep-promise";
+import { sleepPromise } from "../../../utils/sleepPromise.js";
 
 export type BytesWriteDebounceOptions = {
     maxTime: number;
@@ -46,7 +46,7 @@ export class BytesWriteDebounce {
         while (this._writeChunks.length > 0) {
             await this._writeIfNeeded();
             const timeUntilMaxLimitAfterWrite = this._options.maxTime - (Date.now() - this._lastWriteTime);
-            await sleep(Math.max(timeUntilMaxLimitAfterWrite, 0));
+            await sleepPromise(Math.max(timeUntilMaxLimitAfterWrite, 0));
         }
 
         this._checkWriteInterval = false;

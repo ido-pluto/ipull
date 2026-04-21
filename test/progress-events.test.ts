@@ -1,14 +1,24 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import {describe, test} from "vitest";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
 import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import {DownloadFile} from "../src/download/download-engine/types.js";
+import { startLocalTestServer, LocalTestServer } from "./utils/local-server.js";
 
-const TEST_URL = "https://www.google.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png";
+let baseURL: string;
+let server: LocalTestServer;
+
+beforeAll(async () => {
+    server = await startLocalTestServer();
+    baseURL = server.baseURL;
+});
+
+afterAll(async () => {
+    await server.close();
+});
 
 describe("Progress & Event Emission", () => {
-    test("should emit all progress events in order", async ({expect}) => {
+    test("should emit all progress events in order", async () => {
         const fetchStream = new DownloadEngineFetchStreamFetch();
         const writeStream = new DownloadEngineWriteStreamBrowser(() => { });
         const file: DownloadFile = {
@@ -16,8 +26,8 @@ describe("Progress & Event Emission", () => {
             localFileName: "events.png",
             parts: [
                 {
-                    downloadURL: TEST_URL,
-                    originalURL: TEST_URL,
+                    downloadURL: `${baseURL}/range-file.bin`,
+                    originalURL: `${baseURL}/range-file.bin`,
                     acceptRange: true,
                     remoteFileSize: 0,
                     downloadSize: 0,
@@ -33,9 +43,15 @@ describe("Progress & Event Emission", () => {
         const events: string[] = [];
         const downloader = new DownloadEngineFile(file, {
             writeStream,
-            onFinishAsync: async () => events.push("onFinishAsync"),
-            onStartedAsync: async () => events.push("onStartedAsync"),
-            onPausedAsync: async () => events.push("onPausedAsync"),
+            onFinishAsync: async () => {
+                events.push("onFinishAsync");
+            },
+            onStartedAsync: async () => {
+                events.push("onStartedAsync");
+            },
+            onPausedAsync: async () => {
+                events.push("onPausedAsync");
+            },
             onSaveProgress: () => events.push("onSaveProgress")
         });
         downloader.on("progress", () => events.push("progress"));

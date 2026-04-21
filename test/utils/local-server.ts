@@ -121,26 +121,7 @@ const setupContentLengthMismatchRoutes = (app: express.Express) => {
         const rangeHeader = req.header("range");
         if (!rangeHeader) {
             setCommonHeaders(res, true, TEST_FILE_SIZE + 1000); // wrong length deliberately
-            res.status(200).send(TEST_FILE_DATA.slice(0, TEST_FILE_SIZE + 1000)); // but send correct data? Wait, to mismatch, send less or more.
-            // To mismatch, perhaps send TEST_FILE_DATA, but header wrong.
-            // But to make it throw, send TEST_FILE_DATA, header wrong, but in fetch, header wrong, throw.
-            // In xhr, data length correct, header wrong, but xhr checks data vs expected, expected from header? No, expected is calculated, data is correct, so no throw.
-            // For no range, the expected is the totalSize, contentLength from header.
-            // So for no range, if header wrong, in fetch, contentLength !== expected, throw.
-            // In xhr, the check is if expected !== arrayBuffer.byteLength, but expected is from header? No, in xhr, expectedContentLength is calculated from range, same as fetch.
-            // In xhr, the check is expectedContentLength !== arrayBuffer.byteLength
-            // So for no range, expected = total, data length = total, header wrong, but check is data vs expected, not header.
-            // So for no range, it won't throw in xhr.
-            // For range, in xhr, data length = sent length = chunk.length - 1, expected = chunk.length, throw.
-            // For fetch, for range, header = chunk.length - 1, expected = chunk.length, throw.
-            // For no range, in fetch, header = TEST_FILE_SIZE + 1000, expected = TEST_FILE_SIZE, throw.
-            // In xhr, for no range, data length = TEST_FILE_SIZE, expected = TEST_FILE_SIZE, no throw.
-            // So to make it throw in both, for no range, send wrong data length.
-            // So set header to TEST_FILE_SIZE + 1000, send TEST_FILE_DATA (length TEST_FILE_SIZE).
-            // In fetch, header wrong, throw.
-            // In xhr, data length = TEST_FILE_SIZE, expected = TEST_FILE_SIZE + 1000, throw.
-            // Yes.
-            res.status(200).send(TEST_FILE_DATA);
+            res.status(200).send(TEST_FILE_DATA.slice(0, TEST_FILE_SIZE + 1000));
             return;
         }
 

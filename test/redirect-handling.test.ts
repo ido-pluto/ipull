@@ -1,63 +1,56 @@
-import {describe, test} from "vitest";
-import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
-import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
-import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
+import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import fsPromise from "fs/promises";
+import os from "os";
+import path from "path";
+import { downloadFile } from "../src/index.js";
+import { startLocalTestServer, LocalTestServer, TEST_FILE_SIZE } from "./utils/local-server.js";
 
-// This URL should redirect. Replace with a known redirecting URL if needed.
-const REDIRECT_URL = "https://httpbin.org/redirect-to?url=https://www.google.com/images/branding/googlelogo/2x/googlelogo_light_color_92x30dp.png";
+let baseURL: string;
+let server: LocalTestServer;
+
+beforeAll(async () => {
+    server = await startLocalTestServer();
+    baseURL = server.baseURL;
+});
+
+afterAll(async () => {
+    await server.close();
+});
 
 
 describe("Redirect Handling", () => {
-    test("should follow redirect and use newURL", async ({expect}) => {
-        const fetchStream = new DownloadEngineFetchStreamFetch();
-        const writeStream = new DownloadEngineWriteStreamBrowser(() => { });
-        const file = {
-            totalSize: 0,
-            localFileName: "redirect.png",
-            parts: [
-                {
-                    downloadURL: REDIRECT_URL,
-                    originalURL: REDIRECT_URL,
-                    acceptRange: true,
-                    remoteFileSize: 0,
-                    downloadSize: 0,
-                    downloadURLUpdateDate: Date.now(),
-                    fetchStream,
-                    parallelStreams: 1,
-                    autoIncreaseParallelStreams: false,
-                    programType: "stream",
-                    range: {start: 0, end: -1}
-                }
-            ]
-        };
-        const downloader = new DownloadEngineFile(file, {writeStream, comment: "test redirect"});
-        await expect(downloader.download()).resolves.not.toThrow();
+    test("should follow redirect and reuse the redirected URL by default", async () => {
+        const savePath = path.join(os.tmpdir(), `ipull-redirect-${Date.now()}-default.gguf`);
+        const downloader = await downloadFile({
+            url: `${baseURL}/fileCreateToken.gguf`,
+            savePath,
+            programType: "chunks",
+            parallelStreams: 3
+        });
+
+        await downloader.download();
+        expect(downloader.file.parts[0].originalURL).toBe(`${baseURL}/fileCreateToken.gguf`);
+        expect(downloader.file.parts[0].downloadURL).toMatch(new RegExp(`^${baseURL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/file\\.gguf\\?token=`));
+        const fileSize = (await fsPromise.stat(downloader.finalFileAbsolutePath)).size;
+        expect(fileSize).toBe(TEST_FILE_SIZE);
+        await fsPromise.rm(downloader.finalFileAbsolutePath, { force: true });
     });
 
-    test("should respect reuseRedirectURL option", async ({expect}) => {
-        // This test assumes the engine will use the newURL for subsequent requests if reuseRedirectURL is true
-        const fetchStream = new DownloadEngineFetchStreamFetch();
-        const writeStream = new DownloadEngineWriteStreamBrowser(() => { });
-        const file = {
-            totalSize: 0,
-            localFileName: "redirect2.png",
-            parts: [
-                {
-                    downloadURL: REDIRECT_URL,
-                    originalURL: REDIRECT_URL,
-                    acceptRange: true,
-                    remoteFileSize: 0,
-                    downloadSize: 0,
-                    downloadURLUpdateDate: Date.now(),
-                    fetchStream,
-                    parallelStreams: 1,
-                    autoIncreaseParallelStreams: false,
-                    programType: "stream",
-                    range: {start: 0, end: -1}
-                }
-            ]
-        };
-        const downloader = new DownloadEngineFile(file, {writeStream, comment: "test redirect", reuseRedirectURL: true});
-        await expect(downloader.download()).resolves.not.toThrow();
+    test("should respect reuseRedirectURL option when disabled", async () => {
+        const savePath = path.join(os.tmpdir(), `ipull-redirect-${Date.now()}-original.gguf`);
+        const downloader = await downloadFile({
+            url: `${baseURL}/fileCreateToken.gguf`,
+            savePath,
+            programType: "chunks",
+            parallelStreams: 3,
+            reuseRedirectURL: false
+        });
+
+        await downloader.download();
+        expect(downloader.file.parts[0].originalURL).toBe(`${baseURL}/fileCreateToken.gguf`);
+        expect(downloader.file.parts[0].downloadURL).toBe(`${baseURL}/fileCreateToken.gguf`);
+        const fileSize = (await fsPromise.stat(downloader.finalFileAbsolutePath)).size;
+        expect(fileSize).toBe(TEST_FILE_SIZE);
+        await fsPromise.rm(downloader.finalFileAbsolutePath, { force: true });
     });
 });

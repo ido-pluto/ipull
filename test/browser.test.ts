@@ -3,7 +3,7 @@ import {downloadFileBrowser} from "../src/browser.js";
 import {hashBuffer} from "./utils/hash.js";
 import {BIG_FILE} from "./utils/files.js";
 import {BIG_FILE_EXAMPLE, ensureLocalFile} from "./utils/download.js";
-import fs from "fs-extra";
+import fs from "fs/promises";
 
 // @ts-ignore
 globalThis.XMLHttpRequest = await import("xmlhttprequest-ssl").then(m => m.XMLHttpRequest);

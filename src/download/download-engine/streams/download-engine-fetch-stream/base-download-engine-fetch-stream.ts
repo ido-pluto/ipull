@@ -1,13 +1,13 @@
 import retry from "async-retry";
-import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
-import {EventEmitter} from "eventemitter3";
-import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
+import { EventEmitter } from "eventemitter3";
+import { withLock } from "lifecycle-utils";
+import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
+import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
+import { InputRange } from "../../engine/base-download-engine.js";
+import { sleepPromise } from "../../utils/sleepPromise.js";
 import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
-import sleep from "sleep-promise";
-import {withLock} from "lifecycle-utils";
-import {InputRange} from "../../engine/base-download-engine.js";
-import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
+import { retryAsyncStatementSimple } from "./utils/retry-async-statement.js";
 
 export const STREAM_NOT_RESPONDING_TIMEOUT = 1000 * 3;
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
@@ -138,7 +138,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
 
     protected get _endSize() {
         const rangeEnd = this.options.range!.end >= 0 ? this.options.range!.end + 1 : Infinity;
-        return Math.min(this._startSize + this.state.endChunk * this.state.chunkSize, rangeEnd, this.state.activePart.remoteFileSize);
+        return Math.min(this.state.endChunk * this.state.chunkSize + this.options.range!.start, rangeEnd, this.state.activePart.remoteFileSize);
     }
 
     protected initEvents() {
@@ -214,7 +214,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                         this.options.headers = tryHeaders.shift();
                         retryingOn = true;
                         this.emit("retryingOn", error, this.errorCount.value);
-                        await sleep(this.options.tryHeadersDelay ?? 0);
+                        await sleepPromise(this.options.tryHeadersDelay ?? 0);
                         return await fetchDownloadInfoCallback();
                     }
 
@@ -225,7 +225,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 if (error instanceof StatusCodeError && error.retryAfter) {
                     retryingOn = true;
                     this.emit("retryingOn", error, this.errorCount.value);
-                    await sleep(error.retryAfter * 1000);
+                    await sleepPromise(error.retryAfter * 1000);
                     return await fetchDownloadInfoCallback();
                 }
 
@@ -274,7 +274,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     retryingOn = true;
                     this.emit("retryingOn", error, this.errorCount.value);
                     if (error instanceof StatusCodeError && error.retryAfter) {
-                        await sleep(error.retryAfter * 1000);
+                        await sleepPromise(error.retryAfter * 1000);
                         continue;
                     }
 

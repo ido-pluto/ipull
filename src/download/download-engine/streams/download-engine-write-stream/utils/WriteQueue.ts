@@ -97,6 +97,8 @@ export default class WriteQueue {
             if (this._tryMerge(region.cursor, region.buffers, region.length)) {
                 this._regions.splice(i, 1);
             }
+            
+            return true;
         }
 
         return false;

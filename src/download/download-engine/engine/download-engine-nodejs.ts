@@ -1,5 +1,5 @@
 import filenamify from "filenamify";
-import fs from "fs-extra";
+import fs from "fs/promises";
 import path from "path";
 import DownloadEngineFile from "../download-file/download-engine-file.js";
 import {DownloadStatus} from "../download-file/progress-status-file.js";
@@ -62,7 +62,9 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
             try {
                 const {reflinkFile} = await import("@reflink/reflink");
 
-                await fs.remove(this.options.writeStream.path);
+                try {
+                    await fs.unlink(this.options.writeStream.path);
+                } catch { }
                 await reflinkFile(this.options.fullPartURLInternal[0].url, this.options.writeStream.path);
                 this._engine.finished("cloned");
             } catch { }

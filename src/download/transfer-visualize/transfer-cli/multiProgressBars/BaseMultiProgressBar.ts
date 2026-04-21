@@ -1,7 +1,7 @@
 import {TransferCliProgressBar} from "../progress-bars/base-transfer-cli-progress-bar.js";
 import {FormattedStatus} from "../../format-transfer-status.js";
 import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
-import chalk from "chalk";
+import ansis from "ansis";
 import {SpinnerName} from "cli-spinners";
 import prettyBytes from "../../utils/prettyBytesFast.js";
 
@@ -57,10 +57,10 @@ export class BaseMultiProgressBar {
         const tasksLogs = this.createProgresses(allStatusesSorted.slice(0, this.options.maxViewDownloads));
 
         if (notFinished) {
-            return tasksLogs + `\nand ${chalk.gray((remaining + loadingDownloads).toLocaleString())} more out of ${chalk.blueBright(statuses.length.toLocaleString())} downloads.`;
+            return tasksLogs + `\nand ${ansis.gray((remaining + loadingDownloads).toLocaleString())} more out of ${ansis.blueBright(statuses.length.toLocaleString())} downloads.`;
         }
 
         const totalSize = allStatusesSorted.reduce((acc, status) => acc + status.totalBytes, 0);
-        return tasksLogs + `\n${chalk.green(`All ${statuses.length.toLocaleString()} downloads (${prettyBytes(totalSize)}) finished.`)}`;
+        return tasksLogs + `\n${ansis.green(`All ${statuses.length.toLocaleString()} downloads (${prettyBytes(totalSize)}) finished.`)}`;
     }
 }

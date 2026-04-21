@@ -1,5 +1,5 @@
 import {describe, test} from "vitest";
-import fs from "fs-extra";
+import fs from "fs/promises";
 import {BIG_FILE_EXAMPLE, ensureLocalFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
 import {fileHash} from "./utils/hash.js";
 import {copyFileInfo} from "./utils/copy.js";
@@ -23,7 +23,7 @@ describe("File Copy", async () => {
         await engine.download();
 
         const copiedFileHash = await fileHash(copyFileToName);
-        await fs.remove(copyFileToName);
+        await fs.unlink(copyFileToName);
 
         expect(copiedFileHash)
             .toBe(originalFileHash);
@@ -44,7 +44,7 @@ describe("File Copy", async () => {
         await engine.download();
 
         const copiedFileHash = await fileHash(copyFileToName);
-        await fs.remove(copyFileToName);
+        await fs.unlink(copyFileToName);
 
         expect(copiedFileHash)
             .toBe(originalFileHash);

@@ -1,12 +1,12 @@
-import fs from "fs-extra";
 import fsPromise from "fs/promises";
-import {withLock} from "lifecycle-utils";
+import { withLock } from "lifecycle-utils";
 import path from "path";
-import {fileURLToPath} from "url";
-import {AvailablePrograms} from "../../src/download/download-engine/download-file/download-programs/switch-program.js";
+import { fileURLToPath } from "url";
+import { AvailablePrograms } from "../../src/download/download-engine/download-file/download-programs/switch-program.js";
 import DownloadEngineFetchStreamFetch from "../../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
-import {DownloadFile} from "../../src/download/download-engine/types.js";
-import {BIG_FILE} from "./files.js";
+import { DownloadFile } from "../../src/download/download-engine/types.js";
+import { pathExists } from "../../src/utils/fs.js";
+import { BIG_FILE } from "./files.js";
 
 const __dirname = fileURLToPath(new URL(".", import.meta.url));
 export const BIG_FILE_EXAMPLE = path.join(__dirname, "files", "big-file.bin");
@@ -16,7 +16,7 @@ const lockScope = {};
 
 export async function ensureLocalFile(download: string, local: string) {
     return await withLock([lockScope, local], async function ensureLocalFileWithoutLock() {
-        if (await fs.pathExists(local)) {
+        if (await pathExists(local)) {
             return local;
         }
 

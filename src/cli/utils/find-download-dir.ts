@@ -1,6 +1,6 @@
+import { lstat } from "fs/promises";
 import path from "path";
-import fs from "fs-extra";
-import {AppDB} from "../../settings/settings.js";
+import { AppDB } from "../../settings/settings.js";
 
 const DEFAULT_DOWNLOAD_DIR = process.cwd();
 
@@ -20,7 +20,7 @@ export function findFileName(url: string) {
 
 export async function downloadToDirectory(path: string) {
     try {
-        const stats = await fs.lstat(path);
+        const stats = await lstat(path);
         return stats.isDirectory();
     } catch {
         return false;

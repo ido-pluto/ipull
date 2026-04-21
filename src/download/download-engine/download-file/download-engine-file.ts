@@ -1,5 +1,4 @@
 import {EventEmitter} from "eventemitter3";
-import {uid} from "uid";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
 import {ChunkStatus, DownloadFile, SaveProgressInfo} from "../types.js";
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
@@ -7,6 +6,7 @@ import switchProgram, {AvailablePrograms} from "./download-programs/switch-progr
 import {DownloaderProgramManager} from "./downloaderProgramManager.js";
 import {DownloadFlags, DownloadStatus, ProgressStatus} from "./progress-status-file.js";
 import {pushComment} from "./utils/push-comment.js";
+import { randomUUID } from "crypto";
 
 export type DownloadEngineFilePerPartOptions = {
     parallelStreams: number;
@@ -216,7 +216,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         } else {
             this._progress = {
                 part: 0,
-                downloadId: uid(),
+                downloadId: randomUUID(),
                 chunks: this._chunksForPart(0),
                 chunkSize: this.options.chunkSize
             };

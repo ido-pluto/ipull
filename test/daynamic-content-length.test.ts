@@ -2,7 +2,7 @@ import {afterAll, beforeAll, describe, test} from "vitest";
 import {ensureLocalFile} from "./utils/download.js";
 import {downloadFile} from "../src/index.js";
 import {fileHash, hashBuffer} from "./utils/hash.js";
-import fs from "fs-extra";
+import fs from "fs/promises";
 import {downloadFileBrowser} from "../src/browser.js";
 
 const DYNAMIC_DOWNLOAD_FILE = "https://quick-lint-js.com/demo/dist/quick-lint-js-vscode.wasm";
@@ -19,7 +19,7 @@ describe("Dynamic content download", async () => {
 
     afterAll(async () => {
         if (regularDownload) {
-            await fs.remove(regularDownload);
+            await fs.unlink(regularDownload);
         }
     });
 
@@ -37,7 +37,7 @@ describe("Dynamic content download", async () => {
 
         await downloader.download();
         const ipullFileHash = await fileHash(downloader.fileAbsolutePath);
-        await fs.remove(downloader.fileAbsolutePath);
+        await fs.unlink(downloader.fileAbsolutePath);
 
         expect(ipullFileHash)
             .toBe(originalFileHash);

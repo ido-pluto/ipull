@@ -1,10 +1,10 @@
 import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import retry from "async-retry";
-import fsExtra from "fs-extra";
 import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 import streamResponse from "./utils/stream-response.js";
+import { ensureFile } from "../../../../utils/fs.js";
 
 const OPEN_MODE = "r";
 
@@ -27,7 +27,7 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
 
             this._fd?.close();
             return await retry(async () => {
-                await fsExtra.ensureFile(path);
+                await ensureFile(path);
                 return this._fd = await fs.open(path, OPEN_MODE);
             }, this.options.retry);
         });
