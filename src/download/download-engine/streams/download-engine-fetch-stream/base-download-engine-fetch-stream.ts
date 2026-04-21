@@ -36,6 +36,10 @@ export type BaseDownloadEngineFetchStreamOptions = {
      */
     acceptRangeIsKnown?: boolean;
     ignoreIfRangeWithQueryParams?: boolean;
+    /**
+     * Reduce async operation by getting data from the stream less often
+     */
+    progressThrottleMs?: number;
 } & (
     {
         defaultFetchDownloadInfo?: { length: number, acceptRange: boolean; };
@@ -107,7 +111,8 @@ const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     range: {
         start: 0,
         end: -1
-    }
+    },
+    progressThrottleMs: 15
 };
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
@@ -144,6 +149,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     protected initEvents() {
         this.on("aborted", () => {
             this.aborted = true;
+            this.paused = undefined;
             this._pausedResolve?.();
         });
 

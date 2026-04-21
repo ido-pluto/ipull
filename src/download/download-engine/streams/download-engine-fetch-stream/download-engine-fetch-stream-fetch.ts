@@ -7,12 +7,13 @@ import BaseDownloadEngineFetchStream, {
 } from "./base-download-engine-fetch-stream.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
-import {parseContentDisposition} from "./utils/content-disposition.js";
+import { parseContentDisposition } from "./utils/content-disposition.js";
 import StatusCodeError from "./errors/status-code-error.js";
-import {parseHttpContentRange} from "./utils/httpRange.js";
-import {browserCheck} from "./utils/browserCheck.js";
-import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
+import { parseHttpContentRange } from "./utils/httpRange.js";
+import { browserCheck } from "./utils/browserCheck.js";
+import { EmptyStreamTimeoutError } from "./errors/EmptyStreamTimeoutError.js";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
+import { sleepPromise } from "../../utils/sleepPromise.js";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
@@ -41,8 +42,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             this._activeController?.abort();
         }
 
-        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
-        this._activeController = {abort, signal};
+        const { signal, abort, clearAbortTimeout } = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+        this._activeController = { abort, signal };
         this.on("aborted", abort);
 
         try {
@@ -86,7 +87,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
-        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+        const { signal, abort, clearAbortTimeout } = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
 
         try {
             const response = await fetch(url, {
@@ -141,86 +142,95 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
     async chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
         const smartSplit = new SmartChunkSplit(callback, this.state);
+        const abortController = new AbortController();
+        this.on("aborted", abortController.abort);
+
         let dynamicContentLengthReached = false;
+        let waitingForChunk = false;
+        let waitStartedAt = 0;
+        let streamNotRespondedInTime = false;
+        let timeoutError: EmptyStreamTimeoutError | null = null;
 
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            const chunkInfo = await this._wrapperStreamNotResponding(getNextChunk());
+        const clearStreamNotResponding = () => {
+            if (!streamNotRespondedInTime) return;
+            streamNotRespondedInTime = false;
+            this.emit("streamNotRespondingOff");
+        };
 
-            await this.paused;
-            if (!chunkInfo || this.aborted || chunkInfo.done) break;
+        const watchdog = setInterval(() => {
+            if (!waitingForChunk || timeoutError) {
+                return;
+            }
 
-            let value = chunkInfo.value;
+            const waitTime = Date.now() - waitStartedAt;
+            if (!streamNotRespondedInTime && waitTime >= STREAM_NOT_RESPONDING_TIMEOUT) {
+                streamNotRespondedInTime = true;
+                this.emit("streamNotRespondingOn");
+            }
 
-            this.noRangeFetchSize += chunkInfo.value.length;
+            if (waitTime >= this.options.maxStreamWait!) {
+                timeoutError = new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`);
+                this._activeController?.abort();
+            }
+        }, Math.min(STREAM_NOT_RESPONDING_TIMEOUT, this.options.maxStreamWait!));
 
-            if (!this.state.activePart.acceptRange && this._startSize > 0) {
-                if (!dynamicContentLengthReached) {
-                    if (this._startSize > this.noRangeFetchSize) {
-                        this.state.onProgress?.(this.noRangeFetchSize);
-                        continue;
+        try {
+            while (true) {
+                if (this.options.progressThrottleMs) {
+                    await sleepPromise(this.options.progressThrottleMs);
+                }
+
+                if(this.aborted) break;
+
+                waitingForChunk = true;
+                waitStartedAt = Date.now();
+                const chunkInfo = await getNextChunk();
+                waitingForChunk = false;
+                clearStreamNotResponding();
+
+                if(this.paused){
+                    await this.paused;
+                }
+                
+                if (!chunkInfo || this.aborted || chunkInfo.done) break;
+
+                let value = chunkInfo.value;
+                this.noRangeFetchSize += chunkInfo.value.length;
+
+                if (!this.state.activePart.acceptRange && this._startSize > 0) {
+                    if (!dynamicContentLengthReached) {
+                        if (this._startSize > this.noRangeFetchSize) {
+                            this.state.onProgress?.(this.noRangeFetchSize);
+                            continue;
+                        }
+
+                        const skipBytes = chunkInfo.value.length - (this.noRangeFetchSize - this._startSize);
+                        value = chunkInfo.value.subarray(skipBytes);
+
+                        dynamicContentLengthReached = true;
                     }
+                }
 
-                    const skipBytes = chunkInfo.value.length - (this.noRangeFetchSize - this._startSize);
-                    value = chunkInfo.value.subarray(skipBytes);
+                smartSplit.addChunk(value);
+                this.state.onProgress?.(smartSplit.savedLength);
 
-                    dynamicContentLengthReached = true;
+                if (dynamicContentLengthReached && this._endSize && this.noRangeFetchSize >= this._endSize) {
+                    this._activeController?.abort();
+                    break;
                 }
             }
-
-            smartSplit.addChunk(value);
-            this.state.onProgress?.(smartSplit.savedLength);
-
-            if (dynamicContentLengthReached && this._endSize && this.noRangeFetchSize >= this._endSize) {
-                this._activeController?.abort();
-                break;
+        } catch (error) {
+            if(!this.aborted){
+                throw error;
             }
+        } finally {
+            waitingForChunk = false;
+            clearStreamNotResponding();
+            clearInterval(watchdog);
+            this.off("aborted", abortController.abort);
         }
 
         smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
-    }
-
-    protected _wrapperStreamNotResponding<T>(promise: Promise<T> | T): Promise<T | void> | T | void {
-        if (!(promise instanceof Promise)) {
-            return promise;
-        }
-
-        return new Promise<T | void>((resolve, reject) => {
-            let streamNotRespondedInTime = false;
-            let timeoutMaxStreamWaitThrows = false;
-            const timeoutNotResponding = setTimeout(() => {
-                streamNotRespondedInTime = true;
-                this.emit("streamNotRespondingOn");
-            }, STREAM_NOT_RESPONDING_TIMEOUT);
-
-            const timeoutMaxStreamWait = setTimeout(() => {
-                timeoutMaxStreamWaitThrows = true;
-                reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`));
-                this._activeController?.abort();
-            }, this.options.maxStreamWait);
-
-            this.addListener("aborted", resolve);
-
-            promise
-                .then(resolve)
-                .catch(error => {
-                    if (timeoutMaxStreamWaitThrows) {
-                        return;
-                    }
-                    if (this.aborted) {
-                        return resolve();
-                    }
-                    reject(error);
-                })
-                .finally(() => {
-                    clearTimeout(timeoutNotResponding);
-                    clearTimeout(timeoutMaxStreamWait);
-                    if (streamNotRespondedInTime) {
-                        this.emit("streamNotRespondingOff");
-                    }
-                    this.removeListener("aborted", resolve);
-                });
-        });
     }
 
 

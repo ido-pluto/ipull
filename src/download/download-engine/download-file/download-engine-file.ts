@@ -50,7 +50,7 @@ const DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM = 1024 * 1024; // 1MB
 
 const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {
     chunkSize: 0,
-    progressThrottleMs: 10
+    progressThrottleMs: 25
 };
 
 export const DEFAULT_DOWNLOAD_ENGINE_FILE_PER_PART_OPTIONS: DownloadEngineFilePerPartOptions = {
