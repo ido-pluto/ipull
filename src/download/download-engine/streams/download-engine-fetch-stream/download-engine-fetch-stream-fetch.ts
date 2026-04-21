@@ -154,7 +154,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         const clearStreamNotResponding = () => {
             if (!streamNotRespondedInTime) return;
             streamNotRespondedInTime = false;
-            this.emit("streamNotRespondingOff");
+            this.emit0("streamNotRespondingOff");
         };
 
         const watchdog = setInterval(() => {
@@ -165,7 +165,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             const waitTime = Date.now() - waitStartedAt;
             if (!streamNotRespondedInTime && waitTime >= STREAM_NOT_RESPONDING_TIMEOUT) {
                 streamNotRespondedInTime = true;
-                this.emit("streamNotRespondingOn");
+                this.emit0("streamNotRespondingOn");
             }
 
             if (waitTime >= this.options.maxStreamWait!) {

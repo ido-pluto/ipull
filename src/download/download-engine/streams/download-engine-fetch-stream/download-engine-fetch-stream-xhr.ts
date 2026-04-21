@@ -62,7 +62,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             let streamNotResponding = false;
             const clearStreamTimeout = () => {
                 if (streamNotResponding) {
-                    this.emit("streamNotRespondingOff");
+                    this.emit0("streamNotRespondingOff");
                     streamNotResponding = false;
                 }
 
@@ -80,7 +80,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
                 lastNotRespondingTimeoutIndex = setTimeout(() => {
                     streamNotResponding = true;
-                    this.emit("streamNotRespondingOn");
+                    this.emit0("streamNotRespondingOn");
                 }, STREAM_NOT_RESPONDING_TIMEOUT);
 
                 lastMaxStreamWaitTimeoutIndex = setTimeout(() => {

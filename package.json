@@ -130,7 +130,6 @@
     "ci-info": "^4.4.0",
     "cli-spinners": "^3.4.0",
     "commander": "^14.0.3",
-    "eventemitter3": "^5.0.4",
     "filenamify": "^7.0.1",
     "is-unicode-supported": "^2.1.0",
     "lifecycle-utils": "^3.1.1",

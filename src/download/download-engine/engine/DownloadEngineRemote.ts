@@ -1,5 +1,5 @@
 import {BaseDownloadEngineEvents} from "./base-download-engine.js";
-import {EventEmitter} from "eventemitter3";
+import { EventEmitter } from "../../../utils/EventEmitter.js";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {DownloadStatus} from "../download-file/progress-status-file.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
@@ -39,7 +39,7 @@ export class DownloadEngineRemote extends EventEmitter<BaseDownloadEngineEvents>
 
     public emitRemoteProgress(progress: FormattedStatus) {
         this._latestStatus = progress;
-        this.emit("progress", progress);
+        this.emit1("progress", progress);
         const isStatusChanged = this._latestStatus?.downloadStatus !== progress.downloadStatus;
 
         if (!isStatusChanged) {
@@ -49,25 +49,25 @@ export class DownloadEngineRemote extends EventEmitter<BaseDownloadEngineEvents>
         switch (progress.downloadStatus) {
             case DownloadStatus.Active:
                 if (this._latestStatus?.downloadStatus === DownloadStatus.Paused) {
-                    this.emit("resumed");
+                    this.emit0("resumed");
                 } else {
-                    this.emit("start");
+                    this.emit0("start");
                     this._downloadStarted = true;
                 }
                 break;
             case DownloadStatus.Finished:
             case DownloadStatus.Cancelled:
-                this.emit("finished");
-                this.emit("closed");
+                this.emit0("finished");
+                this.emit0("closed");
                 this._downloadEndPromise.resolve();
                 break;
             case DownloadStatus.Paused:
-                this.emit("paused");
+                this.emit0("paused");
                 break;
         }
 
         if (progress.downloadStatus === DownloadStatus.Active) {
-            this.emit("start");
+            this.emit0("start");
         }
     }
 }

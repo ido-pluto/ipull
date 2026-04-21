@@ -1,5 +1,5 @@
 import retry from "async-retry";
-import {EventEmitter} from "eventemitter3";
+import { EventEmitter } from "../../../../utils/EventEmitter.js";
 import {withLock} from "lifecycle-utils";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
@@ -203,7 +203,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 const response = await this.fetchDownloadInfoWithoutRetry(url);
                 if (retryingOn) {
                     retryingOn = false;
-                    this.emit("retryingOff");
+                    this.emit0("retryingOff");
                 }
                 return response;
             } catch (error: any) {
@@ -213,13 +213,13 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                 }
 
                 this.errorCount.value++;
-                this.emit("errorCountIncreased", this.errorCount.value, error);
+                this.emit2("errorCountIncreased", this.errorCount.value, error);
 
                 if (error instanceof HttpError && !this.retryOnServerError(error)) {
                     if ("tryHeaders" in this.options && tryHeaders.length) {
                         this.options.headers = tryHeaders.shift();
                         retryingOn = true;
-                        this.emit("retryingOn", error, this.errorCount.value);
+                        this.emit2("retryingOn", error, this.errorCount.value);
                         await sleepPromise(this.options.tryHeadersDelay ?? 0);
                         return await fetchDownloadInfoCallback();
                     }
@@ -230,7 +230,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
 
                 if (error instanceof StatusCodeError && error.retryAfter) {
                     retryingOn = true;
-                    this.emit("retryingOn", error, this.errorCount.value);
+                    this.emit2("retryingOn", error, this.errorCount.value);
                     await sleepPromise(error.retryAfter * 1000);
                     return await fetchDownloadInfoCallback();
                 }
@@ -262,7 +262,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     return await this.fetchWithoutRetryChunks((...args) => {
                         if (retryingOn) {
                             retryingOn = false;
-                            this.emit("retryingOff");
+                            this.emit0("retryingOff");
                         }
                         callback(...args);
                     });
@@ -270,7 +270,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     if (error?.name === "AbortError" && this.aborted) return;
 
                     this.errorCount.value++;
-                    this.emit("errorCountIncreased", this.errorCount.value, error);
+                    this.emit2("errorCountIncreased", this.errorCount.value, error);
 
                     const needToRecreateURL = this.shouldRecreateURL(error);
                     if (!needToRecreateURL && error instanceof HttpError && !this.retryOnServerError(error)) {
@@ -278,7 +278,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                     }
 
                     retryingOn = true;
-                    this.emit("retryingOn", error, this.errorCount.value);
+                    this.emit2("retryingOn", error, this.errorCount.value);
                     if (error instanceof StatusCodeError && error.retryAfter) {
                         await sleepPromise(error.retryAfter * 1000);
                         continue;
@@ -324,7 +324,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         this._closed = true;
 
         this._cleanupClonedStateListeners?.();
-        this.emit("aborted");
+        this.emit0("aborted");
     }
 
     protected appendToURL(url: string) {

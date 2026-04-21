@@ -2,7 +2,7 @@ import {DownloadFile, SaveProgressInfo} from "../types.js";
 import DownloadEngineFile, {DEFAULT_DOWNLOAD_ENGINE_FILE_PER_PART_OPTIONS, DownloadEngineFileOptions} from "../download-file/download-engine-file.js";
 import BaseDownloadEngineFetchStream, {BaseDownloadEngineFetchStreamOptions} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
-import {EventEmitter} from "eventemitter3";
+import { EventEmitter } from "../../../utils/EventEmitter.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import retry from "async-retry";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
@@ -108,27 +108,27 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
     protected _initEvents() {
         this._engine.on("start", () => {
-            return this.emit("start");
+            return this.emit0("start");
         });
         this._engine.on("save", (info) => {
-            return this.emit("save", info);
+            return this.emit1("save", info);
         });
         this._engine.on("finished", () => {
-            return this.emit("finished");
+            return this.emit0("finished");
         });
         this._engine.on("closed", () => {
-            return this.emit("closed");
+            return this.emit0("closed");
         });
         this._engine.on("paused", () => {
-            return this.emit("paused");
+            return this.emit0("paused");
         });
         this._engine.on("resumed", () => {
-            return this.emit("resumed");
+            return this.emit0("resumed");
         });
 
         this._progressStatisticsBuilder.on("progress", (status) => {
             this._latestStatus = status;
-            this.emit("progress", status);
+            this.emit1("progress", status);
         });
     }
 

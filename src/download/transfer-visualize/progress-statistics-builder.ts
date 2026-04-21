@@ -1,5 +1,5 @@
 import BaseDownloadEngine from "../download-engine/engine/base-download-engine.js";
-import {EventEmitter} from "eventemitter3";
+import { EventEmitter } from "../../utils/EventEmitter.js";
 import TransferStatistics from "./transfer-statistics.js";
 import {createFormattedStatus, FormattedStatus} from "./format-transfer-status.js";
 import DownloadEngineFile from "../download-engine/download-file/download-engine-file.js";
@@ -62,7 +62,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             };
         }
 
-        this.emit("progress", this._lastStatus);
+        this.emit1("progress", this._lastStatus);
     }
 
     public get totalBytes() {
@@ -167,7 +167,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             this._activeDownloadPart = downloadPartStart + data.downloadPart;
         }
 
-        this.emit("progress", this.createStatus(index, data));
+        this.emit1("progress", this.createStatus(index, data));
     }
 
     private createStatus(index: number, data?: ProgressStatus) {

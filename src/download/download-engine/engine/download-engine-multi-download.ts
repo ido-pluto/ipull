@@ -1,4 +1,4 @@
-import {EventEmitter} from "eventemitter3";
+import { EventEmitter } from "../../../utils/EventEmitter.js";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
@@ -138,7 +138,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
                 downloadFlags: progress.downloadFlags.concat([DownloadFlags.DownloadSequence])
             };
             this._lastStatus = progress;
-            this.emit("progress", progress);
+            this.emit1("progress", progress);
         });
 
         const originalProgress = this._progressStatisticsBuilder.status;
@@ -149,7 +149,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     private _addEngine(engine: Engine, index: number) {
-        this.emit("downloadAdded", engine);
+        this.emit1("downloadAdded", engine);
         const getStatus = (defaultProgress = engine.status) =>
             (this._options.unpackInnerMultiDownloadsStatues && engine instanceof DownloadEngineMultiDownload ? engine.downloadStatues : defaultProgress);
 
@@ -203,7 +203,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         try {
             this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
             this._downloadStarted = true;
-            this.emit("start");
+            this.emit0("start");
 
             const concurrencyCount = this._options.parallelDownloads || DEFAULT_OPTIONS.parallelDownloads;
             let continueIteration = true;
@@ -213,13 +213,13 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
                     if (this._aborted) return;
                     this._activeEngines.add(engine);
 
-                    this.emit("childDownloadStarted", engine);
+                    this.emit1("childDownloadStarted", engine);
                     if (engine._downloadStarted || this._options.naturalDownloadStart) {
                         await engine._downloadEndPromise.promise;
                     } else {
                         await engine.download();
                     }
-                    this.emit("childDownloadClosed", engine);
+                    this.emit1("childDownloadClosed", engine);
 
                     this._activeEngines.delete(engine);
                 });
@@ -233,7 +233,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
 
             this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
 
-            this.emit("finished");
+            this.emit0("finished");
             await this._finishEnginesDownload();
             await this.close();
             this._downloadEndPromise.resolve();
@@ -305,6 +305,6 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
             });
         await Promise.all(closePromises);
 
-        this.emit("closed");
+        this.emit0("closed");
     }
 }
