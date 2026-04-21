@@ -234,6 +234,8 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         await this.options.onStartedAsync?.();
         this._sendProgressDownloadPart();
 
+        const streamPromises = new Set<Promise<void>>();
+
         for (let i = this._progress.part; i < this.file.parts.length && !this.options.skipExisting; i++) {
             if (this._closed) return;
             // If we are starting a new part, we need to reset the progress
@@ -275,7 +277,17 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 await this._downloadSlice(0, chunksToRead);
             }
 
-            this._activePart.fetchStream.close();
+            const closePromise = this._activePart.fetchStream.close();
+            if (closePromise) {
+                streamPromises.add(closePromise);
+                closePromise.then(() => {
+                    streamPromises.delete(closePromise);
+                });
+            }
+        }
+
+        if (streamPromises.size > 0) {
+            await Promise.all(streamPromises);
         }
 
         // All parts are downloaded, we can clear the progress

@@ -56,9 +56,9 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
         };
     }
 
-    override close() {
+    override async close() {
         super.close();
-        this._fd?.close();
+        await this._fd?.close();
         this._fd = null;
     }
 }

@@ -224,7 +224,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         return downloadFile;
     }
 
-    protected static _validatePartRange(url: string, range: InputRange, remoteFileSize?: number) {
+    protected static _validatePartRange(url: string, range: InputRange, remoteFileSize: number = 0) {
         if (range.start < 0) {
             throw new InvalidOptionError(`Range start cannot be negative for URL: ${url}`);
         }
@@ -233,7 +233,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
             throw new InvalidOptionError(`Range start (${range.start}) cannot be greater than range end (${range.end}) for URL: ${url}`);
         }
 
-        if (remoteFileSize != null && range.end >= remoteFileSize) {
+        if (remoteFileSize > 0 && range.end >= remoteFileSize) {
             throw new RangeOutOfPartLengthError(url, range.end, remoteFileSize);
         }
     }
