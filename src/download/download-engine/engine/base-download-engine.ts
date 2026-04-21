@@ -172,14 +172,19 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
         downloadFile.parts = await Promise.all(parts.map(async (part, index) => {
             try {
+                if (part.range) {
+                    this._validatePartRange(part.url, part.range);
+                }
+
                 const {length, acceptRange, newURL, fileName} = await part.fetchStream.fetchDownloadInfo(part.url);
                 const downloadURL = reuseRedirectURL ? (newURL ?? part.url) : part.url;
                 const remoteFileSize = length || 0;
 
-                const downloadSize = part.range ? (part.range.end - part.range.start + 1) : remoteFileSize;
-                if (downloadSize > remoteFileSize) {
-                    throw new RangeOutOfPartLengthError(part.url, part.range!.end, remoteFileSize);
+                if (part.range) {
+                    this._validatePartRange(part.url, part.range, remoteFileSize);
                 }
+
+                const downloadSize = part.range ? (part.range.end - part.range.start + 1) : remoteFileSize;
 
                 downloadFile.totalSize += downloadSize;
                 if (index === 0 && fileName) {
@@ -217,6 +222,20 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         }));
 
         return downloadFile;
+    }
+
+    protected static _validatePartRange(url: string, range: InputRange, remoteFileSize?: number) {
+        if (range.start < 0) {
+            throw new InvalidOptionError(`Range start cannot be negative for URL: ${url}`);
+        }
+
+        if (range.start > range.end) {
+            throw new InvalidOptionError(`Range start (${range.start}) cannot be greater than range end (${range.end}) for URL: ${url}`);
+        }
+
+        if (remoteFileSize != null && range.end >= remoteFileSize) {
+            throw new RangeOutOfPartLengthError(url, range.end, remoteFileSize);
+        }
     }
 
     protected static _createFullPartURLs(options: InputURLOptions) {

@@ -66,6 +66,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             return await this.chunkGenerator(callback, () => reader.read());
         } finally {
             this.off("aborted", abort);
+            clearAbortTimeout();
         }
     }
 
@@ -87,51 +88,55 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
         const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
 
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                "Accept-Encoding": "identity",
-                ...this.options.headers
-            },
-            signal
-        });
+        try {
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    "Accept-Encoding": "identity",
+                    ...this.options.headers
+                },
+                signal
+            });
 
-        clearAbortTimeout();
+            clearAbortTimeout();
 
-        if (response.body) {
-            abort();
-        }
-
-        if (response.status < 200 || response.status >= 300) {
-            throw new StatusCodeError(url, response.status, response.statusText, this.options.headers, DownloadEngineFetchStreamFetch.convertHeadersToRecord(response.headers));
-        }
-
-        const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
-        const fileName = parseContentDisposition(response.headers.get("content-disposition"));
-
-        let length = parseInt(response.headers.get("content-length")!) || 0;
-        const someLengthInfo = length;
-
-        const contentEncoding = response.headers.get("content-encoding");
-        if (contentEncoding && contentEncoding !== "identity") {
-            length = 0; // If content is encoded, we cannot determine the length reliably
-        }
-
-        if (length === 0 && (acceptRange || browserCheck() && (method === "GET" || MIN_LENGTH_FOR_MORE_INFO_REQUEST < someLengthInfo))) {
-            if (method !== "GET") {
-                return this.fetchDownloadInfoWithoutRetryByMethod(url, "GET");
+            if (response.body) {
+                abort();
             }
 
-            const contentRange = response.headers.get("content-range");
-            length = parseHttpContentRange(contentRange)?.size || 0;
-        }
+            if (response.status < 200 || response.status >= 300) {
+                throw new StatusCodeError(url, response.status, response.statusText, this.options.headers, DownloadEngineFetchStreamFetch.convertHeadersToRecord(response.headers));
+            }
 
-        return {
-            length,
-            acceptRange,
-            newURL: response.url,
-            fileName
-        };
+            const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
+            const fileName = parseContentDisposition(response.headers.get("content-disposition"));
+
+            let length = parseInt(response.headers.get("content-length")!) || 0;
+            const someLengthInfo = length;
+
+            const contentEncoding = response.headers.get("content-encoding");
+            if (contentEncoding && contentEncoding !== "identity") {
+                length = 0; // If content is encoded, we cannot determine the length reliably
+            }
+
+            if (length === 0 && (acceptRange || browserCheck() && (method === "GET" || MIN_LENGTH_FOR_MORE_INFO_REQUEST < someLengthInfo))) {
+                if (method !== "GET") {
+                    return this.fetchDownloadInfoWithoutRetryByMethod(url, "GET");
+                }
+
+                const contentRange = response.headers.get("content-range");
+                length = parseHttpContentRange(contentRange)?.size || 0;
+            }
+
+            return {
+                length,
+                acceptRange,
+                newURL: response.url,
+                fileName
+            };
+        } finally {
+            clearAbortTimeout();
+        }
     }
 
     async chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {

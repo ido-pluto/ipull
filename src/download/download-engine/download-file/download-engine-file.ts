@@ -191,7 +191,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     protected _chunksForPart(part: number, fill = ChunkStatus.NOT_STARTED) {
         const partInfo = this.file.parts[part];
         if (partInfo.downloadSize === 0) {
-            return [ChunkStatus.NOT_STARTED];
+            return [fill];
         }
 
         const chunksCount = Math.ceil(partInfo.downloadSize / this.options.chunkSize);

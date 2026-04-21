@@ -17,10 +17,10 @@ pullCommand
     .addOption(new Option("--style [type]", "The style of the CLI progress bar").choices(["basic", "fancy", "ci", "summary"]))
     .addOption(new Option("-p --program [type]", "The download strategy").choices(["stream", "chunks"]))
     .option("-t --truncate-name", "Truncate file names in the CLI status to make them appear shorter")
-    .action(async (files: string[] = [], {save: saveLocation, truncateName, number, program, style}: {
+    .action(async (files: string[] = [], {save: saveLocation, truncateName, connections, program, style}: {
         save?: string,
         truncateName?: boolean,
-        number: string,
+        connections: string,
         program: string,
         style: AvailableCLIProgressStyle
     }) => {
@@ -35,7 +35,7 @@ pullCommand
                 const stat = await fs.lstat(saveLocation);
                 saveLocationIsDirectory = stat.isDirectory();
             } catch {
-                saveLocationIsDirectory = saveLocation.endsWith(path.sep);
+                saveLocationIsDirectory = /[\\/]\s*$/.test(saveLocation);
             }
         }
 
@@ -62,7 +62,7 @@ pullCommand
                     directory,
                     fileName,
                     truncateName,
-                    parallelStreams: Number(number) || 4,
+                    parallelStreams: Number(connections) || 4,
                     programType: program as any
                 });
             })

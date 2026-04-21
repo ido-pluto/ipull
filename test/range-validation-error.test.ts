@@ -1,56 +1,44 @@
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-import {describe, test} from "vitest";
+import {afterAll, beforeAll, describe, expect, test} from "vitest";
+import {downloadFileBrowser} from "../src/browser.js";
+import {InvalidOptionError} from "../src/download/download-engine/engine/error/InvalidOptionError.js";
 import {RangeOutOfPartLengthError} from "../src/download/download-engine/engine/error/RangeOutOfPartLengthError.js";
-import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
-// import {DownloadFile} from "../src/download/download-engine/types.js";
+import {LocalTestServer, startLocalTestServer, TEST_FILE_SIZE} from "./utils/local-server.js";
 
-const TEST_URL = "https://huggingface.co/giladgd/Qwen3-Reranker-0.6B-GGUF/resolve/main/Qwen3-Reranker-0.6B.Q2_K.gguf?download=true";
-
-function createPartWithRange(url: string, range: { start: number, end: number; }, remoteFileSize: number) {
-    return {
-        downloadURL: url,
-        originalURL: url,
-        acceptRange: true,
-        remoteFileSize,
-        downloadSize: range.end - range.start + 1,
-        downloadURLUpdateDate: Date.now(),
-        fetchStream: new DownloadEngineFetchStreamFetch(),
-        parallelStreams: 1,
-        autoIncreaseParallelStreams: false,
-        programType: "stream",
-        range
-    };
-}
+let baseURL: string;
+let server: LocalTestServer;
 
 describe("Range Validation & Error Handling", () => {
-    test("should throw RangeOutOfPartLengthError if range exceeds remoteFileSize", async ({expect}) => {
-        const remoteFileSize = 1000;
-        const part = createPartWithRange(TEST_URL, {start: 0, end: 2000}, remoteFileSize);
-        expect(() => {
-            if (part.downloadSize > part.remoteFileSize) {
-                throw new RangeOutOfPartLengthError(part.downloadURL, part.range.end, part.remoteFileSize);
-            }
-        }).toThrow(RangeOutOfPartLengthError);
+    beforeAll(async () => {
+        server = await startLocalTestServer();
+        baseURL = server.baseURL;
     });
 
-    test("should throw if start > end", async ({expect}) => {
-        const remoteFileSize = 1000;
-        const part = createPartWithRange(TEST_URL, {start: 900, end: 800}, remoteFileSize);
-        expect(() => {
-            if (part.range.start > part.range.end) {
-                throw new Error("Start of range is greater than end");
-            }
-        }).toThrow("Start of range is greater than end");
+    afterAll(async () => {
+        await server.close();
     });
 
-    test("should throw if range is negative", async ({expect}) => {
-        const remoteFileSize = 1000;
-        const part = createPartWithRange(TEST_URL, {start: -10, end: 100}, remoteFileSize);
-        expect(() => {
-            if (part.range.start < 0) {
-                throw new Error("Range start is negative");
+    test("should reject when range end exceeds the remote file size", async () => {
+        await expect(downloadFileBrowser({
+            url: `${baseURL}/range-file.bin`,
+            range: {
+                start: TEST_FILE_SIZE - 128,
+                end: TEST_FILE_SIZE + 128
             }
-        }).toThrow("Range start is negative");
+        })).rejects.toThrow(RangeOutOfPartLengthError);
+    });
+
+    test("should reject when range start is greater than range end", async () => {
+        await expect(downloadFileBrowser({
+            url: `${baseURL}/range-file.bin`,
+            range: {start: 512, end: 256}
+        })).rejects.toThrow(InvalidOptionError);
+    });
+
+    test("should reject when range start is negative", async () => {
+        await expect(downloadFileBrowser({
+            url: `${baseURL}/range-file.bin`,
+            range: {start: -1, end: 128}
+        })).rejects.toThrow(InvalidOptionError);
     });
 });
