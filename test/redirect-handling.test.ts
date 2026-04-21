@@ -1,9 +1,9 @@
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import {afterAll, beforeAll, describe, expect, test} from "vitest";
 import fsPromise from "fs/promises";
 import os from "os";
 import path from "path";
-import { downloadFile } from "../src/index.js";
-import { startLocalTestServer, LocalTestServer, TEST_FILE_SIZE } from "./utils/local-server.js";
+import {downloadFile} from "../src/index.js";
+import {startLocalTestServer, LocalTestServer, TEST_FILE_SIZE} from "./utils/local-server.js";
 
 let baseURL: string;
 let server: LocalTestServer;
@@ -33,7 +33,7 @@ describe("Redirect Handling", () => {
         expect(downloader.file.parts[0].downloadURL).toMatch(new RegExp(`^${baseURL.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/file\\.gguf\\?token=`));
         const fileSize = (await fsPromise.stat(downloader.finalFileAbsolutePath)).size;
         expect(fileSize).toBe(TEST_FILE_SIZE);
-        await fsPromise.rm(downloader.finalFileAbsolutePath, { force: true });
+        await fsPromise.rm(downloader.finalFileAbsolutePath, {force: true});
     });
 
     test("should respect reuseRedirectURL option when disabled", async () => {
@@ -51,6 +51,6 @@ describe("Redirect Handling", () => {
         expect(downloader.file.parts[0].downloadURL).toBe(`${baseURL}/fileCreateToken.gguf`);
         const fileSize = (await fsPromise.stat(downloader.finalFileAbsolutePath)).size;
         expect(fileSize).toBe(TEST_FILE_SIZE);
-        await fsPromise.rm(downloader.finalFileAbsolutePath, { force: true });
+        await fsPromise.rm(downloader.finalFileAbsolutePath, {force: true});
     });
 });

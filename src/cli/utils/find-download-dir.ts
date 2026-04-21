@@ -1,6 +1,6 @@
-import { lstat } from "fs/promises";
+import {lstat} from "fs/promises";
 import path from "path";
-import { AppDB } from "../../settings/settings.js";
+import {AppDB} from "../../settings/settings.js";
 
 const DEFAULT_DOWNLOAD_DIR = process.cwd();
 

@@ -1,7 +1,7 @@
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
 import DownloadEngineFile from "./download-engine-file.js";
 import {DownloadStatus, ProgressStatus} from "./progress-status-file.js";
-import { sleepPromise } from "../utils/sleepPromise.js";
+import {sleepPromise} from "../utils/sleepPromise.js";
 
 const BASE_AVERAGE_SPEED_TIME = 1000;
 const AVERAGE_SPEED_TIME = 1000 * 8;

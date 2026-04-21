@@ -5,7 +5,7 @@ export const STATUS_ICONS = isUnicodeSupported() ? {
     done: ansis.green("✔"),
     failed: ansis.red("✖"),
     pending: ansis.yellow("\u25f7")
-    }
+}
     : {
         activeDownload: ansis.blue.bold(">"),
         done: ansis.green("√"),

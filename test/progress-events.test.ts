@@ -1,9 +1,9 @@
-import { afterAll, beforeAll, describe, expect, test } from "vitest";
+import {afterAll, beforeAll, describe, expect, test} from "vitest";
 import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
 import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import DownloadEngineFetchStreamFetch from "../src/download/download-engine/streams/download-engine-fetch-stream/download-engine-fetch-stream-fetch.js";
 import {DownloadFile} from "../src/download/download-engine/types.js";
-import { startLocalTestServer, LocalTestServer } from "./utils/local-server.js";
+import {startLocalTestServer, LocalTestServer} from "./utils/local-server.js";
 
 let baseURL: string;
 let server: LocalTestServer;

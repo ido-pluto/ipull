@@ -4,7 +4,7 @@ import retry from "async-retry";
 import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 import streamResponse from "./utils/stream-response.js";
-import { ensureFile } from "../../../../utils/fs.js";
+import {ensureFile} from "../../../../utils/fs.js";
 
 const OPEN_MODE = "r";
 

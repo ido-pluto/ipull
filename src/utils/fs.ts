@@ -1,8 +1,8 @@
-import { promises as fs } from "fs";
+import {promises as fs} from "fs";
 import path from "path";
 
 export async function ensureFile(filePath: string): Promise<void> {
-    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.mkdir(path.dirname(filePath), {recursive: true});
     try {
         await fs.access(filePath);
     } catch {

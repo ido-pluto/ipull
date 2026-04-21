@@ -6,7 +6,7 @@ import switchProgram, {AvailablePrograms} from "./download-programs/switch-progr
 import {DownloaderProgramManager} from "./downloaderProgramManager.js";
 import {DownloadFlags, DownloadStatus, ProgressStatus} from "./progress-status-file.js";
 import {pushComment} from "./utils/push-comment.js";
-import { randomUUID } from "crypto";
+import {randomUUID} from "crypto";
 
 export type DownloadEngineFilePerPartOptions = {
     parallelStreams: number;

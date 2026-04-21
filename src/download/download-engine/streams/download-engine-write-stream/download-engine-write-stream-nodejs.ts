@@ -3,7 +3,7 @@ import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
 import WriteQueue from "./utils/WriteQueue.js";
-import { ensureFile, pathExists } from "../../../../utils/fs.js";
+import {ensureFile, pathExists} from "../../../../utils/fs.js";
 
 export type DownloadEngineWriteStreamOptionsNodeJS = {
     retry?: retry.Options;

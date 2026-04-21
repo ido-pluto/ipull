@@ -1,13 +1,13 @@
 import retry from "async-retry";
-import { EventEmitter } from "eventemitter3";
-import { withLock } from "lifecycle-utils";
+import {EventEmitter} from "eventemitter3";
+import {withLock} from "lifecycle-utils";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
-import { InputRange } from "../../engine/base-download-engine.js";
-import { sleepPromise } from "../../utils/sleepPromise.js";
+import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
+import {InputRange} from "../../engine/base-download-engine.js";
+import {sleepPromise} from "../../utils/sleepPromise.js";
 import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
-import { retryAsyncStatementSimple } from "./utils/retry-async-statement.js";
+import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
 
 export const STREAM_NOT_RESPONDING_TIMEOUT = 1000 * 3;
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
