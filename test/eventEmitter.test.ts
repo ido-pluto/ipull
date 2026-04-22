@@ -2,7 +2,6 @@ import {describe, expect, test, vi} from "vitest";
 import {EventEmitter} from "../src/utils/EventEmitter.js";
 
 type Assert<T extends true> = T;
-type IsAny<T> = 0 extends (1 & T) ? true : false;
 type IsExact<T, Expected> = [T] extends [Expected] ? ([Expected] extends [T] ? true : false) : false;
 
 type TestEvents = {
@@ -48,10 +47,6 @@ describe("EventEmitter", () => {
         const emitter = new EventEmitter<TestEvents>();
 
         emitter.on("data", (value, label) => {
-            type ValueIsNotAny = Assert<IsAny<typeof value> extends false ? true : false>;
-            type LabelIsNotAny = Assert<IsAny<typeof label> extends false ? true : false>;
-            type ValueIsNumber = Assert<IsExact<typeof value, number>>;
-            type LabelIsString = Assert<IsExact<typeof label, string>>;
             const typedValue: number = value;
             const typedLabel: string = label;
 

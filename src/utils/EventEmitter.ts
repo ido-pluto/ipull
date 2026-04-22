@@ -19,7 +19,7 @@ type KnownEventName<Events extends object> = Extract<{
 }[keyof Events], EventName>;
 type EventListener<Events extends object, Key extends EventName> = Key extends keyof Events ? Events[Key] extends AnyListener ? Events[Key] : never : AnyListener;
 type EventListenerArgs<Events extends object, Key extends EventName> = ListenerArgs<EventListener<Events, Key>>;
-type SuggestedEventName<Events extends object, ExtraEvents extends EventName> = KnownEventName<Events> | (ExtraEvents & {});
+type SuggestedEventName<Events extends object, ExtraEvents extends EventName> = KnownEventName<Events> | (ExtraEvents & object);
 type HasBroadEventKeys<Events extends object> = string extends keyof Events ? true : symbol extends keyof Events ? true : false;
 type DefaultExtraEvents<Events extends object> = HasBroadEventKeys<Events> extends true ? EventName : never;
 
