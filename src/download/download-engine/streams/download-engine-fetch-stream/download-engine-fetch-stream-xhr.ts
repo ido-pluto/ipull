@@ -2,7 +2,6 @@ import retry from "async-retry";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
 import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import BaseDownloadEngineFetchStream, {
-    BaseDownloadEngineFetchStreamOptions,
     DownloadInfoResponse,
     FetchSubState,
     MIN_LENGTH_FOR_MORE_INFO_REQUEST,
