@@ -1,22 +1,24 @@
 import retry from "async-retry";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
+import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
 import BaseDownloadEngineFetchStream, {
+    BaseDownloadEngineFetchStreamOptions,
     DownloadInfoResponse,
     FetchSubState,
     MIN_LENGTH_FOR_MORE_INFO_REQUEST,
-    STREAM_NOT_RESPONDING_TIMEOUT,
     WriteCallback
 } from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
-import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
+import { EmptyStreamTimeoutError } from "./errors/EmptyStreamTimeoutError.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
-import {parseContentDisposition} from "./utils/content-disposition.js";
-import {parseHttpContentRange} from "./utils/httpRange.js";
+import { parseContentDisposition } from "./utils/content-disposition.js";
+import { parseHttpContentRange } from "./utils/httpRange.js";
 
-
+const DEFAULT_OPTIONS: Partial<BaseDownloadEngineFetchStreamOptions> = {
+    streamCheckInterval: 1000
+};
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = true;
@@ -24,6 +26,13 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
     public override readonly availablePrograms: AvailablePrograms[] = ["chunks"];
 
     public override transferAction = "Downloading";
+
+    constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
+        super({
+            ...DEFAULT_OPTIONS,
+            ...options
+        });
+    }
 
     withSubState(state: FetchSubState): this {
         const fetchStream = new DownloadEngineFetchStreamXhr(this.options);
@@ -48,7 +57,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 headers.range = `bytes=${start}-${end - 1}`;
             }
 
-            const {signal, clearAbortTimeout} = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
+            const { signal, clearAbortTimeout } = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
 
             const xhr = new XMLHttpRequest();
             xhr.responseType = "arraybuffer";
@@ -57,50 +66,50 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
-            let lastNotRespondingTimeoutIndex: any;
-            let lastMaxStreamWaitTimeoutIndex: any;
-            let streamNotResponding = false;
-            const clearStreamTimeout = () => {
-                if (streamNotResponding) {
+            let streamNotRespondedInTime = false;
+            let waitingForChunk = false;
+            let lastChunkReceived = 0;
+            let aborted = false;
+
+            const clearStreamNotResponding = () => {
+                if (streamNotRespondedInTime) {
+                    streamNotRespondedInTime = false;
                     this.emit0("streamNotRespondingOff");
-                    streamNotResponding = false;
-                }
-
-                if (lastNotRespondingTimeoutIndex) {
-                    clearTimeout(lastNotRespondingTimeoutIndex);
-                }
-
-                if (lastMaxStreamWaitTimeoutIndex) {
-                    clearTimeout(lastMaxStreamWaitTimeoutIndex);
                 }
             };
 
-            const createStreamTimeout = () => {
-                clearStreamTimeout();
+            const clearWatchDog = this.watchDog(() => {
+                if (!waitingForChunk || aborted) {
+                    return;
+                }
 
-                lastNotRespondingTimeoutIndex = setTimeout(() => {
-                    streamNotResponding = true;
+                const waitTime = Date.now() - lastChunkReceived;
+                if (!streamNotRespondedInTime && waitTime >= this.options.streamWaitAlert!) {
+                    streamNotRespondedInTime = true;
                     this.emit0("streamNotRespondingOn");
-                }, STREAM_NOT_RESPONDING_TIMEOUT);
+                }
 
-                lastMaxStreamWaitTimeoutIndex = setTimeout(() => {
+                if (waitTime >= this.options.maxStreamWait!) {
                     abortXhr(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`));
-                }, this.options.maxStreamWait);
-            };
+                }
+            });
 
             const abortXhr = (throwError = new XhrError(`Aborted fetching ${url}`)) => {
-                clearStreamTimeout();
+                aborted = true;
                 clearAbortTimeout();
                 xhr.abort();
                 this.off("aborted", abortXhr);
+                clearStreamNotResponding();
+                clearWatchDog();
 
                 reject(throwError);
             };
 
-
             xhr.onload = () => {
-                clearStreamTimeout();
-                clearAbortTimeout();
+                lastChunkReceived = Date.now();
+                waitingForChunk = false;
+                clearStreamNotResponding();
+                clearWatchDog();
 
                 if (xhr.status >= 200 && xhr.status < 300) {
                     const arrayBuffer: ArrayBuffer = xhr.response;
@@ -132,7 +141,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.onprogress = (event) => {
-                createStreamTimeout();
+                clearStreamNotResponding();
                 if (event.lengthComputable) {
                     onProgress?.(event.loaded);
                     this.noRangeFetchSize = event.loaded;
@@ -145,6 +154,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 }
 
                 clearAbortTimeout();
+                waitingForChunk = true;
 
                 const contentLength = parseHttpContentRange(xhr.getResponseHeader("content-range"))?.length ?? parseInt(xhr.getResponseHeader("content-length")!);
                 if (this.state.activePart.acceptRange && contentLength !== expectedContentLength || contentLength && expectedContentLength && contentLength < expectedContentLength) {
@@ -157,7 +167,6 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.send();
-            createStreamTimeout();
             this.on("aborted", abortXhr);
             signal.addEventListener("abort", () => {
                 abortXhr(new XhrError(signal.reason));
@@ -225,7 +234,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
         return new Promise((resolve, reject) => {
-            const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
+            const { signal, abort, clearAbortTimeout } = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
 
             const xhr = new XMLHttpRequest();
             xhr.open(method, url, true);

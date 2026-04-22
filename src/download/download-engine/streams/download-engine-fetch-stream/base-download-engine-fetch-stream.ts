@@ -1,15 +1,14 @@
 import retry from "async-retry";
 import { EventEmitter } from "../../../../utils/EventEmitter.js";
-import {withLock} from "lifecycle-utils";
+import { withLock } from "lifecycle-utils";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
-import {InputRange} from "../../engine/base-download-engine.js";
-import {sleepPromise} from "../../utils/sleepPromise.js";
+import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
+import { InputRange } from "../../engine/base-download-engine.js";
+import { sleepPromise } from "../../utils/sleepPromise.js";
 import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
-import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
+import { retryAsyncStatementSimple } from "./utils/retry-async-statement.js";
 
-export const STREAM_NOT_RESPONDING_TIMEOUT = 1000 * 3;
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 
 const TOKEN_EXPIRED_ERROR_CODES = [401, 403, 419, 440, 498, 499];
@@ -19,7 +18,15 @@ export type BaseDownloadEngineFetchStreamOptions = {
     retryFetchDownloadInfo?: retry.Options;
     range?: InputRange;
     /**
-     * Max wait for next data stream
+     * Interval read data and check if stream is not responding (default: 1s)
+     */
+    streamCheckInterval?: number;
+    /**
+     * Max wait for stream to respond with data before raising stream not responding event (default: 3s)
+     */
+    streamWaitAlert?: number;
+    /**
+     * Max wait for next data stream before aborting and retrying (default: 15s)
      */
     maxStreamWait?: number;
     /**
@@ -41,19 +48,19 @@ export type BaseDownloadEngineFetchStreamOptions = {
      */
     progressThrottleMs?: number;
 } & (
-    {
-        defaultFetchDownloadInfo?: { length: number, acceptRange: boolean; };
-    } |
-    {
-        /**
-         * Try different headers to see if any authentication is needed
-         */
-        tryHeaders?: Record<string, string>[];
-        /**
-         * Delay between trying different headers
-         */
-        tryHeadersDelay?: number;
-    });
+        {
+            defaultFetchDownloadInfo?: { length: number, acceptRange: boolean; };
+        } |
+        {
+            /**
+             * Try different headers to see if any authentication is needed
+             */
+            tryHeaders?: Record<string, string>[];
+            /**
+             * Delay between trying different headers
+             */
+            tryHeadersDelay?: number;
+        });
 
 export type DownloadInfoResponse = {
     length: number,
@@ -93,6 +100,8 @@ export type WriteCallback = (data: Uint8Array[], position: number, index: number
 
 const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     retryOnServerError: true,
+    streamCheckInterval: 10,
+    streamWaitAlert: 1000 * 3,
     maxStreamWait: 1000 * 15,
     headersTimeout: 1000 * 30,
     retry: {
@@ -111,8 +120,7 @@ const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     range: {
         start: 0,
         end: -1
-    },
-    progressThrottleMs: 15
+    }
 };
 
 export default abstract class BaseDownloadEngineFetchStream extends EventEmitter<BaseDownloadEngineFetchStreamEvents> {
@@ -127,13 +135,16 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public aborted = false;
     protected _pausedResolve?: () => void;
     protected _cleanupClonedStateListeners?: () => void;
-    public errorCount = {value: 0};
+    public errorCount = { value: 0 };
     public lastFetchTime = 0;
     private _closed = false;
+    private _watchDogCalls = new Set<() => void>();
+    private _watchDogInterval?: NodeJS.Timeout;
 
     constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
         super();
-        this.options = {...DEFAULT_OPTIONS, ...options};
+        this.options = { ...DEFAULT_OPTIONS, ...options };
+        this.watchDog = this.watchDog.bind(this);
         this.initEvents();
     }
 
@@ -188,6 +199,8 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
             this.off("resumed", forwardResumed);
             fetchStream._cleanupClonedStateListeners = undefined;
         };
+
+        this.watchDog = fetchStream.watchDog;
 
         return fetchStream;
     }
@@ -336,6 +349,25 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
         }
 
         return parsed.href;
+    }
+
+    protected watchDog(callback: () => void) {
+        this._watchDogCalls.add(callback);
+        if (!this._watchDogInterval) {            
+            this._watchDogInterval = setInterval(() => {
+                for (const cb of this._watchDogCalls) {
+                    cb();
+                }
+            }, this.options.streamCheckInterval!);
+        }
+
+        return () => {
+            this._watchDogCalls.delete(callback);
+            if (this._watchDogCalls.size === 0 && this._watchDogInterval) {
+                clearInterval(this._watchDogInterval);
+                this._watchDogInterval = undefined;
+            }
+        };
     }
 
     protected retryOnServerError(error: Error): error is StatusCodeError {

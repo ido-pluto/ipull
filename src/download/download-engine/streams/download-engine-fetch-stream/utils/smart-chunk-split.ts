@@ -16,6 +16,7 @@ export default class SmartChunkSplit {
     private readonly _lastChunkSize: number;
     private _bytesWriteLocation: number;
     private _chunks: Uint8Array[] = [];
+    private _savedLength = 0;
     private _closed = false;
 
     public constructor(_callback: WriteCallback, _options: SmartChunkSplitOptions) {
@@ -32,16 +33,19 @@ export default class SmartChunkSplit {
 
     public addChunk(data: Uint8Array) {
         this._chunks.push(data);
+        this._savedLength += data.length;
         this._sendChunk();
     }
 
     public get savedLength() {
-        return this._chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        return this._savedLength;
     }
 
     closeAndSendLeftoversIfLengthIsUnknown() {
         if (this._chunks.length > 0 && this._options.endChunk === Infinity) {
             this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++);
+            this._chunks = [];
+            this._savedLength = 0;
         }
         this._closed = true;
     }
@@ -73,6 +77,7 @@ export default class SmartChunkSplit {
                         this._chunks.unshift(currentChunk.subarray(lastChunkEnd));
                     }
 
+                    this._savedLength -= calcChunkThreshold;
                     this._callback(sendChunks, this._bytesWriteLocation, this._options.startChunk++);
                     this._bytesWriteLocation += calcChunkThreshold;
                     break;
