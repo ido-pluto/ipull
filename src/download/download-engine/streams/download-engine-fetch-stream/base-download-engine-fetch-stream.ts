@@ -18,7 +18,7 @@ export type BaseDownloadEngineFetchStreamOptions = {
     retryFetchDownloadInfo?: retry.Options;
     range?: InputRange;
     /**
-     * Interval read data and check if stream is not responding (default: 1s)
+     * Interval to read data and check if stream is not responding (default: 10ms)
      */
     streamCheckInterval?: number;
     /**
