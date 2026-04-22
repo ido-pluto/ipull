@@ -1,5 +1,4 @@
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import {promiseWithResolvers} from "../../utils/promiseWithResolvers.js";
 import BaseDownloadEngineFetchStream, {
     DownloadInfoResponse,
     FetchSubState,
@@ -142,91 +141,47 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         }
     }
 
-    chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
-        const {promise, reject, resolve} = promiseWithResolvers<void>();
-
+    async chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
         const smartSplit = new SmartChunkSplit(callback, this.state);
 
         let dynamicContentLengthReached = false;
         let waitingForChunk = false;
-        let waitStartedAt = Date.now();
+        let waitStartedAt = 0;
         let streamNotRespondedInTime = false;
-        let lastReadTime = 0;
-        let finished = false;
+        let timeoutError = false;
 
         const clearStreamNotResponding = () => {
             if (!streamNotRespondedInTime) return;
             streamNotRespondedInTime = false;
-            this.emit0("streamNotRespondingOff");
+            this.emit("streamNotRespondingOff");
         };
 
-        const watchDogCallback = () => {
-            if (this.paused) {
-                clearWatchdog();
-                smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
-                reject(new RenewFetchError("Fetch paused"));
-                this._activeController?.abort();
-                return;
-            }
-
-            readData();
-
-            if (!waitingForChunk || finished) {
+        const clearWatchDog = this.watchDog(() => {
+            if (!waitingForChunk || timeoutError) {
                 return;
             }
 
             const waitTime = Date.now() - waitStartedAt;
             if (!streamNotRespondedInTime && waitTime >= this.options.streamWaitAlert!) {
                 streamNotRespondedInTime = true;
-                this.emit0("streamNotRespondingOn");
+                this.emit("streamNotRespondingOn");
             }
 
             if (waitTime >= this.options.maxStreamWait!) {
-                onFinish(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`));
+                timeoutError = true;
                 this._activeController?.abort();
             }
-        };
+        });
 
-        const clearWatchdog = this.watchDog(watchDogCallback);
-
-        const onFinish = (error?: Error) => {
-            if (finished) return;
-
-            finished = true;
-            waitingForChunk = false;
-            clearStreamNotResponding();
-            clearWatchdog();
-            smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
-
-            if (error && !this.aborted) {
-                reject(error);
-            } else {
-                resolve();
-            }
-        };
-
-        const readData = async () => {
-            if (finished || waitingForChunk || Date.now() - lastReadTime < this.options.progressThrottleMs!) {
-                return;
-            }
-
-            try {
-                if (this.aborted) {
-                    onFinish();
-                    return;
-                }
-
+        try {
+            while (!timeoutError && !this.paused) {
                 waitingForChunk = true;
                 waitStartedAt = Date.now();
                 const chunkInfo = await getNextChunk();
                 waitingForChunk = false;
                 clearStreamNotResponding();
-                lastReadTime = Date.now();
 
-                if (!chunkInfo || this.aborted || chunkInfo.done) {
-                    onFinish();
-                    return;
-                }
+                if (!chunkInfo || this.aborted || chunkInfo.done || this.paused) break;
 
                 let value = chunkInfo.value;
                 this.noRangeFetchSize += chunkInfo.value.length;
@@ -235,7 +190,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
                     if (!dynamicContentLengthReached) {
                         if (this._startSize > this.noRangeFetchSize) {
                             this.state.onProgress?.(this.noRangeFetchSize);
-                            return;
+                            continue;
                         }
 
                         const skipBytes = chunkInfo.value.length - (this.noRangeFetchSize - this._startSize);
@@ -249,18 +204,27 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
                 this.state.onProgress?.(smartSplit.savedLength);
 
                 if (dynamicContentLengthReached && this._endSize && this.noRangeFetchSize >= this._endSize) {
-                    this._activeController?.abort();
-                    onFinish();
-                    return;
+                    break;
                 }
-            } catch (error) {
-                onFinish(error as any);
             }
-        };
 
-        return promise;
+            if (timeoutError){
+                throw new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`);
+            }
+
+            if (this.paused) {
+                throw new RenewFetchError("Fetch paused");
+            }
+
+        } finally {
+            this._activeController?.abort();
+            waitingForChunk = false;
+            clearStreamNotResponding();
+            clearWatchDog();
+        }
+
+        smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
     }
-
 
     protected static convertHeadersToRecord(headers: Headers): { [key: string]: string; } {
         const headerObj: { [key: string]: string; } = {};

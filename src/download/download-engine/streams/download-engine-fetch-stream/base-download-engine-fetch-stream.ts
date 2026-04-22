@@ -44,10 +44,6 @@ export type BaseDownloadEngineFetchStreamOptions = {
      */
     acceptRangeIsKnown?: boolean;
     ignoreIfRangeWithQueryParams?: boolean;
-    /**
-     * Reduce async operation by getting data from the stream less often
-     */
-    progressThrottleMs?: number;
 } & (
         {
             defaultFetchDownloadInfo?: { length: number, acceptRange: boolean; };
@@ -101,8 +97,7 @@ export type WriteCallback = (data: Uint8Array[], position: number, index: number
 
 const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     retryOnServerError: true,
-    streamCheckInterval: 10,
-    progressThrottleMs: 10,
+    streamCheckInterval: 1000,
     streamWaitAlert: 1000 * 3,
     maxStreamWait: 1000 * 15,
     headersTimeout: 1000 * 30,

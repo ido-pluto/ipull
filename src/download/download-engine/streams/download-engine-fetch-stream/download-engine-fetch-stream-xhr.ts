@@ -16,23 +16,12 @@ import XhrError from "./errors/xhr-error.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
 import {parseHttpContentRange} from "./utils/httpRange.js";
 
-const DEFAULT_OPTIONS: Partial<BaseDownloadEngineFetchStreamOptions> = {
-    streamCheckInterval: 1000
-};
-
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = true;
     public override readonly defaultProgramType: AvailablePrograms = "chunks";
     public override readonly availablePrograms: AvailablePrograms[] = ["chunks"];
 
     public override transferAction = "Downloading";
-
-    constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
-        super({
-            ...DEFAULT_OPTIONS,
-            ...options
-        });
-    }
 
     withSubState(state: FetchSubState): this {
         const fetchStream = new DownloadEngineFetchStreamXhr(this.options);

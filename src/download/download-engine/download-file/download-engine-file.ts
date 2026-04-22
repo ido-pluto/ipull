@@ -6,7 +6,6 @@ import switchProgram, {AvailablePrograms} from "./download-programs/switch-progr
 import {DownloaderProgramManager} from "./downloaderProgramManager.js";
 import {DownloadFlags, DownloadStatus, ProgressStatus} from "./progress-status-file.js";
 import {pushComment} from "./utils/push-comment.js";
-import {randomUUID} from "crypto";
 
 export type DownloadEngineFilePerPartOptions = {
     parallelStreams: number;
@@ -50,7 +49,7 @@ const DEFAULT_CHUNKS_SIZE_FOR_STREAM_PROGRAM = 1024 * 1024; // 1MB
 
 const DEFAULT_OPTIONS: Omit<DownloadEngineFileOptionsWithDefaults, "fetchStream" | "writeStream"> = {
     chunkSize: 0,
-    progressThrottleMs: 25
+    progressThrottleMs: 15
 };
 
 export const DEFAULT_DOWNLOAD_ENGINE_FILE_PER_PART_OPTIONS: DownloadEngineFilePerPartOptions = {
@@ -232,7 +231,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         } else {
             this._progress = {
                 part: 0,
-                downloadId: randomUUID(),
+                downloadId: crypto.randomUUID(),
                 chunks: this._chunksForPart(0),
                 chunkSize: this.options.chunkSize
             };
