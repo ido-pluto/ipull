@@ -200,7 +200,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
             fetchStream._cleanupClonedStateListeners = undefined;
         };
 
-        this.watchDog = fetchStream.watchDog;
+        fetchStream.watchDog = this.watchDog;
 
         return fetchStream;
     }
