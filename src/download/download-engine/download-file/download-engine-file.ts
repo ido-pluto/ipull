@@ -1,12 +1,12 @@
-import { EventEmitter } from "../../../utils/EventEmitter.js";
+import {EventEmitter} from "../../../utils/EventEmitter.js";
 import BaseDownloadEngineWriteStream from "../streams/download-engine-write-stream/base-download-engine-write-stream.js";
-import { ChunkStatus, DownloadFile, SaveProgressInfo } from "../types.js";
+import {ChunkStatus, DownloadFile, SaveProgressInfo} from "../types.js";
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
-import switchProgram, { AvailablePrograms } from "./download-programs/switch-program.js";
-import { DownloaderProgramManager } from "./downloaderProgramManager.js";
-import { DownloadFlags, DownloadStatus, ProgressStatus } from "./progress-status-file.js";
-import { pushComment } from "./utils/push-comment.js";
-import { randomUUID } from "crypto";
+import switchProgram, {AvailablePrograms} from "./download-programs/switch-program.js";
+import {DownloaderProgramManager} from "./downloaderProgramManager.js";
+import {DownloadFlags, DownloadStatus, ProgressStatus} from "./progress-status-file.js";
+import {pushComment} from "./utils/push-comment.js";
+import {randomUUID} from "crypto";
 
 export type DownloadEngineFilePerPartOptions = {
     parallelStreams: number;
@@ -88,7 +88,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     public constructor(file: DownloadFile, options: DownloadEngineFileOptions) {
         super();
         this.file = file;
-        this.options = { ...DEFAULT_OPTIONS, ...options };
+        this.options = {...DEFAULT_OPTIONS, ...options};
         this._progressStatus = {
             totalDownloadParts: file.parts.length,
             fileName: file.localFileName,
@@ -320,7 +320,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     }
 
     protected async _downloadSlice(startChunk: number, endChunk: number) {
-        const getContext = () => this._activeStreamContext[startChunk] ??= { streamBytes: 0, retryingAttempts: 0 };
+        const getContext = () => this._activeStreamContext[startChunk] ??= {streamBytes: 0, retryingAttempts: 0};
 
         const fetchState = this._activePart.fetchStream.withSubState({
             chunkSize: this._progress.chunkSize,

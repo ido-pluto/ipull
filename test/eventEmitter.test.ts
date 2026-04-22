@@ -1,5 +1,5 @@
-import { describe, expect, test, vi } from "vitest";
-import { EventEmitter } from "../src/utils/EventEmitter.js";
+import {describe, expect, test, vi} from "vitest";
+import {EventEmitter} from "../src/utils/EventEmitter.js";
 
 type TestEvents = {
     data: (value: number, label: string) => void;

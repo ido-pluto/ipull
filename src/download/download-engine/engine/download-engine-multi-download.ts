@@ -1,4 +1,4 @@
-import { EventEmitter } from "../../../utils/EventEmitter.js";
+import {EventEmitter} from "../../../utils/EventEmitter.js";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";

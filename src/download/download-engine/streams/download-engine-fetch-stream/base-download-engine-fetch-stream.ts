@@ -1,13 +1,13 @@
 import retry from "async-retry";
-import { EventEmitter } from "../../../../utils/EventEmitter.js";
-import { withLock } from "lifecycle-utils";
+import {EventEmitter} from "../../../../utils/EventEmitter.js";
+import {withLock} from "lifecycle-utils";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
-import { InputRange } from "../../engine/base-download-engine.js";
-import { sleepPromise } from "../../utils/sleepPromise.js";
+import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
+import {InputRange} from "../../engine/base-download-engine.js";
+import {sleepPromise} from "../../utils/sleepPromise.js";
 import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
-import { retryAsyncStatementSimple } from "./utils/retry-async-statement.js";
+import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
 
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 
@@ -135,7 +135,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     public aborted = false;
     protected _pausedResolve?: () => void;
     protected _cleanupClonedStateListeners?: () => void;
-    public errorCount = { value: 0 };
+    public errorCount = {value: 0};
     public lastFetchTime = 0;
     private _closed = false;
     private _watchDogCalls = new Set<() => void>();
@@ -143,7 +143,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
 
     constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
         super();
-        this.options = { ...DEFAULT_OPTIONS, ...options };
+        this.options = {...DEFAULT_OPTIONS, ...options};
         this.watchDog = this.watchDog.bind(this);
         this.initEvents();
     }

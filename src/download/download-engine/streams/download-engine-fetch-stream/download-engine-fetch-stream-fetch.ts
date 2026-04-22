@@ -1,17 +1,17 @@
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import { promiseWithResolvers } from "../../utils/promiseWithResolvers.js";
+import {promiseWithResolvers} from "../../utils/promiseWithResolvers.js";
 import BaseDownloadEngineFetchStream, {
     DownloadInfoResponse,
     FetchSubState,
     MIN_LENGTH_FOR_MORE_INFO_REQUEST,
     WriteCallback
 } from "./base-download-engine-fetch-stream.js";
-import { EmptyStreamTimeoutError } from "./errors/EmptyStreamTimeoutError.js";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
-import { browserCheck } from "./utils/browserCheck.js";
-import { parseContentDisposition } from "./utils/content-disposition.js";
-import { parseHttpContentRange } from "./utils/httpRange.js";
+import {browserCheck} from "./utils/browserCheck.js";
+import {parseContentDisposition} from "./utils/content-disposition.js";
+import {parseHttpContentRange} from "./utils/httpRange.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
@@ -41,8 +41,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             this._activeController?.abort();
         }
 
-        const { signal, abort, clearAbortTimeout } = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
-        this._activeController = { abort, signal };
+        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+        this._activeController = {abort, signal};
         this.on("aborted", abort);
 
         try {
@@ -86,7 +86,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
-        const { signal, abort, clearAbortTimeout } = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
 
         try {
             const response = await fetch(url, {
@@ -140,7 +140,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
-        const { promise, reject, resolve } = promiseWithResolvers<void>();
+        const {promise, reject, resolve} = promiseWithResolvers<void>();
 
         const smartSplit = new SmartChunkSplit(callback, this.state);
 
@@ -182,9 +182,9 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
                 onFinish(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`));
                 this._activeController?.abort();
             }
-        }
+        };
 
-        let clearWatchdog = this.watchDog(watchDogCallback);
+        const clearWatchdog = this.watchDog(watchDogCallback);
 
         const onFinish = (error?: Error) => {
             if (finished) return;
@@ -211,7 +211,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
                 if (this.aborted) {
                     onFinish();
                     return;
-                };
+                }
 
                 waitingForChunk = true;
                 waitStartedAt = Date.now();

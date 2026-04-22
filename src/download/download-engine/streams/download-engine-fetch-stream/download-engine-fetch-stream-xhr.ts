@@ -1,6 +1,6 @@
 import retry from "async-retry";
 import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
-import { AvailablePrograms } from "../../download-file/download-programs/switch-program.js";
+import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import BaseDownloadEngineFetchStream, {
     BaseDownloadEngineFetchStreamOptions,
     DownloadInfoResponse,
@@ -9,12 +9,12 @@ import BaseDownloadEngineFetchStream, {
     WriteCallback
 } from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
-import { EmptyStreamTimeoutError } from "./errors/EmptyStreamTimeoutError.js";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
-import { parseContentDisposition } from "./utils/content-disposition.js";
-import { parseHttpContentRange } from "./utils/httpRange.js";
+import {parseContentDisposition} from "./utils/content-disposition.js";
+import {parseHttpContentRange} from "./utils/httpRange.js";
 
 const DEFAULT_OPTIONS: Partial<BaseDownloadEngineFetchStreamOptions> = {
     streamCheckInterval: 1000
@@ -57,7 +57,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 headers.range = `bytes=${start}-${end - 1}`;
             }
 
-            const { signal, clearAbortTimeout } = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
+            const {signal, clearAbortTimeout} = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
 
             const xhr = new XMLHttpRequest();
             xhr.responseType = "arraybuffer";
@@ -234,7 +234,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
         return new Promise((resolve, reject) => {
-            const { signal, abort, clearAbortTimeout } = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
+            const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
 
             const xhr = new XMLHttpRequest();
             xhr.open(method, url, true);

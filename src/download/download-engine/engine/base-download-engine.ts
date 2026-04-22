@@ -2,7 +2,7 @@ import {DownloadFile, SaveProgressInfo} from "../types.js";
 import DownloadEngineFile, {DEFAULT_DOWNLOAD_ENGINE_FILE_PER_PART_OPTIONS, DownloadEngineFileOptions} from "../download-file/download-engine-file.js";
 import BaseDownloadEngineFetchStream, {BaseDownloadEngineFetchStreamOptions} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
-import { EventEmitter } from "../../../utils/EventEmitter.js";
+import {EventEmitter} from "../../../utils/EventEmitter.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import retry from "async-retry";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
