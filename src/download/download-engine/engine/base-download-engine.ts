@@ -49,7 +49,6 @@ export type BaseDownloadEngineEvents = {
     save: (progress: SaveProgressInfo) => void;
     finished: () => void;
     closed: () => void;
-    [key: string]: any;
 };
 
 export const DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS: Partial<BaseDownloadEngineOptions> = {

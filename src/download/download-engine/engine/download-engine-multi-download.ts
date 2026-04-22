@@ -7,7 +7,16 @@ import {DownloadFlags, DownloadStatus} from "../download-file/progress-status-fi
 import {DownloadEngineRemote} from "./DownloadEngineRemote.js";
 import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
 
-export type DownloadEngineMultiAllowedEngines = BaseDownloadEngine | DownloadEngineRemote | DownloadEngineMultiDownload<any>;
+type BaseDownloadEngineEventName = Extract<keyof BaseDownloadEngineEvents, string>;
+
+export type BaseDownloadEngineEventTarget = {
+    on<Key extends BaseDownloadEngineEventName>(eventName: Key, listener: BaseDownloadEngineEvents[Key]): unknown;
+    off<Key extends BaseDownloadEngineEventName>(eventName: Key, listener: BaseDownloadEngineEvents[Key]): unknown;
+    once<Key extends BaseDownloadEngineEventName>(eventName: Key, listener: BaseDownloadEngineEvents[Key]): unknown;
+};
+
+type DownloadEngineMultiAllowedEngineCore = BaseDownloadEngine | DownloadEngineRemote | DownloadEngineMultiDownload<any>;
+export type DownloadEngineMultiAllowedEngines = DownloadEngineMultiAllowedEngineCore & BaseDownloadEngineEventTarget;
 
 type DownloadEngineMultiDownloadEvents<Engine = DownloadEngineMultiAllowedEngines> = BaseDownloadEngineEvents & {
     childDownloadStarted: (engine: Engine) => void

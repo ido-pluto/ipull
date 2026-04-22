@@ -41,7 +41,6 @@ export type DownloadEngineFileEvents = {
     save: (progress: SaveProgressInfo) => void;
     finished: () => void;
     closed: () => void;
-    [key: string]: any;
 };
 
 const DEFAULT_CHUNKS_SIZE_FOR_CHUNKS_PROGRAM = 1024 * 1024 * 5; // 5MB

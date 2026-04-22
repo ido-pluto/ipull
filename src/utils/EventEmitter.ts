@@ -1,26 +1,34 @@
 type AnyListener = (...args: any[]) => void;
 
-type KnownKeys<T> = {
-    [Key in keyof T]: string extends Key ? never : number extends Key ? never : symbol extends Key ? never : Key;
-}[keyof T];
-
-type KnownEventName<Events extends object> = Extract<KnownKeys<Events>, string | symbol>;
-type KnownEventListener<Events extends object, Key extends KnownEventName<Events>> = Events[Key] extends AnyListener ? Events[Key] : never;
 type ListenerArgs<Listener> = Listener extends (...args: infer Args) => void ? Args : never;
 type StoredListener = AnyListener & {
     _originalListener?: AnyListener;
 };
 type StoredEvent = StoredListener | StoredListener[];
 type EventName = string | symbol;
+type KnownEventName<Events extends object> = Extract<{
+    [Key in keyof Events]: Key extends EventName
+        ? string extends Key
+            ? never
+            : number extends Key
+                ? never
+                : symbol extends Key
+                    ? never
+                    : Key
+        : never;
+}[keyof Events], EventName>;
+type EventListener<Events extends object, Key extends EventName> = Key extends keyof Events ? Events[Key] extends AnyListener ? Events[Key] : never : AnyListener;
+type EventListenerArgs<Events extends object, Key extends EventName> = ListenerArgs<EventListener<Events, Key>>;
+type SuggestedEventName<Events extends object, ExtraEvents extends EventName> = KnownEventName<Events> | (ExtraEvents & {});
+type HasBroadEventKeys<Events extends object> = string extends keyof Events ? true : symbol extends keyof Events ? true : false;
+type DefaultExtraEvents<Events extends object> = HasBroadEventKeys<Events> extends true ? EventName : never;
 
 export type EventMap = Record<PropertyKey, AnyListener>;
 
-export class EventEmitter<Events extends object = Record<string, never>> {
+export class EventEmitter<Events extends object = EventMap, ExtraEvents extends EventName = DefaultExtraEvents<Events>> {
     private _events = new Map<EventName, StoredEvent>();
 
-    public on<Key extends KnownEventName<Events>>(eventName: Key, listener: KnownEventListener<Events, Key>): this;
-    public on(eventName: EventName, listener: AnyListener): this;
-    public on(eventName: EventName, listener: AnyListener): this {
+    public on<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, listener: EventListener<Events, Key>): this {
         const current = this._events.get(eventName);
 
         if (current === undefined) {
@@ -37,27 +45,21 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         return this;
     }
 
-    public addListener<Key extends KnownEventName<Events>>(eventName: Key, listener: KnownEventListener<Events, Key>): this;
-    public addListener(eventName: EventName, listener: AnyListener): this;
-    public addListener(eventName: EventName, listener: AnyListener): this {
+    public addListener<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, listener: EventListener<Events, Key>): this {
         return this.on(eventName, listener);
     }
 
-    public once<Key extends KnownEventName<Events>>(eventName: Key, listener: KnownEventListener<Events, Key>): this;
-    public once(eventName: EventName, listener: AnyListener): this;
-    public once(eventName: EventName, listener: AnyListener): this {
+    public once<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, listener: EventListener<Events, Key>): this {
         const onceListener: StoredListener = (...args) => {
-            this.off(eventName, onceListener);
+            this.off(eventName, onceListener as EventListener<Events, Key>);
             listener(...args);
         };
 
         onceListener._originalListener = listener;
-        return this.on(eventName, onceListener);
+        return this.on(eventName, onceListener as EventListener<Events, Key>);
     }
 
-    public off<Key extends KnownEventName<Events>>(eventName: Key, listener: KnownEventListener<Events, Key>): this;
-    public off(eventName: EventName, listener: AnyListener): this;
-    public off(eventName: EventName, listener: AnyListener): this {
+    public off<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, listener: EventListener<Events, Key>): this {
         const current = this._events.get(eventName);
 
         if (current === undefined) {
@@ -98,9 +100,7 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         return this;
     }
 
-    public removeListener<Key extends KnownEventName<Events>>(eventName: Key, listener: KnownEventListener<Events, Key>): this;
-    public removeListener(eventName: EventName, listener: AnyListener): this;
-    public removeListener(eventName: EventName, listener: AnyListener): this {
+    public removeListener<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, listener: EventListener<Events, Key>): this {
         return this.off(eventName, listener);
     }
 
@@ -114,9 +114,7 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         return this;
     }
 
-    public emit0<Key extends KnownEventName<Events>>(eventName: Key): boolean;
-    public emit0(eventName: EventName): boolean;
-    public emit0(eventName: EventName): boolean {
+    public emit0<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key): boolean {
         const current = this._events.get(eventName);
 
         if (current === undefined) {
@@ -151,9 +149,7 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         return true;
     }
 
-    public emit1<Key extends KnownEventName<Events>>(eventName: Key, a1: ListenerArgs<KnownEventListener<Events, Key>>[0]): boolean;
-    public emit1(eventName: EventName, a1: any): boolean;
-    public emit1(eventName: EventName, a1: any): boolean {
+    public emit1<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, a1: EventListenerArgs<Events, Key>[0]): boolean {
         const current = this._events.get(eventName);
 
         if (current === undefined) {
@@ -188,9 +184,7 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         return true;
     }
 
-    public emit2<Key extends KnownEventName<Events>>(eventName: Key, a1: ListenerArgs<KnownEventListener<Events, Key>>[0], a2: ListenerArgs<KnownEventListener<Events, Key>>[1]): boolean;
-    public emit2(eventName: EventName, a1: any, a2: any): boolean;
-    public emit2(eventName: EventName, a1: any, a2: any): boolean {
+    public emit2<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, a1: EventListenerArgs<Events, Key>[0], a2: EventListenerArgs<Events, Key>[1]): boolean {
         const current = this._events.get(eventName);
 
         if (current === undefined) {
@@ -225,9 +219,7 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         return true;
     }
 
-    public emit<Key extends KnownEventName<Events>>(eventName: Key, ...args: ListenerArgs<KnownEventListener<Events, Key>>): boolean;
-    public emit(eventName: EventName, ...args: any[]): boolean;
-    public emit(eventName: EventName, ...args: any[]): boolean {
+    public emit<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key, ...args: EventListenerArgs<Events, Key>): boolean {
         switch (args.length) {
             case 0:
                 return this.emit0(eventName);
@@ -270,9 +262,7 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         return Array.from(this._events.keys());
     }
 
-    public listeners<Key extends KnownEventName<Events>>(eventName: Key): KnownEventListener<Events, Key>[];
-    public listeners(eventName: EventName): AnyListener[];
-    public listeners(eventName: EventName): AnyListener[] {
+    public listeners<Key extends SuggestedEventName<Events, ExtraEvents>>(eventName: Key): EventListener<Events, Key>[] {
         const current = this._events.get(eventName);
 
         if (current === undefined) {
@@ -280,12 +270,12 @@ export class EventEmitter<Events extends object = Record<string, never>> {
         }
 
         if (!Array.isArray(current)) {
-            return [this._unwrapListener(current)];
+            return [this._unwrapListener(current) as EventListener<Events, Key>];
         }
 
-        const listeners = new Array<AnyListener>(current.length);
+        const listeners = new Array<EventListener<Events, Key>>(current.length);
         for (let index = 0; index < current.length; index++) {
-            listeners[index] = this._unwrapListener(current[index]);
+            listeners[index] = this._unwrapListener(current[index]) as EventListener<Events, Key>;
         }
 
         return listeners;
