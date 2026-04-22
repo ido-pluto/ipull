@@ -113,8 +113,9 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
 
     /**
      * Close the download engine
-     * @param deleteTempFile {boolean} - delete the temp file (when the download is **not finished**).
-     * @param deleteFile {boolean} - delete the **temp** or **final file** (clean everything up).
+     * @param options - close options.
+     * @param options.deleteTempFile - delete the temp file (when the download is **not finished**).
+     * @param options.deleteFile - delete the **temp** or **final file** (clean everything up).
      */
     override async close({deleteTempFile, deleteFile}: { deleteTempFile?: boolean, deleteFile?: boolean; } = {}): Promise<void> {
         await super.close();
