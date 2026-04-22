@@ -38,9 +38,11 @@ export class DownloadEngineRemote extends EventEmitter<BaseDownloadEngineEvents>
     }
 
     public emitRemoteProgress(progress: FormattedStatus) {
+        const lastStatus = this._latestStatus?.downloadStatus;
+
         this._latestStatus = progress;
         this.emit1("progress", progress);
-        const isStatusChanged = this._latestStatus?.downloadStatus !== progress.downloadStatus;
+        const isStatusChanged = lastStatus !== progress.downloadStatus;
 
         if (!isStatusChanged) {
             return;

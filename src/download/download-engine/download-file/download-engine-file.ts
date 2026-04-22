@@ -473,6 +473,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.options.comment = pushComment("cloned", this.options.comment);
         this._progressStatus.downloadFlags!.push(DownloadFlags.Cloned);
         this._progress.part = this.file.parts.length - 1;
+        this._progress.chunks.fill(ChunkStatus.COMPLETE);
     }
 
     public [Symbol.dispose]() {
