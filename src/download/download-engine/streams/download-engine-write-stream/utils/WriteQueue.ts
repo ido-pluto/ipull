@@ -57,12 +57,12 @@ export default class WriteQueue {
      * Buffer a write. Concatenates fragments into a single Buffer,
      * merges with adjacent regions, and flushes when threshold is exceeded.
      */
-    addWrite(cursor: number, buffers: Uint8Array[]): void | Promise<void> {
+    addWrite(cursor: number, buffers: Uint8Array[], totalLength: number): void | Promise<void> {
         if (this._closed) {
             throw new WriterIsClosedError("Cannot add write to closed WriteQueue");
         }
 
-        const length = buffers.reduce((sum, buf) => sum + buf.length, 0);
+        const length = totalLength;
 
         const merged = this._tryMerge(cursor, buffers, length);
         if (!merged) {

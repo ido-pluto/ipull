@@ -43,7 +43,7 @@ export default class SmartChunkSplit {
 
     closeAndSendLeftoversIfLengthIsUnknown() {
         if (this._chunks.length > 0 && this._options.endChunk === Infinity) {
-            this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++);
+            this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++, this._savedLength);
             this._chunks = [];
             this._savedLength = 0;
         }
@@ -78,7 +78,7 @@ export default class SmartChunkSplit {
                     }
 
                     this._savedLength -= calcChunkThreshold;
-                    this._callback(sendChunks, this._bytesWriteLocation, this._options.startChunk++);
+                    this._callback(sendChunks, this._bytesWriteLocation, this._options.startChunk++, calcChunkThreshold);
                     this._bytesWriteLocation += calcChunkThreshold;
                     break;
                 }

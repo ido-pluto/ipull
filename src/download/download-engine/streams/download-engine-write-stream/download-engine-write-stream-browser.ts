@@ -9,7 +9,7 @@ export type DownloadEngineWriteStreamOptionsBrowser = {
     file?: DownloadFile
 };
 
-export type DownloadEngineWriteStreamBrowserWriter = (cursor: number, buffers: Uint8Array[], options: DownloadEngineWriteStreamOptionsBrowser) => Promise<void> | void;
+export type DownloadEngineWriteStreamBrowserWriter = (cursor: number, buffers: Uint8Array[], options: DownloadEngineWriteStreamOptionsBrowser, totalLength: number) => Promise<void> | void;
 
 export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngineWriteStream {
     protected readonly _writer?: DownloadEngineWriteStreamBrowserWriter;
@@ -44,13 +44,12 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
         return this._memory = newMemory;
     }
 
-    public write(cursor: number, buffers: Uint8Array[]) {
+    public write(cursor: number, buffers: Uint8Array[], totalLength: number) {
         if (this.writerClosed) {
             throw new WriterIsClosedError();
         }
 
         if (!this._writer) {
-            const totalLength = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
             const bigBuffer = this._ensureBuffer(cursor + totalLength);
             let writeLocation = cursor;
 
@@ -63,7 +62,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
             return;
         }
 
-        return this._writer(cursor, buffers, this.options);
+        return this._writer(cursor, buffers, this.options, totalLength);
     }
 
     public get result() {

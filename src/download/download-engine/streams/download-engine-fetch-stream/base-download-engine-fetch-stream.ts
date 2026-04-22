@@ -96,7 +96,7 @@ export type BaseDownloadEngineFetchStreamEvents = {
     streamNotRespondingOff: () => void;
 };
 
-export type WriteCallback = (data: Uint8Array[], position: number, index: number) => void;
+export type WriteCallback = (data: Uint8Array[], position: number, index: number, totalLength: number) => void;
 
 const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     retryOnServerError: true,

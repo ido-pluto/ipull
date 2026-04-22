@@ -192,7 +192,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             if (this.aborted) return;
 
             const chunk = await this.fetchBytes(this.state.activePart.downloadURL, this._startSize, this._endSize, this.state.onProgress);
-            callback([chunk], this._startSize, this.state.startChunk++);
+            callback([chunk], this._startSize, this.state.startChunk++, chunk.length);
         }
     }
 
@@ -213,7 +213,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             const chunk = relevantContent.slice(start, end);
             totalReceivedLength += chunk.byteLength;
-            callback([chunk], index * this.state.chunkSize, index++);
+            callback([chunk], index * this.state.chunkSize, index++, chunk.length);
         }
     }
 

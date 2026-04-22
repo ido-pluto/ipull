@@ -359,12 +359,12 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         const allWrites = new Set<Promise<any>>();
 
         let lastChunkSize = 0, lastInProgressIndex = startChunk;
-        await fetchState.fetchChunks((chunks, writePosition, index) => {
+        await fetchState.fetchChunks((chunks, writePosition, index, totalLength) => {
             if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
                 return;
             }
 
-            const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunks);
+            const writePromise = this.options.writeStream.write(downloadedPartsSize + writePosition, chunks, totalLength);
             if (writePromise) {
                 allWrites.add(writePromise);
                 writePromise.then(() => {

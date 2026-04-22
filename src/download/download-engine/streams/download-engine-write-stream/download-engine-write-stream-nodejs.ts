@@ -101,8 +101,8 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
      * Fragments are concatenated into a single Buffer, contiguous regions merged,
      * and auto-flushed when the adaptive threshold is exceeded.
      */
-    write(cursor: number, buffers: Uint8Array[]) {
-        return this._writeQueue.addWrite(cursor, buffers);
+    write(cursor: number, buffers: Uint8Array[], totalLength: number) {
+        return this._writeQueue.addWrite(cursor, buffers, totalLength);
     }
 
     ensureBytesSynced() {
