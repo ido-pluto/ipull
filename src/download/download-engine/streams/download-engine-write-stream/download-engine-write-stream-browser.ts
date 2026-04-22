@@ -9,7 +9,7 @@ export type DownloadEngineWriteStreamOptionsBrowser = {
     file?: DownloadFile
 };
 
-export type DownloadEngineWriteStreamBrowserWriter = (cursor: number, buffers: Uint8Array[], options: DownloadEngineWriteStreamOptionsBrowser, totalLength: number) => Promise<void> | void;
+export type DownloadEngineWriteStreamBrowserWriter = (cursor: number, buffers: Uint8Array[], options: DownloadEngineWriteStreamOptionsBrowser) => Promise<void> | void;
 
 export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngineWriteStream {
     protected readonly _writer?: DownloadEngineWriteStreamBrowserWriter;
@@ -62,7 +62,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
             return;
         }
 
-        return this._writer(cursor, buffers, this.options, totalLength);
+        return this._writer(cursor, buffers, this.options);
     }
 
     public get result() {
