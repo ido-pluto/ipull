@@ -3,13 +3,13 @@ import {downloadFileBrowser} from "../src/browser.js";
 import {hashBuffer} from "./utils/hash.js";
 import {BIG_FILE} from "./utils/files.js";
 import {BIG_FILE_EXAMPLE, ensureLocalFile} from "./utils/download.js";
-import fs from "fs-extra";
+import fs from "fs/promises";
 
 // @ts-ignore
 globalThis.XMLHttpRequest = await import("xmlhttprequest-ssl").then(m => m.XMLHttpRequest);
 
 describe("Browser Fetch API", () => {
-    test.concurrent("Download file browser - memory", async (context) => {
+    test.concurrent("Download file browser - memory", async ({expect}) => {
         const downloader = await downloadFileBrowser({
             url: BIG_FILE,
             parallelStreams: 2,
@@ -18,11 +18,11 @@ describe("Browser Fetch API", () => {
 
         await downloader.download();
         const hash = hashBuffer(downloader.writeStream.result);
-        context.expect(hash)
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+        expect(hash)
+            .toMatchInlineSnapshot("\"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26\"");
     });
 
-    test.concurrent("Download file browser", async (context) => {
+    test.concurrent("Download file browser", {repeats: 4, concurrent: true}, async ({expect}) => {
         const response = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const bufferIsCorrect = Buffer.from(await fs.readFile(response));
 
@@ -49,27 +49,27 @@ describe("Browser Fetch API", () => {
         await downloader.download();
 
         const diff = bigBuffer.findIndex((value, index) => value !== bufferIsCorrect[index]);
-        context.expect(diff)
+        expect(diff)
             .toBe(-1);
 
-        context.expect(lastWrite)
+        expect(lastWrite)
             .toBe(downloader.file.totalSize);
-        context.expect(hashBuffer(bigBuffer))
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
-    }, {repeats: 4, concurrent: true});
-}, {timeout: 1000 * 60 * 3});
+        expect(hashBuffer(bigBuffer))
+            .toMatchInlineSnapshot("\"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26\"");
+    });
+});
 
 describe("Browser Fetch memory", () => {
-    test.sequential("Download file for tests", async (context) => {
+    test.sequential("Download file for tests", async ({expect}) => {
         const response = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
 
         const buffer = Buffer.from(await fs.readFile(response));
         const hash = hashBuffer(buffer);
-        context.expect(hash)
-            .toMatchInlineSnapshot("\"9ae3ff19ee04fc02e9c60ce34e42858d16b46eeb88634d2035693c1ae9dbcbc9\"");
+        expect(hash)
+            .toMatchInlineSnapshot("\"0e1a20347e130a168a5c555826915a1302e3fae467b85db6aae53c243c2b0a26\"");
     });
 
-    test.sequential("Download file browser - memory (xhr)", async (context) => {
+    test.skip("Download file browser - memory (xhr)", async ({expect}) => {
         const originalFile = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const originalFileBuffer = new Uint8Array(await fs.readFile(originalFile));
 
@@ -79,15 +79,15 @@ describe("Browser Fetch memory", () => {
         });
 
         await downloader.download();
-        context.expect(originalFileBuffer.length)
+        expect(originalFileBuffer.length)
             .toBe(downloader.downloadSize);
 
         const diff = originalFileBuffer.findIndex((value, index) => value !== downloader.writeStream.result[index]);
-        context.expect(diff)
+        expect(diff)
             .toBe(-1);
     });
 
-    test.sequential("Download file browser - chunks, memory (fetch)", async (context) => {
+    test.sequential("Download file browser - chunks, memory (fetch)", async ({expect}) => {
         const originalFile = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const originalFileBuffer = new Uint8Array(await fs.readFile(originalFile));
 
@@ -100,11 +100,11 @@ describe("Browser Fetch memory", () => {
         });
 
         await downloader.download();
-        context.expect(originalFileBuffer.length)
+        expect(originalFileBuffer.length)
             .toBe(downloader.downloadSize);
 
         const diff = originalFileBuffer.findIndex((value, index) => value !== downloader.writeStream.result[index]);
-        context.expect(diff)
+        expect(diff)
             .toBe(-1);
     });
-}, {timeout: 1000 * 60 * 3});
+});

@@ -1,27 +1,24 @@
+import {SpinnerName} from "cli-spinners";
 import UpdateManager from "stdout-update";
-import debounce from "lodash.debounce";
-import {TransferCliProgressBar} from "./progress-bars/base-transfer-cli-progress-bar.js";
-import cliSpinners from "cli-spinners";
 import {FormattedStatus} from "../format-transfer-status.js";
-import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
 import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
+import {TransferCliProgressBar} from "./progress-bars/base-transfer-cli-progress-bar.js";
+import switchCliProgressStyle from "./progress-bars/switch-cli-progress-style.js";
 
 export type TransferCliOptions = {
     name?: string,
     maxViewDownloads: number;
     truncateName: boolean | number;
     debounceWait: number;
-    maxDebounceWait: number;
     createProgressBar: TransferCliProgressBar;
     createMultiProgressBar: typeof BaseMultiProgressBar,
-    loadingAnimation: cliSpinners.SpinnerName,
+    loadingAnimation: SpinnerName,
 };
 
 export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
     maxViewDownloads: 10,
     truncateName: true,
-    debounceWait: 20,
-    maxDebounceWait: process.platform === "win32" ? 500 : 100,
+    debounceWait: process.platform === "win32" ? 500 : 45,
     createProgressBar: switchCliProgressStyle("auto", {truncateName: true}),
     loadingAnimation: "dots",
     createMultiProgressBar: BaseMultiProgressBar
@@ -31,21 +28,20 @@ export default class TransferCli {
     protected options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
     protected latestProgress: [FormattedStatus[], FormattedStatus, number] = null!;
+    protected latestProgressGetter: (() => [FormattedStatus[], FormattedStatus, number]) | null = null;
     private _cliStopped = true;
-    private readonly _updateStatuesDebounce: () => void;
     private _multiProgressBar: BaseMultiProgressBar;
-    private _isFirstPrint = true;
     private _lastProgressLong = "";
+    private _lastUpdateTime = 0;
+    private _shouldExitOnSIGINT = false;
+    private _debounceWait: number;
 
     public constructor(options: Partial<TransferCliOptions>) {
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
         this._multiProgressBar = new this.options.createProgressBar.multiProgressBar(this.options);
+        this._debounceWait = this._multiProgressBar.updateIntervalMs || this.options.debounceWait;
 
-        const maxDebounceWait = this._multiProgressBar.updateIntervalMs || this.options.maxDebounceWait;
-        this._updateStatuesDebounce = debounce(this._updateStatues.bind(this), maxDebounceWait, {
-            maxWait: maxDebounceWait
-        });
-
+        this.updateStatues = this.updateStatues.bind(this);
         this._processExit = this._processExit.bind(this);
     }
 
@@ -55,13 +51,14 @@ export default class TransferCli {
         if (this._multiProgressBar.printType === "update") {
             this.stdoutManager.hook();
         }
+        
+        this._shouldExitOnSIGINT = process.listenerCount("SIGINT") === 0;
         process.on("SIGINT", this._processExit);
     }
 
     stop() {
         if (this._cliStopped) return;
         this._cliStopped = true;
-        this._updateStatues();
         if (this._multiProgressBar.printType === "update") {
             this.stdoutManager.unhook(false);
         }
@@ -70,23 +67,27 @@ export default class TransferCli {
 
     private _processExit() {
         this.stop();
-        process.exit(0);
-    }
 
-    updateStatues(statues: FormattedStatus[], oneStatus: FormattedStatus, loadingDownloads = 0) {
-        this.latestProgress = [statues, oneStatus, loadingDownloads];
-
-        if (this._isFirstPrint) {
-            this._isFirstPrint = false;
-            this._updateStatues();
-        } else {
-            this._updateStatuesDebounce();
+        if (this._shouldExitOnSIGINT) {
+            process.exit(0);
         }
     }
 
+    updateStatues(getLatestProgress: () => [FormattedStatus[], FormattedStatus, number], debounce = true) {
+        this.latestProgressGetter = getLatestProgress;
+
+        if (debounce && Date.now() - this._lastUpdateTime < this._debounceWait) {
+            return;
+        }
+        
+        this._lastUpdateTime = Date.now();
+        this._updateStatues();
+    }
+
     private _updateStatues() {
-        if (!this.latestProgress) return;
-        const printLog = this._multiProgressBar.createMultiProgressBar(...this.latestProgress);
+        const latestProgress = this.latestProgressGetter?.() ?? this.latestProgress;
+        if (!latestProgress) return;
+        const printLog = this._multiProgressBar.createMultiProgressBar(...latestProgress);
         if (printLog && this._lastProgressLong != printLog) {
             this._lastProgressLong = printLog;
             this._logUpdate(printLog);

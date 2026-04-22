@@ -1,5 +1,5 @@
 import {describe, test} from "vitest";
-import fs from "fs-extra";
+import fs from "fs/promises";
 import {BIG_FILE_EXAMPLE, ensureLocalFile, TEXT_FILE_EXAMPLE} from "./utils/download.js";
 import {fileHash} from "./utils/hash.js";
 import {copyFileInfo} from "./utils/copy.js";
@@ -8,7 +8,7 @@ import {BIG_FILE} from "./utils/files.js";
 
 describe("File Copy", async () => {
 
-    test.concurrent("copy text parallel streams", async (context) => {
+    test.concurrent("copy text parallel streams", async ({expect}) => {
         const {originalFileHash, fileToCopy, copyFileToName} = await copyFileInfo(TEXT_FILE_EXAMPLE);
 
         const engine = await downloadFile({
@@ -23,13 +23,13 @@ describe("File Copy", async () => {
         await engine.download();
 
         const copiedFileHash = await fileHash(copyFileToName);
-        await fs.remove(copyFileToName);
+        await fs.unlink(copyFileToName);
 
-        context.expect(copiedFileHash)
+        expect(copiedFileHash)
             .toBe(originalFileHash);
     });
 
-    test.concurrent("copy image one stream", async (context) => {
+    test.concurrent("copy image one stream", async ({expect}) => {
         const imagePath = await ensureLocalFile(BIG_FILE, BIG_FILE_EXAMPLE);
         const {originalFileHash, fileToCopy, copyFileToName} = await copyFileInfo(imagePath);
 
@@ -44,9 +44,9 @@ describe("File Copy", async () => {
         await engine.download();
 
         const copiedFileHash = await fileHash(copyFileToName);
-        await fs.remove(copyFileToName);
+        await fs.unlink(copyFileToName);
 
-        context.expect(copiedFileHash)
+        expect(copiedFileHash)
             .toBe(originalFileHash);
     });
-}, {timeout: 1000 * 60 * 3});
+});

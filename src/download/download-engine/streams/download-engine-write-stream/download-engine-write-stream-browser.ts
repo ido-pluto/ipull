@@ -44,13 +44,12 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
         return this._memory = newMemory;
     }
 
-    public write(cursor: number, buffers: Uint8Array[]) {
+    public write(cursor: number, buffers: Uint8Array[], totalLength: number) {
         if (this.writerClosed) {
             throw new WriterIsClosedError();
         }
 
         if (!this._writer) {
-            const totalLength = buffers.reduce((sum, buffer) => sum + buffer.length, 0);
             const bigBuffer = this._ensureBuffer(cursor + totalLength);
             let writeLocation = cursor;
 
@@ -71,7 +70,7 @@ export default class DownloadEngineWriteStreamBrowser extends BaseDownloadEngine
     }
 
     public resultAsBlobURL() {
-        const blob = new Blob([this._memory]);
+        const blob = new Blob([this._memory as unknown as Uint8Array<ArrayBuffer>]);
         return URL.createObjectURL(blob);
     }
 

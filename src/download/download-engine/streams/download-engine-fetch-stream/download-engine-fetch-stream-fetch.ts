@@ -1,23 +1,23 @@
+import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
 import BaseDownloadEngineFetchStream, {
     DownloadInfoResponse,
     FetchSubState,
     MIN_LENGTH_FOR_MORE_INFO_REQUEST,
-    STREAM_NOT_RESPONDING_TIMEOUT,
     WriteCallback
 } from "./base-download-engine-fetch-stream.js";
-import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
-import SmartChunkSplit from "./utils/smart-chunk-split.js";
-import {parseContentDisposition} from "./utils/content-disposition.js";
-import StatusCodeError from "./errors/status-code-error.js";
-import {parseHttpContentRange} from "./utils/httpRange.js";
-import {browserCheck} from "./utils/browserCheck.js";
 import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
-import prettyMilliseconds from "pretty-ms";
+import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
+import {RenewFetchError} from "./errors/RenewFetchError.js";
+import StatusCodeError from "./errors/status-code-error.js";
+import {browserCheck} from "./utils/browserCheck.js";
+import {parseContentDisposition} from "./utils/content-disposition.js";
+import {parseHttpContentRange} from "./utils/httpRange.js";
+import SmartChunkSplit from "./utils/smart-chunk-split.js";
 
 type GetNextChunk = () => Promise<ReadableStreamReadResult<Uint8Array>> | ReadableStreamReadResult<Uint8Array>;
 export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = false;
-    private _activeController?: AbortController;
+    private _activeController?: { signal: AbortSignal; abort: () => void; };
     public override transferAction = "Downloading";
     public override readonly supportDynamicStreamLength = true;
 
@@ -27,12 +27,13 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected override async fetchWithoutRetryChunks(callback: WriteCallback) {
-        const headers: { [key: string]: any } = {
+        const headers: { [key: string]: any; } = {
             accept: "*/*",
             ...this.options.headers
         };
 
-        if (this.state.activePart.acceptRange) {
+        const expectedContentLength = this._endSize - this._startSize;
+        if (this.state.activePart.acceptRange && expectedContentLength > 0) {
             headers.range = `bytes=${this._startSize}-${this._endSize - 1}`;
         }
 
@@ -40,32 +41,33 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             this._activeController?.abort();
         }
 
-        let response: Response | null = null;
-        this._activeController = new AbortController();
-        this.on("aborted", () => {
-            if (!response) {
-                this._activeController?.abort();
+        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+        this._activeController = {abort, signal};
+        this.on("aborted", abort);
+
+        try {
+            const response = await fetch(this.appendToURL(this.state.activePart.downloadURL), {
+                headers,
+                signal
+            });
+
+            clearAbortTimeout();
+
+            if (response.status < 200 || response.status >= 300) {
+                throw new StatusCodeError(this.state.activePart.downloadURL, response.status, response.statusText, headers);
             }
-        });
 
+            const contentLength = parseHttpContentRange(response.headers.get("content-range"))?.length ?? parseInt(response.headers.get("content-length")!);
+            if (this._endSize > 0 && (this.state.activePart.acceptRange && contentLength !== expectedContentLength || contentLength && contentLength < expectedContentLength)) {
+                throw new InvalidContentLengthError(expectedContentLength, contentLength);
+            }
 
-        response = await fetch(this.appendToURL(this.state.activePart.downloadURL), {
-            headers,
-            signal: this._activeController.signal
-        });
-
-        if (response.status < 200 || response.status >= 300) {
-            throw new StatusCodeError(this.state.activePart.downloadURL, response.status, response.statusText, headers);
+            const reader = response.body!.getReader();
+            return await this.chunkGenerator(callback, () => reader.read());
+        } finally {
+            this.off("aborted", abort);
+            clearAbortTimeout();
         }
-
-        const contentLength = parseHttpContentRange(response.headers.get("content-range"))?.length ?? parseInt(response.headers.get("content-length")!);
-        const expectedContentLength = this._endSize - this._startSize;
-        if (this.state.activePart.acceptRange && contentLength !== expectedContentLength) {
-            throw new InvalidContentLengthError(expectedContentLength, contentLength);
-        }
-
-        const reader = response.body!.getReader();
-        return await this.chunkGenerator(callback, () => reader.read());
     }
 
     protected override async fetchDownloadInfoWithoutRetry(url: string): Promise<DownloadInfoResponse> {
@@ -84,108 +86,148 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
     }
 
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
-        const response = await fetch(url, {
-            method: method,
-            headers: {
-                "Accept-Encoding": "identity",
-                ...this.options.headers
+        const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
+
+        try {
+            this.on("aborted", abort);
+            const response = await fetch(url, {
+                method: method,
+                headers: {
+                    "Accept-Encoding": "identity",
+                    ...this.options.headers
+                },
+                signal
+            });
+
+            clearAbortTimeout();
+
+            if (response.body) {
+                abort();
             }
-        });
 
-
-        if (response.status < 200 || response.status >= 300) {
-            throw new StatusCodeError(url, response.status, response.statusText, this.options.headers, DownloadEngineFetchStreamFetch.convertHeadersToRecord(response.headers));
-        }
-
-        const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
-        const fileName = parseContentDisposition(response.headers.get("content-disposition"));
-
-        let length = parseInt(response.headers.get("content-length")!) || 0;
-        if (response.headers.get("content-encoding") || browserCheck() && MIN_LENGTH_FOR_MORE_INFO_REQUEST < length) {
-            length = acceptRange ? await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? response : undefined) : 0;
-        }
-
-        return {
-            length,
-            acceptRange,
-            newURL: response.url,
-            fileName
-        };
-    }
-
-    protected async fetchDownloadInfoWithoutRetryContentRange(url: string, response?: Response) {
-        const responseGet = response ?? await fetch(url, {
-            method: "GET",
-            headers: {
-                accept: "*/*",
-                ...this.options.headers,
-                range: "bytes=0-0"
+            if (response.status < 200 || response.status >= 300) {
+                throw new StatusCodeError(url, response.status, response.statusText, this.options.headers, DownloadEngineFetchStreamFetch.convertHeadersToRecord(response.headers));
             }
-        });
 
-        const contentRange = responseGet.headers.get("content-range");
-        return parseHttpContentRange(contentRange)?.size || 0;
+            const acceptRange = this.options.acceptRangeIsKnown ?? response.headers.get("accept-ranges") === "bytes";
+            const fileName = parseContentDisposition(response.headers.get("content-disposition"));
+
+            let length = parseInt(response.headers.get("content-length")!) || 0;
+            const someLengthInfo = length;
+
+            const contentEncoding = response.headers.get("content-encoding");
+            if (contentEncoding && contentEncoding !== "identity") {
+                length = 0; // If content is encoded, we cannot determine the length reliably
+            }
+
+            if (length === 0 && (acceptRange || browserCheck() && (method === "GET" || MIN_LENGTH_FOR_MORE_INFO_REQUEST < someLengthInfo))) {
+                if (method !== "GET") {
+                    return this.fetchDownloadInfoWithoutRetryByMethod(url, "GET");
+                }
+
+                const contentRange = response.headers.get("content-range");
+                length = parseHttpContentRange(contentRange)?.size || 0;
+            }
+
+            return {
+                length,
+                acceptRange,
+                newURL: response.url,
+                fileName
+            };
+        } finally {
+            clearAbortTimeout();
+            this.off("aborted", abort);
+        }
     }
 
     async chunkGenerator(callback: WriteCallback, getNextChunk: GetNextChunk) {
         const smartSplit = new SmartChunkSplit(callback, this.state);
 
-        // eslint-disable-next-line no-constant-condition
-        while (true) {
-            const chunkInfo = await this._wrapperStreamNotResponding(getNextChunk());
-            await this.paused;
-            if (!chunkInfo || this.aborted || chunkInfo.done) break;
+        let dynamicContentLengthReached = false;
+        let waitingForChunk = false;
+        let waitStartedAt = 0;
+        let streamNotRespondedInTime = false;
+        let timeoutError = false;
 
-            smartSplit.addChunk(chunkInfo.value);
-            this.state.onProgress?.(smartSplit.savedLength);
+        const clearStreamNotResponding = () => {
+            if (!streamNotRespondedInTime) return;
+            streamNotRespondedInTime = false;
+            this.emit("streamNotRespondingOff");
+        };
+
+        const clearWatchDog = this.watchDog(() => {
+            if (!waitingForChunk || timeoutError) {
+                return;
+            }
+
+            const waitTime = Date.now() - waitStartedAt;
+            if (!streamNotRespondedInTime && waitTime >= this.options.streamWaitAlert!) {
+                streamNotRespondedInTime = true;
+                this.emit("streamNotRespondingOn");
+            }
+
+            if (waitTime >= this.options.maxStreamWait!) {
+                timeoutError = true;
+                this._activeController?.abort();
+            }
+        });
+
+        try {
+            while (!timeoutError && !this.paused) {
+                waitingForChunk = true;
+                waitStartedAt = Date.now();
+                const chunkInfo = await getNextChunk();
+                waitingForChunk = false;
+                clearStreamNotResponding();
+
+                if (!chunkInfo || this.aborted || chunkInfo.done || this.paused) break;
+
+                let value = chunkInfo.value;
+                this.noRangeFetchSize += chunkInfo.value.length;
+
+                if (!this.state.activePart.acceptRange && this._startSize > 0) {
+                    if (!dynamicContentLengthReached) {
+                        if (this._startSize > this.noRangeFetchSize) {
+                            this.state.onProgress?.(this.noRangeFetchSize);
+                            continue;
+                        }
+
+                        const skipBytes = chunkInfo.value.length - (this.noRangeFetchSize - this._startSize);
+                        value = chunkInfo.value.subarray(skipBytes);
+
+                        dynamicContentLengthReached = true;
+                    }
+                }
+
+                smartSplit.addChunk(value);
+                this.state.onProgress?.(smartSplit.savedLength);
+
+                if (dynamicContentLengthReached && this._endSize && this.noRangeFetchSize >= this._endSize) {
+                    break;
+                }
+            }
+
+            if (timeoutError){
+                throw new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`);
+            }
+
+            if (this.paused) {
+                throw new RenewFetchError("Fetch paused");
+            }
+
+        } finally {
+            this._activeController?.abort();
+            waitingForChunk = false;
+            clearStreamNotResponding();
+            clearWatchDog();
         }
 
         smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
     }
 
-    protected _wrapperStreamNotResponding<T>(promise: Promise<T> | T): Promise<T | void> | T | void {
-        if (!(promise instanceof Promise)) {
-            return promise;
-        }
-
-        return new Promise<T | void>((resolve, reject) => {
-            let streamNotRespondedInTime = false;
-            let timeoutMaxStreamWaitThrows = false;
-            const timeoutNotResponding = setTimeout(() => {
-                streamNotRespondedInTime = true;
-                this.emit("streamNotRespondingOn");
-            }, STREAM_NOT_RESPONDING_TIMEOUT);
-
-            const timeoutMaxStreamWait = setTimeout(() => {
-                timeoutMaxStreamWaitThrows = true;
-                reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
-                this._activeController?.abort();
-            }, this.options.maxStreamWait);
-
-            this.addListener("aborted", resolve);
-
-            promise
-                .then(resolve)
-                .catch(error => {
-                    if (timeoutMaxStreamWaitThrows || this.aborted) {
-                        return;
-                    }
-                    reject(error);
-                })
-                .finally(() => {
-                    clearTimeout(timeoutNotResponding);
-                    clearTimeout(timeoutMaxStreamWait);
-                    if (streamNotRespondedInTime) {
-                        this.emit("streamNotRespondingOff");
-                    }
-                    this.removeListener("aborted", resolve);
-                });
-        });
-    }
-
-
-    protected static convertHeadersToRecord(headers: Headers): { [key: string]: string } {
-        const headerObj: { [key: string]: string } = {};
+    protected static convertHeadersToRecord(headers: Headers): { [key: string]: string; } {
+        const headerObj: { [key: string]: string; } = {};
         headers.forEach((value, key) => {
             headerObj[key] = value;
         });

@@ -1,4 +1,4 @@
-import chalk from "chalk";
+import ansis from "ansis";
 import {truncateText} from "../../utils/cli-text.js";
 import {clamp} from "../../utils/numbers.js";
 import {FormattedStatus} from "../../format-transfer-status.js";
@@ -6,7 +6,7 @@ import {DownloadStatus} from "../../../download-engine/download-file/progress-st
 import {BaseMultiProgressBar} from "../multiProgressBars/BaseMultiProgressBar.js";
 import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
 import {DataLine, DataPart, renderDataLine} from "../../utils/data-line.js";
-import cliSpinners, {Spinner} from "cli-spinners";
+import cliSpinners, {Spinner, SpinnerName} from "cli-spinners";
 
 const SKIP_ETA_START_TIME = 1000 * 2;
 const MIN_NAME_LENGTH = 20;
@@ -19,7 +19,7 @@ export type CliFormattedStatus = FormattedStatus & {
 
 export type BaseCliOptions = {
     truncateName?: boolean | number
-    loadingSpinner?: cliSpinners.SpinnerName
+    loadingSpinner?: SpinnerName
 };
 
 export interface TransferCliProgressBar {
@@ -117,7 +117,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 : 1,
             maxSize: fileName.length,
             cropper: truncateText,
-            formatter: (text) => chalk.bold(text)
+            formatter: (text) => ansis.bold(text)
         }, ...(
             (fullComment == null || fullComment.length === 0)
                 ? []
@@ -125,7 +125,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                     type: "spacer",
                     fullText: " (",
                     size: " (".length,
-                    formatter: (text) => chalk.dim(text)
+                    formatter: (text) => ansis.dim(text)
                 }, {
                     type: "nameComment",
                     fullText: fullComment,
@@ -133,12 +133,12 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                     maxSize: fullComment.length,
                     flex: 1,
                     cropper: truncateText,
-                    formatter: (text) => chalk.dim(text)
+                    formatter: (text) => ansis.dim(text)
                 }, {
                     type: "spacer",
                     fullText: ")",
                     size: ")".length,
-                    formatter: (text) => chalk.dim(text)
+                    formatter: (text) => ansis.dim(text)
                 }] satisfies DataPart[]
         )];
     }
@@ -173,7 +173,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
         const fullLength = Math.floor(percentage * length);
         const emptyLength = length - fullLength;
 
-        return chalk.cyan(fileName.slice(0, fullLength)) + chalk.dim(fileName.slice(fullLength, fullLength + emptyLength));
+        return ansis.cyan(fileName.slice(0, fullLength)) + ansis.dim(fileName.slice(fullLength, fullLength + emptyLength));
     }
 
     protected renderProgressLine(): string {
@@ -186,13 +186,13 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 type: "status",
                 fullText: status,
                 size: status.length,
-                formatter: (text) => chalk.cyan(text)
+                formatter: (text) => ansis.cyan(text)
             },
             {
                 type: "status",
                 fullText: alertStatus,
                 size: alertStatus.length,
-                formatter: (text) => chalk.ansi256(196)(text)
+                formatter: (text) => ansis.fg(196)(text)
             },
             {
                 type: "spacer",
@@ -203,7 +203,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 type: "percentage",
                 fullText: formattedPercentage,
                 size: "100.00%".length,
-                formatter: () => chalk.green(formattedPercentage)
+                formatter: () => ansis.green(formattedPercentage)
             },
             {
                 type: "spacer",
@@ -240,19 +240,19 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 type: "speed",
                 fullText: formattedSpeed,
                 size: Math.max("00.00kB/s".length, formattedSpeed.length),
-                formatter: text => chalk.ansi256(31)(text)
+                formatter: text => ansis.fg(31)(text)
             },
             {
                 type: "spacer",
                 fullText: ")",
                 size: ")".length
             },
-            ...this.getETA(" ~ ", text => chalk.dim(text))
+            ...this.getETA(" ~ ", text => ansis.dim(text))
         ]);
     }
 
     protected renderFinishedLine() {
-        const status = this.status.downloadStatus === DownloadStatus.Finished ? chalk.green(STATUS_ICONS.done) : chalk.red(STATUS_ICONS.failed);
+        const status = this.status.downloadStatus === DownloadStatus.Finished ? ansis.green(STATUS_ICONS.done) : ansis.red(STATUS_ICONS.failed);
 
         return renderDataLine([
             {
@@ -293,7 +293,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 type: "description",
                 fullText: this.status.formatTotal,
                 size: this.status.formatTotal.length,
-                formatter: (text) => chalk.dim(text)
+                formatter: (text) => ansis.dim(text)
             }
         ]);
     }
@@ -307,7 +307,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                 type: "status",
                 fullText: spinner,
                 size: spinner.length,
-                formatter: (text) => chalk.cyan(text)
+                formatter: (text) => ansis.cyan(text)
             },
             {
                 type: "spacer",
@@ -323,7 +323,7 @@ export default class BaseTransferCliProgressBar implements TransferCliProgressBa
                     : 1,
                 maxSize: showText.length,
                 cropper: truncateText,
-                formatter: (text) => chalk.bold(text)
+                formatter: (text) => ansis.bold(text)
             }
         ]);
     }

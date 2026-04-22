@@ -1,58 +1,69 @@
-import fs, {FileHandle} from "fs/promises";
-import fsExtra from "fs-extra";
 import retry from "async-retry";
+import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import BaseDownloadEngineWriteStream from "./base-download-engine-write-stream.js";
-import WriterIsClosedError from "./errors/writer-is-closed-error.js";
-import {BytesWriteDebounce} from "./utils/BytesWriteDebounce.js";
+import WriteQueue from "./utils/WriteQueue.js";
+import {ensureFile, pathExists} from "../../../../utils/fs.js";
 
 export type DownloadEngineWriteStreamOptionsNodeJS = {
-    retry?: retry.Options
+    retry?: retry.Options;
     mode: string;
+    /** @deprecated Use writeBufferMaxBytes instead */
     debounceWrite?: {
-        maxTime?: number
-        maxSize?: number
-    }
+        maxTime?: number;
+        maxSize?: number;
+    };
+
+    /** Maximum bytes to buffer before flushing to disk (default: adaptive 5% of file size, min 2MB, max 64MB) */
+    writeBufferMaxBytes?: number;
 };
 
-const DEFAULT_OPTIONS = {
-    mode: "r+",
-    debounceWrite: {
-        maxTime: 1000 * 5, // 5 seconds
-        maxSize: 1024 * 1024 * 2 // 2 MB
-    }
-} satisfies DownloadEngineWriteStreamOptionsNodeJS;
-const MAX_AUTO_DEBOUNCE_SIZE = 1024 * 1024 * 100; // 100 MB
-const AUTO_DEBOUNCE_SIZE_PERCENT = 0.05;
 const MAX_META_SIZE = 10485760; // 10 MB
 
-const NOT_ENOUGH_SPACE_ERROR_CODE = "ENOSPC";
+const DEFAULT_OPTIONS = {
+    mode: "r+"
+} satisfies DownloadEngineWriteStreamOptionsNodeJS;
 
 export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineWriteStream {
+    private static _allFd = new Set<FileHandle>();
+    private static _finalizationRegistry = new FinalizationRegistry((fd: FileHandle) => {
+        if (fd.fd != null) {
+            fd.close().catch(() => { })
+                .finally(() => {
+                    DownloadEngineWriteStreamNodejs._allFd.delete(fd);
+                });
+        }
+    });
+
+    private _finalToken = {};
     private _fd: FileHandle | null = null;
-    private _fileWriteFinished = false;
-    private _writeDebounce: BytesWriteDebounce;
     private _fileSize = 0;
+    private _writeQueue: WriteQueue;
+    private _metadataToSave: any = null;
+    private _fileOpenLock = {};
 
     public readonly options: DownloadEngineWriteStreamOptionsNodeJS;
-    public autoDebounceMaxSize = false;
 
     constructor(public path: string, public finalPath: string, options: Partial<DownloadEngineWriteStreamOptionsNodeJS> = {}) {
         super();
 
-        this.autoDebounceMaxSize = !options.debounceWrite?.maxSize;
-        const optionsWithDefaults = this.options = {
+        this.options = {
             ...DEFAULT_OPTIONS,
-            ...options,
-            debounceWrite: {
-                ...DEFAULT_OPTIONS.debounceWrite,
-                ...options.debounceWrite
-            }
+            ...options
         };
 
-        this._writeDebounce = new BytesWriteDebounce({
-            ...optionsWithDefaults.debounceWrite,
-            writev: (cursor, buffers) => this._writeWithoutDebounce(cursor, buffers)
+        this._writeQueue = new WriteQueue({
+            getFd: this._ensureFileOpen.bind(this),
+            writeBufferMaxBytes: this.options.writeBufferMaxBytes || this.options.debounceWrite?.maxSize,
+            flushMetadata: () => {
+                if (this._metadataToSave) {
+                    const metadata = this._metadataToSave;
+                    this._metadataToSave = null;
+                    return this._saveMetadata(metadata);
+                }
+
+                return Promise.resolve();
+            }
         });
     }
 
@@ -62,80 +73,65 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
     public set fileSize(value) {
         this._fileSize = value;
-
-        if (this.autoDebounceMaxSize) {
-            this.options.debounceWrite!.maxSize = Math.max(
-                Math.min(value * AUTO_DEBOUNCE_SIZE_PERCENT, MAX_AUTO_DEBOUNCE_SIZE),
-                DEFAULT_OPTIONS.debounceWrite.maxSize
-            );
-        }
+        this._writeQueue.setFileSize(value);
     }
 
-    private async _ensureFileOpen() {
-        return await withLock(this, "_lock", async () => {
+    private _ensureFileOpen() {
+        if (this._fd) {
+            return this._fd;
+        }
+
+        return withLock([this._fileOpenLock, "_lock"], async () => {
             if (this._fd) {
                 return this._fd;
             }
 
             return await retry(async () => {
-                await fsExtra.ensureFile(this.path);
-                return this._fd = await fs.open(this.path, this.options.mode);
+                await ensureFile(this.path);
+                this._fd = await fs.open(this.path, this.options.mode);
+                DownloadEngineWriteStreamNodejs._allFd.add(this._fd);
+                DownloadEngineWriteStreamNodejs._finalizationRegistry.register(this, this._fd, this._finalToken);
+                return this._fd;
             }, this.options.retry);
         });
     }
 
-    async write(cursor: number, buffers: Uint8Array[]) {
-        await this._writeDebounce.addChunk(cursor, buffers);
+    /**
+     * Buffer a write for the given cursor position.
+     * Fragments are concatenated into a single Buffer, contiguous regions merged,
+     * and auto-flushed when the adaptive threshold is exceeded.
+     */
+    write(cursor: number, buffers: Uint8Array[], totalLength: number) {
+        return this._writeQueue.addWrite(cursor, buffers, totalLength);
     }
 
-    async _writeWithoutDebounce(cursor: number, buffers: Uint8Array[]) {
-        let throwError: Error | false = false;
-
-        await retry(async () => {
-            try {
-                return await this._writeWithoutRetry(cursor, buffers);
-            } catch (error: any) {
-                if (error?.code === NOT_ENOUGH_SPACE_ERROR_CODE) {
-                    throwError = error;
-                    return;
-                }
-                throw error;
-            }
-        }, this.options.retry);
-
-        if (throwError) {
-            throw throwError;
-        }
-    }
-
-    async ensureBytesSynced() {
-        await this._writeDebounce.writeAll();
+    ensureBytesSynced() {
+        return this._writeQueue.drain();
     }
 
     async ftruncate(size = this._fileSize) {
         await this.ensureBytesSynced();
-        this._fileWriteFinished = true;
         await retry(async () => {
             const fd = await this._ensureFileOpen();
             await fd.truncate(size);
         }, this.options.retry);
     }
 
-    async saveMetadataAfterFile(data: any) {
-        if (this._fileWriteFinished) {
-            throw new WriterIsClosedError();
-        }
+    saveMetadataAfterFlush(data: any) {
+        this._metadataToSave = data;
+    }
 
+    private async _saveMetadata(data: any) {
         const jsonString = JSON.stringify(data);
+        const uint8Array = new TextEncoder().encode(jsonString);
 
-        const encoder = new TextEncoder();
-        const uint8Array = encoder.encode(jsonString);
-
-        await this.write(this._fileSize, [uint8Array]);
+        const fdResult = this._ensureFileOpen();
+        const fd = fdResult instanceof Promise ? await fdResult : fdResult;
+        await fd.write(uint8Array, 0, uint8Array.length, this._fileSize);
     }
 
     async loadMetadataAfterFileWithoutRetry() {
-        if (!await fsExtra.pathExists(this.path)) {
+        if (!await pathExists(this.path)) {
             return;
         }
 
@@ -157,23 +153,28 @@ export default class DownloadEngineWriteStreamNodejs extends BaseDownloadEngineW
 
             try {
                 return JSON.parse(metadataString);
-            } catch {}
+            } catch { }
         } finally {
-            this._fd = null;
-            await fd.close();
+            await this._closeFd();
         }
     }
 
-    private async _writeWithoutRetry(cursor: number, buffers: Uint8Array[]) {
-        return await withLock(this, "lockWriteOperation", async () => {
-            const fd = await this._ensureFileOpen();
-            const {bytesWritten} = await fd.writev(buffers, cursor);
-            return bytesWritten;
-        });
+    override async close() {
+        this._writeQueue.close();
+        await this._writeQueue.drain();
+        await this._closeFd();
     }
 
-    override async close() {
-        await this._fd?.close();
+    private async _closeFd() {
+        if (!this._fd) {
+            return;
+        }
+
+        if (this._fd.fd != null) {
+            await this._fd.close();
+        }
+        DownloadEngineWriteStreamNodejs._allFd.delete(this._fd);
+        DownloadEngineWriteStreamNodejs._finalizationRegistry.unregister(this._finalToken);
         this._fd = null;
     }
 }

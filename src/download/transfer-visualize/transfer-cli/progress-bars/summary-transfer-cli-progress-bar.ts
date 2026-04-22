@@ -1,4 +1,4 @@
-import chalk from "chalk";
+import ansis from "ansis";
 import {SummaryMultiProgressBar} from "../multiProgressBars/SummaryMultiProgressBar.js";
 import {renderDataLine} from "../../utils/data-line.js";
 import FancyTransferCliProgressBar from "./fancy-transfer-cli-progress-bar.js";
@@ -47,7 +47,7 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
             type: "description",
             fullText: pendingText,
             size: pendingText.length,
-            formatter: (text) => chalk.dim(text)
+            formatter: (text) => ansis.dim(text)
         }]);
     }
 
@@ -59,7 +59,7 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
                 type: "status",
                 fullText: "",
                 size: 1,
-                formatter: () => chalk.cyan(this.switchTransferToIcon())
+                formatter: () => ansis.cyan(this.switchTransferToIcon())
             },
             {
                 type: "spacer",
@@ -86,7 +86,7 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
                 type: "spacer",
                 fullText: " | ",
                 size: " | ".length,
-                formatter: (text) => chalk.dim(text)
+                formatter: (text) => ansis.dim(text)
             },
             {
                 type: "nameComment",
@@ -97,7 +97,7 @@ export default class SummaryTransferCliProgressBar extends FancyTransferCliProgr
                 type: "spacer",
                 fullText: " | ",
                 size: " | ".length,
-                formatter: (text) => chalk.dim(text)
+                formatter: (text) => ansis.dim(text)
             },
             {
                 type: "speed",

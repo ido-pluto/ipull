@@ -1,7 +1,7 @@
 import BaseDownloadProgram from "./download-programs/base-download-program.js";
 import DownloadEngineFile from "./download-engine-file.js";
 import {DownloadStatus, ProgressStatus} from "./progress-status-file.js";
-import sleep from "sleep-promise";
+import {sleepPromise} from "../utils/sleepPromise.js";
 
 const BASE_AVERAGE_SPEED_TIME = 1000;
 const AVERAGE_SPEED_TIME = 1000 * 8;
@@ -85,7 +85,7 @@ export class DownloaderProgramManager {
         let sleepTime = AVERAGE_SPEED_TIME;
 
         while (sleepTime <= AVERAGE_SPEED_TIME) {
-            await sleep(sleepTime);
+            await sleepPromise(sleepTime);
             sleepTime = Date.now() - this._lastResumeDate;
         }
 

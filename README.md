@@ -56,7 +56,11 @@ import {downloadFileBrowser} from "ipull/dist/browser.js";
 
 const downloader = await downloadFileBrowser({
     url: 'https://example.com/file.large',
-    acceptRangeIsKnown: true // cors origin request will not return the range header, but we can force it to be true (multi-connection download)
+    acceptRangeIsKnown: true, // overcome CORS, force multi-connection download (use only if you know the server supports range requests)
+    // defaultFetchDownloadInfo: { // set download info manually to overcome CORS issues && prevent multiple requests
+    //     acceptRange: true,
+    //     length: 40789822,
+    // }
 });
 
 await downloader.download();

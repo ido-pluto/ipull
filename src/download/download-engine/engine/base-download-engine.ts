@@ -1,8 +1,8 @@
 import {DownloadFile, SaveProgressInfo} from "../types.js";
-import DownloadEngineFile, {DownloadEngineFileOptions} from "../download-file/download-engine-file.js";
+import DownloadEngineFile, {DEFAULT_DOWNLOAD_ENGINE_FILE_PER_PART_OPTIONS, DownloadEngineFileOptions} from "../download-file/download-engine-file.js";
 import BaseDownloadEngineFetchStream, {BaseDownloadEngineFetchStreamOptions} from "../streams/download-engine-fetch-stream/base-download-engine-fetch-stream.js";
 import UrlInputError from "./error/url-input-error.js";
-import {EventEmitter} from "eventemitter3";
+import {EventEmitter} from "../../../utils/EventEmitter.js";
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import retry from "async-retry";
 import {AvailablePrograms} from "../download-file/download-programs/switch-program.js";
@@ -10,32 +10,45 @@ import StatusCodeError from "../streams/download-engine-fetch-stream/errors/stat
 import {InvalidOptionError} from "./error/InvalidOptionError.js";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
+import {RangeOutOfPartLengthError} from "./error/RangeOutOfPartLengthError.js";
 
 const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
-export type InputURLOptions = { partURLs: string[] } | { url: string };
+
+export type InputRange = { start: number; end: number; };
+export type FullPartURL = ({
+    url: string,
+    range?: InputRange;
+    fetchStream?: BaseDownloadEngineFetchStream;
+} & BaseDownloadEngineFetchStreamOptions);
+
+export type FullPartURLInternal = FullPartURL & {
+    fetchStream: BaseDownloadEngineFetchStream;
+};
+
+export type InputURLOptions =
+    { partURLs: string[]; } & BaseDownloadEngineFetchStreamOptions | FullPartURL | { partURLs: FullPartURL[]; };
 
 export type CreateDownloadFileOptions = {
-    reuseRedirectURL?: boolean
+    reuseRedirectURL?: boolean;
 };
 
 export type BaseDownloadEngineOptions = CreateDownloadFileOptions & InputURLOptions & BaseDownloadEngineFetchStreamOptions & {
     chunkSize?: number;
     parallelStreams?: number;
-    retry?: retry.Options
+    retry?: retry.Options;
     comment?: string;
     programType?: AvailablePrograms,
-    autoIncreaseParallelStreams?: boolean
+    autoIncreaseParallelStreams?: boolean;
 };
 
 export type BaseDownloadEngineEvents = {
-    start: () => void
-    paused: () => void
-    resumed: () => void
-    progress: (progress: FormattedStatus) => void
-    save: (progress: SaveProgressInfo) => void
-    finished: () => void
-    closed: () => void
-    [key: string]: any
+    start: () => void;
+    paused: () => void;
+    resumed: () => void;
+    progress: (progress: FormattedStatus) => void;
+    save: (progress: SaveProgressInfo) => void;
+    finished: () => void;
+    closed: () => void;
 };
 
 export const DEFAULT_BASE_DOWNLOAD_ENGINE_OPTIONS: Partial<BaseDownloadEngineOptions> = {
@@ -94,27 +107,27 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
     protected _initEvents() {
         this._engine.on("start", () => {
-            return this.emit("start");
+            return this.emit0("start");
         });
         this._engine.on("save", (info) => {
-            return this.emit("save", info);
+            return this.emit1("save", info);
         });
         this._engine.on("finished", () => {
-            return this.emit("finished");
+            return this.emit0("finished");
         });
         this._engine.on("closed", () => {
-            return this.emit("closed");
+            return this.emit0("closed");
         });
         this._engine.on("paused", () => {
-            return this.emit("paused");
+            return this.emit0("paused");
         });
         this._engine.on("resumed", () => {
-            return this.emit("resumed");
+            return this.emit0("resumed");
         });
 
         this._progressStatisticsBuilder.on("progress", (status) => {
             this._latestStatus = status;
-            this.emit("progress", status);
+            this.emit1("progress", status);
         });
     }
 
@@ -147,8 +160,8 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         return this._engine.close();
     }
 
-    protected static async _createDownloadFile(parts: string[], fetchStream: BaseDownloadEngineFetchStream, {reuseRedirectURL}: CreateDownloadFileOptions = {}) {
-        const localFileName = decodeURIComponent(new URL(parts[0], "https://example").pathname.split("/")
+    protected static async _createDownloadFile(parts: FullPartURLInternal[], {reuseRedirectURL}: CreateDownloadFileOptions = {}) {
+        const localFileName = decodeURIComponent(new URL(parts[0].url, "https://example").pathname.split("/")
             .pop() || "");
         const downloadFile: DownloadFile = {
             totalSize: 0,
@@ -158,31 +171,49 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
         downloadFile.parts = await Promise.all(parts.map(async (part, index) => {
             try {
-                const {length, acceptRange, newURL, fileName} = await fetchStream.fetchDownloadInfo(part);
-                const downloadURL = reuseRedirectURL ? (newURL ?? part) : part;
-                const size = length || 0;
+                if (part.range) {
+                    this._validatePartRange(part.url, part.range);
+                }
 
-                downloadFile.totalSize += size;
+                const {length, acceptRange, newURL, fileName} = await part.fetchStream.fetchDownloadInfo(part.url);
+                const downloadURL = reuseRedirectURL ? (newURL ?? part.url) : part.url;
+                const remoteFileSize = length || 0;
+
+                if (part.range) {
+                    this._validatePartRange(part.url, part.range, remoteFileSize);
+                }
+
+                const downloadSize = part.range ? (part.range.end - part.range.start + 1) : remoteFileSize;
+
+                downloadFile.totalSize += downloadSize;
                 if (index === 0 && fileName) {
                     downloadFile.localFileName = fileName;
                 }
 
                 return {
                     downloadURL,
-                    originalURL: part,
+                    originalURL: part.url,
                     downloadURLUpdateDate: Date.now(),
-                    size,
-                    acceptRange: size > 0 && acceptRange
+                    remoteFileSize,
+                    downloadSize,
+                    acceptRange: remoteFileSize > 0 && acceptRange,
+                    range: part.range ?? {start: 0, end: remoteFileSize - 1},
+                    ...DEFAULT_DOWNLOAD_ENGINE_FILE_PER_PART_OPTIONS,
+                    ...part
                 };
             } catch (error: any) {
                 if (error instanceof StatusCodeError && IGNORE_HEAD_STATUS_CODES.includes(error.statusCode)) {
-                    // if the server does not support HEAD request, we will skip that step
+                    // if the server does not have info assume the server does not support range requests
                     return {
-                        downloadURL: part,
-                        originalURL: part,
+                        downloadURL: part.url,
+                        originalURL: part.url,
                         downloadURLUpdateDate: Date.now(),
-                        size: 0,
-                        acceptRange: false
+                        remoteFileSize: 0,
+                        downloadSize: 0,
+                        acceptRange: false,
+                        range: part.range ?? {start: 0, end: -1},
+                        ...DEFAULT_DOWNLOAD_ENGINE_FILE_PER_PART_OPTIONS,
+                        ...part
                     };
                 }
                 throw error;
@@ -190,6 +221,34 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
         }));
 
         return downloadFile;
+    }
+
+    protected static _validatePartRange(url: string, range: InputRange, remoteFileSize: number = 0) {
+        if (range.start < 0) {
+            throw new InvalidOptionError(`Range start cannot be negative for URL: ${url}`);
+        }
+
+        if (range.start > range.end) {
+            throw new InvalidOptionError(`Range start (${range.start}) cannot be greater than range end (${range.end}) for URL: ${url}`);
+        }
+
+        if (remoteFileSize > 0 && range.end >= remoteFileSize) {
+            throw new RangeOutOfPartLengthError(url, range.end, remoteFileSize);
+        }
+    }
+
+    protected static _createFullPartURLs(options: InputURLOptions) {
+        let fullPartURLs: FullPartURL[] = [];
+
+        if ("partURLs" in options && options.partURLs.length > 0) {
+            fullPartURLs = options.partURLs.map((partURL) =>
+                (typeof partURL === "string" ? {url: partURL, ...options} : partURL)
+            );
+        } else if ("url" in options) {
+            fullPartURLs = [options];
+        }
+
+        return fullPartURLs;
     }
 
     protected static _validateURL(options: InputURLOptions) {

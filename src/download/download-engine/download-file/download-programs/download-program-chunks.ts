@@ -2,8 +2,8 @@ import {ChunkStatus, SaveProgressInfo} from "../../types.js";
 import BaseDownloadProgram, {DownloadSlice, ProgramSlice} from "./base-download-program.js";
 
 export default class DownloadProgramChunks extends BaseDownloadProgram {
-    public constructor(savedProgress: SaveProgressInfo, downloadSlice: DownloadSlice) {
-        super(savedProgress, downloadSlice);
+    public constructor(savedProgress: SaveProgressInfo, parallelStreams: number, downloadSlice: DownloadSlice) {
+        super(savedProgress, parallelStreams, downloadSlice);
     }
 
     protected _createOneSlice(): ProgramSlice | null {

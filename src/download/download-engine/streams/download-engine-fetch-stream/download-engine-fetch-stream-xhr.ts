@@ -1,21 +1,19 @@
+import retry from "async-retry";
+import prettyMillisecondsCompact from "../../../transfer-visualize/utils/prettyMSFast.js";
+import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import BaseDownloadEngineFetchStream, {
     DownloadInfoResponse,
     FetchSubState,
     MIN_LENGTH_FOR_MORE_INFO_REQUEST,
-    STREAM_NOT_RESPONDING_TIMEOUT,
     WriteCallback
 } from "./base-download-engine-fetch-stream.js";
 import EmptyResponseError from "./errors/empty-response-error.js";
+import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
+import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import XhrError from "./errors/xhr-error.js";
-import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
-import retry from "async-retry";
-import {AvailablePrograms} from "../../download-file/download-programs/switch-program.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
 import {parseHttpContentRange} from "./utils/httpRange.js";
-import prettyMilliseconds from "pretty-ms";
-import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
-
 
 export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetchStream {
     private _fetchDownloadInfoWithHEAD = true;
@@ -37,14 +35,17 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
     protected fetchBytesWithoutRetry(url: string, start: number, end: number, onProgress?: (length: number) => void): Promise<Uint8Array> {
         return new Promise((resolve, reject) => {
-            const headers: { [key: string]: any } = {
+            const headers: { [key: string]: any; } = {
                 accept: "*/*",
                 ...this.options.headers
             };
 
-            if (this.state.activePart.acceptRange) {
+            const expectedContentLength = end - start;
+            if (this.state.activePart.acceptRange && expectedContentLength > 0) {
                 headers.range = `bytes=${start}-${end - 1}`;
             }
+
+            const {signal, clearAbortTimeout} = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
 
             const xhr = new XMLHttpRequest();
             xhr.responseType = "arraybuffer";
@@ -53,54 +54,67 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
-            let lastNotRespondingTimeoutIndex: any;
-            let lastMaxStreamWaitTimeoutIndex: any;
-            let streamNotResponding = false;
-            const clearStreamTimeout = () => {
-                if (streamNotResponding) {
-                    this.emit("streamNotRespondingOff");
-                    streamNotResponding = false;
-                }
+            let streamNotRespondedInTime = false;
+            let waitingForChunk = false;
+            let lastChunkReceived = 0;
+            let aborted = false;
 
-                if (lastNotRespondingTimeoutIndex) {
-                    clearTimeout(lastNotRespondingTimeoutIndex);
-                }
-
-                if (lastMaxStreamWaitTimeoutIndex) {
-                    clearTimeout(lastMaxStreamWaitTimeoutIndex);
+            const clearStreamNotResponding = () => {
+                lastChunkReceived = Date.now();
+                waitingForChunk = false;
+                if (streamNotRespondedInTime) {
+                    streamNotRespondedInTime = false;
+                    this.emit0("streamNotRespondingOff");
                 }
             };
 
-            const createStreamTimeout = () => {
-                clearStreamTimeout();
+            const clearWatchDog = this.watchDog(() => {
+                if (!waitingForChunk || aborted) {
+                    return;
+                }
 
-                lastNotRespondingTimeoutIndex = setTimeout(() => {
-                    streamNotResponding = true;
-                    this.emit("streamNotRespondingOn");
-                }, STREAM_NOT_RESPONDING_TIMEOUT);
+                const waitTime = Date.now() - lastChunkReceived;
+                if (!streamNotRespondedInTime && waitTime >= this.options.streamWaitAlert!) {
+                    streamNotRespondedInTime = true;
+                    this.emit0("streamNotRespondingOn");
+                }
 
-                lastMaxStreamWaitTimeoutIndex = setTimeout(() => {
-                    reject(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMilliseconds(this.options.maxStreamWait!)}`));
-                    xhr.abort();
-                }, this.options.maxStreamWait);
+                if (waitTime >= this.options.maxStreamWait!) {
+                    abortXhr(new EmptyStreamTimeoutError(`Stream timeout after ${prettyMillisecondsCompact(this.options.maxStreamWait!)}`));
+                }
+            });
+
+            const abortXhr = (throwError = new XhrError(`Aborted fetching ${url}`)) => {
+                aborted = true;
+                clearAbortTimeout();
+                xhr.abort();
+                this.off("aborted", abortXhr);
+                clearStreamNotResponding();
+                clearWatchDog();
+
+                reject(throwError);
             };
-
 
             xhr.onload = () => {
-                clearStreamTimeout();
-                const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
-
-                if (this.state.activePart.acceptRange && contentLength !== end - start) {
-                    throw new InvalidContentLengthError(end - start, contentLength);
-                }
+                clearStreamNotResponding();
+                clearWatchDog();
 
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    if (xhr.response.length != contentLength) {
-                        throw new InvalidContentLengthError(contentLength, xhr.response.length);
-                    }
-
-                    const arrayBuffer = xhr.response;
+                    const arrayBuffer: ArrayBuffer = xhr.response;
                     if (arrayBuffer) {
+                        if (this._endSize > 0) {
+                            if (this.state.activePart.acceptRange) {
+                                if (expectedContentLength != arrayBuffer.byteLength) {
+                                    return reject(new InvalidContentLengthError(expectedContentLength, arrayBuffer.byteLength));
+                                }
+                            } else if (arrayBuffer.byteLength < expectedContentLength) {
+                                return reject(new InvalidContentLengthError(expectedContentLength, arrayBuffer.byteLength));
+                            } else {
+                                const newExpectedContentLength = this._endSize - start; // recalculate expected content length in case it was changed since the request was sent (e.g. due to retries with different range)
+                                return resolve(new Uint8Array(arrayBuffer, start, Math.min(arrayBuffer.byteLength - start, newExpectedContentLength)));
+                            }
+                        }
+
                         resolve(new Uint8Array(arrayBuffer));
                     } else {
                         reject(new EmptyResponseError(url, headers));
@@ -111,23 +125,39 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.onerror = () => {
-                clearStreamTimeout();
-                reject(new XhrError(`Failed to fetch ${url}`));
+                abortXhr(new XhrError(`Failed to fetch ${url}`));
             };
 
             xhr.onprogress = (event) => {
-                createStreamTimeout();
+                clearStreamNotResponding();
                 if (event.lengthComputable) {
                     onProgress?.(event.loaded);
+                    this.noRangeFetchSize = event.loaded;
                 }
             };
 
-            xhr.send();
-            createStreamTimeout();
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState != XMLHttpRequest.HEADERS_RECEIVED) {
+                    return;
+                }
 
-            this.on("aborted", () => {
-                clearStreamTimeout();
-                xhr.abort();
+                clearAbortTimeout();
+                waitingForChunk = true;
+
+                const contentLength = parseHttpContentRange(xhr.getResponseHeader("content-range"))?.length ?? parseInt(xhr.getResponseHeader("content-length")!);
+                if (this.state.activePart.acceptRange && contentLength !== expectedContentLength || contentLength && expectedContentLength && contentLength < expectedContentLength) {
+                    abortXhr(new InvalidContentLengthError(expectedContentLength, contentLength));
+                }
+            };
+
+            xhr.onloadend = () => {
+                this.off("aborted", abortXhr);
+            };
+
+            xhr.send();
+            this.on("aborted", abortXhr);
+            signal.addEventListener("abort", () => {
+                abortXhr(new XhrError(signal.reason));
             });
         });
     }
@@ -150,7 +180,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             if (this.aborted) return;
 
             const chunk = await this.fetchBytes(this.state.activePart.downloadURL, this._startSize, this._endSize, this.state.onProgress);
-            callback([chunk], this._startSize, this.state.startChunk++);
+            callback([chunk], this._startSize, this.state.startChunk++, chunk.length);
         }
     }
 
@@ -171,7 +201,7 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             const chunk = relevantContent.slice(start, end);
             totalReceivedLength += chunk.byteLength;
-            callback([chunk], index * this.state.chunkSize, index++);
+            callback([chunk], index * this.state.chunkSize, index++, chunk.length);
         }
     }
 
@@ -192,8 +222,22 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
     protected async fetchDownloadInfoWithoutRetryByMethod(url: string, method: "HEAD" | "GET" = "HEAD"): Promise<DownloadInfoResponse> {
         return new Promise((resolve, reject) => {
+            const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamXhr.timeoutAbortController(this.options.headersTimeout!);
+
             const xhr = new XMLHttpRequest();
             xhr.open(method, url, true);
+
+            signal.addEventListener("abort", () => {
+                reject(new XhrError(signal.reason));
+                xhr.abort();
+            });
+
+            const abortXhr = () => {
+                abort();
+                this.off("aborted", abortXhr);
+            };
+
+            this.on("aborted", abortXhr);
 
             const allHeaders = {
                 ...this.options.headers
@@ -202,16 +246,44 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 xhr.setRequestHeader(key, value);
             }
 
-            xhr.onload = async () => {
+            xhr.onreadystatechange = () => {
+                if (xhr.readyState != XMLHttpRequest.HEADERS_RECEIVED) {
+                    return;
+                }
+
+                this.off("aborted", abortXhr);
+
+                if (method != "HEAD") {
+                    xhr.abort();
+                }
+
+                clearAbortTimeout();
+
                 if (xhr.status >= 200 && xhr.status < 300) {
-                    const contentLength = parseInt(xhr.getResponseHeader("content-length")!);
-                    const length = MIN_LENGTH_FOR_MORE_INFO_REQUEST < contentLength ? await this.fetchDownloadInfoWithoutRetryContentRange(url, method === "GET" ? xhr : undefined) : 0;
                     const fileName = parseContentDisposition(xhr.getResponseHeader("content-disposition"));
                     const acceptRange = this.options.acceptRangeIsKnown ?? xhr.getResponseHeader("Accept-Ranges") === "bytes";
+                    const contentEncoding = xhr.getResponseHeader("content-encoding");
+
+                    let length = parseInt(xhr.getResponseHeader("content-length")!) || 0;
+                    const someLengthInfo = length;
+
+                    if (contentEncoding && contentEncoding !== "identity") {
+                        length = 0; // If content is encoded, we cannot determine the length reliably
+                    }
+
+                    if (length === 0 && (acceptRange || method === "GET" || MIN_LENGTH_FOR_MORE_INFO_REQUEST < someLengthInfo)) {
+                        if (method !== "GET") {
+                            resolve(this.fetchDownloadInfoWithoutRetryByMethod(url, "GET"));
+                            return;
+                        }
+
+                        const contentRange = xhr.getResponseHeader("Content-Range");
+                        length = parseHttpContentRange(contentRange)?.size || 0;
+                    }
 
                     resolve({
-                        length,
                         acceptRange,
+                        length,
                         newURL: xhr.responseURL,
                         fileName
                     });
@@ -220,55 +292,21 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
                 }
             };
 
-            xhr.onerror = function () {
-                reject(new XhrError(`Failed to fetch ${url}`));
-            };
-
-            xhr.send();
-        });
-
-    }
-
-    protected fetchDownloadInfoWithoutRetryContentRange(url: string, xhrResponse?: XMLHttpRequest) {
-        const getSize = (xhr: XMLHttpRequest) => {
-            const contentRange = xhr.getResponseHeader("Content-Range");
-            return parseHttpContentRange(contentRange)?.size || 0;
-        };
-
-        if (xhrResponse) {
-            return getSize(xhrResponse);
-        }
-
-        return new Promise<number>((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open("GET", url, true);
-
-            const allHeaders = {
-                accept: "*/*",
-                ...this.options.headers,
-                range: "bytes=0-0"
-            };
-            for (const [key, value] of Object.entries(allHeaders)) {
-                xhr.setRequestHeader(key, value);
-            }
-
-            xhr.onload = () => {
-                resolve(getSize(xhr));
-            };
-
             xhr.onerror = () => {
+                this.off("aborted", abortXhr);
                 reject(new XhrError(`Failed to fetch ${url}`));
             };
 
             xhr.send();
         });
+
     }
 
     protected static convertXHRHeadersToRecord(xhr: XMLHttpRequest): Record<string, string> {
         const headersString = xhr.getAllResponseHeaders();
         const headersArray = headersString.trim()
             .split(/[\r\n]+/);
-        const headersObject: { [key: string]: string } = {};
+        const headersObject: { [key: string]: string; } = {};
 
         headersArray.forEach(line => {
             const parts = line.split(": ");

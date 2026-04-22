@@ -1,9 +1,7 @@
-import {TransferProgressInfo} from "./transfer-statistics.js";
-import prettyBytes, {Options as PrettyBytesOptions} from "pretty-bytes";
-import prettyMilliseconds, {Options as PrettyMsOptions} from "pretty-ms";
 import {DownloadStatus, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
-
-const DEFAULT_LOCALIZATION: Intl.LocalesArgument = "en-US";
+import {TransferProgressInfo} from "./transfer-statistics.js";
+import prettyBytes, {PrettyBytesOptions, formatTrunc} from "./utils/prettyBytesFast.js";
+import prettyMillisecondsCompact from "./utils/prettyMSFast.js";
 
 export type CliInfoStatus = TransferProgressInfo & {
     fileName?: string,
@@ -26,14 +24,9 @@ const NUMBER_FORMAT_OPTIONS: Intl.NumberFormatOptions = {
     minimumIntegerDigits: 3
 };
 
-export const PRETTY_MS_OPTIONS: PrettyMsOptions = {
-    ...NUMBER_FORMAT_OPTIONS,
-    keepDecimalsOnWholeSeconds: true,
-    secondsDecimalDigits: 2,
-    compact: true
-};
+const PERCENTAGE_FRACTION_DIGITS = 4;
 
-const PRETTY_BYTES_OPTIONS: PrettyBytesOptions = {...NUMBER_FORMAT_OPTIONS, space: false, locale: DEFAULT_LOCALIZATION};
+const PRETTY_BYTES_OPTIONS: PrettyBytesOptions = {...NUMBER_FORMAT_OPTIONS, space: false};
 
 const DEFAULT_CLI_INFO_STATUS: CliInfoStatus = {
     speed: 0,
@@ -58,12 +51,8 @@ export function createFormattedStatus(status: ProgressStatus | FormattedStatus):
     const formatTransferred = prettyBytes(fullStatus.transferredBytes, PRETTY_BYTES_OPTIONS);
     const formatTotal = fullStatus.totalBytes === 0 ? "???" : prettyBytes(fullStatus.totalBytes, PRETTY_BYTES_OPTIONS);
     const formatTransferredOfTotal = `${formatTransferred}/${formatTotal}`;
-    const formatTimeLeft = fullStatus.totalBytes === 0 ? "unknown time" : prettyMilliseconds(fullStatus.timeLeft, PRETTY_MS_OPTIONS);
-    const formattedPercentage = fullStatus.percentage.toLocaleString(DEFAULT_LOCALIZATION, {
-        minimumIntegerDigits: 1,
-        minimumFractionDigits: 4
-    })
-        .slice(0, 5) + "%";
+    const formatTimeLeft = fullStatus.totalBytes === 0 ? "unknown time" : prettyMillisecondsCompact(fullStatus.timeLeft);
+    const formattedPercentage = formatTrunc(fullStatus.percentage, PERCENTAGE_FRACTION_DIGITS, PERCENTAGE_FRACTION_DIGITS).slice(0, 5) + "%";
 
     let fullComment = fullStatus.comment;
     if (status.downloadStatus === DownloadStatus.Cancelled || status.downloadStatus === DownloadStatus.Paused) {

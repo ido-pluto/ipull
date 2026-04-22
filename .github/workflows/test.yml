@@ -13,6 +13,6 @@ jobs:
       - name: ESLint
         run: npm run lint
       - name: TypeScript validity
-        run: npm run build
+        run: npm run build:prod
       - name: Run Tests
         run: npm run test

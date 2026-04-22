@@ -1,10 +1,10 @@
 import fs, {FileHandle} from "fs/promises";
 import {withLock} from "lifecycle-utils";
 import retry from "async-retry";
-import fsExtra from "fs-extra";
 import BaseDownloadEngineFetchStream, {DownloadInfoResponse, FetchSubState, WriteCallback} from "./base-download-engine-fetch-stream.js";
 import SmartChunkSplit from "./utils/smart-chunk-split.js";
 import streamResponse from "./utils/stream-response.js";
+import {ensureFile} from "../../../../utils/fs.js";
 
 const OPEN_MODE = "r";
 
@@ -12,6 +12,7 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
     public override transferAction = "Copying";
     private _fd: FileHandle | null = null;
     private _fsPath: string | null = null;
+    private _fileOpenLock = {};
 
     override withSubState(state: FetchSubState): this {
         const fetchStream = new DownloadEngineFetchStreamLocalFile(this.options);
@@ -19,14 +20,14 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
     }
 
     private async _ensureFileOpen(path: string) {
-        return await withLock(this, "_lock", async () => {
+        return await withLock([this._fileOpenLock, "_lock"], async () => {
             if (this._fd && this._fsPath === path) {
                 return this._fd;
             }
 
             this._fd?.close();
             return await retry(async () => {
-                await fsExtra.ensureFile(path);
+                await ensureFile(path);
                 return this._fd = await fs.open(path, OPEN_MODE);
             }, this.options.retry);
         });
@@ -55,9 +56,9 @@ export default class DownloadEngineFetchStreamLocalFile extends BaseDownloadEngi
         };
     }
 
-    override close() {
+    override async close() {
         super.close();
-        this._fd?.close();
+        await this._fd?.close();
         this._fd = null;
     }
 }

@@ -1,12 +1,11 @@
-import chalk from "chalk";
-import {PRETTY_MS_OPTIONS} from "../../format-transfer-status.js";
-import {DataLine, renderDataLine} from "../../utils/data-line.js";
-import prettyMilliseconds from "pretty-ms";
+import ansis from "ansis";
 import sliceAnsi from "slice-ansi";
 import stripAnsi from "strip-ansi";
 import {DownloadStatus} from "../../../download-engine/download-file/progress-status-file.js";
-import BaseTransferCliProgressBar from "./base-transfer-cli-progress-bar.js";
+import {DataLine, renderDataLine} from "../../utils/data-line.js";
+import prettyMillisecondsCompact from "../../utils/prettyMSFast.js";
 import {STATUS_ICONS} from "../../utils/progressBarIcons.js";
+import BaseTransferCliProgressBar from "./base-transfer-cli-progress-bar.js";
 
 /**
  * A class to display transfer progress in the terminal, with a progress bar and other information.
@@ -18,7 +17,7 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
         const formattedPercentageWithPadding = formattedPercentage.padEnd(6, " ");
         const progressBarText = ` ${formattedPercentageWithPadding} (${formatTransferred}/${formatTotal}) `;
 
-        const dimEta: DataLine = this.getETA(" | ", text => chalk.dim(text));
+        const dimEta: DataLine = this.getETA(" | ", text => ansis.dim(text));
         const alertStatus = this.alertStatus;
 
         return renderDataLine([
@@ -32,7 +31,7 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
                 type: "status",
                 fullText: alertStatus,
                 size: alertStatus.length,
-                formatter: (text) => chalk.ansi256(196)(text)
+                formatter: (text) => ansis.fg(196)(text)
             },
             {
                 type: "spacer",
@@ -52,12 +51,12 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
                 formatter(_, size) {
                     const leftPad = " ".repeat(Math.floor((size - progressBarText.length) / 2));
                     return renderProgressBar({
-                        barText: leftPad + ` ${chalk.black.bgWhiteBright(formattedPercentageWithPadding)} ${chalk.gray(`(${formatTransferred}/${formatTotal})`)} `,
-                        backgroundText: leftPad + ` ${chalk.yellow.bgGray(formattedPercentageWithPadding)} ${chalk.white(`(${formatTransferred}/${formatTotal})`)} `,
+                        barText: leftPad + ` ${ansis.black.bgWhiteBright(formattedPercentageWithPadding)} ${ansis.gray(`(${formatTransferred}/${formatTotal})`)} `,
+                        backgroundText: leftPad + ` ${ansis.yellow.bgGray(formattedPercentageWithPadding)} ${ansis.white(`(${formatTransferred}/${formatTotal})`)} `,
                         length: size,
                         loadedPercentage: percentage / 100,
-                        barStyle: chalk.black.bgWhiteBright,
-                        backgroundStyle: chalk.bgGray
+                        barStyle: ansis.black.bgWhiteBright,
+                        backgroundStyle: ansis.bgGray
                     });
                 }
             }, {
@@ -79,8 +78,8 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
 
         const downloadTime = (endTime || Date.now()) - startTime;
         const finishedText = wasSuccessful
-            ? `downloaded ${this.status.formatTransferred} in ${prettyMilliseconds(downloadTime, PRETTY_MS_OPTIONS)}`
-            : `failed downloading after ${prettyMilliseconds(endTime - startTime, PRETTY_MS_OPTIONS)}`;
+            ? `downloaded ${this.status.formatTransferred} in ${prettyMillisecondsCompact(downloadTime)}`
+            : `failed downloading after ${prettyMillisecondsCompact(endTime - startTime)}`;
 
         return renderDataLine([{
             type: "status",
@@ -105,7 +104,7 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
             type: "description",
             fullText: finishedText,
             size: finishedText.length,
-            formatter: (text) => chalk.dim(text)
+            formatter: (text) => ansis.dim(text)
         }]);
     }
 
@@ -131,7 +130,7 @@ export default class FancyTransferCliProgressBar extends BaseTransferCliProgress
             type: "description",
             fullText: pendingText,
             size: pendingText.length,
-            formatter: (text) => chalk.dim(text)
+            formatter: (text) => ansis.dim(text)
         }]);
     }
 }

@@ -56,7 +56,7 @@ export default class TransferStatistics {
         const speed = clamp(this._calculateSpeed(transferred));
         const timeLeft = (total - transferred) / speed;
         const timeLeftFinalNumber = clamp((timeLeft || 0) * 1000, 0, MAX_TIME_LEFT);
-        const percentage = clamp(((transferred / total) * 100), 0, 100);
+        const percentage = total === 0 ? 0 : clamp(((transferred / total) * 100), 0, 100);
 
         return this._latestProgress = {
             transferredBytes: clamp(transferred),

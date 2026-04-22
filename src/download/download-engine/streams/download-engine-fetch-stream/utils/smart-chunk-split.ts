@@ -6,7 +6,7 @@ export type SmartChunkSplitOptions = {
     endChunk: number;
     lastChunkEndsFile: boolean;
     activePart: {
-        size: number;
+        downloadSize: number;
     }
 };
 
@@ -16,6 +16,7 @@ export default class SmartChunkSplit {
     private readonly _lastChunkSize: number;
     private _bytesWriteLocation: number;
     private _chunks: Uint8Array[] = [];
+    private _savedLength = 0;
     private _closed = false;
 
     public constructor(_callback: WriteCallback, _options: SmartChunkSplitOptions) {
@@ -27,21 +28,24 @@ export default class SmartChunkSplit {
     }
 
     public calcLastChunkSize() {
-        return this._options.activePart.size - Math.max(this._options.endChunk - 1, 0) * this._options.chunkSize;
+        return this._options.activePart.downloadSize - Math.max(this._options.endChunk - 1, 0) * this._options.chunkSize;
     }
 
     public addChunk(data: Uint8Array) {
         this._chunks.push(data);
+        this._savedLength += data.length;
         this._sendChunk();
     }
 
     public get savedLength() {
-        return this._chunks.reduce((acc, chunk) => acc + chunk.length, 0);
+        return this._savedLength;
     }
 
     closeAndSendLeftoversIfLengthIsUnknown() {
         if (this._chunks.length > 0 && this._options.endChunk === Infinity) {
-            this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++);
+            this._callback(this._chunks, this._bytesWriteLocation, this._options.startChunk++, this._savedLength);
+            this._chunks = [];
+            this._savedLength = 0;
         }
         this._closed = true;
     }
@@ -73,7 +77,8 @@ export default class SmartChunkSplit {
                         this._chunks.unshift(currentChunk.subarray(lastChunkEnd));
                     }
 
-                    this._callback(sendChunks, this._bytesWriteLocation, this._options.startChunk++);
+                    this._savedLength -= calcChunkThreshold;
+                    this._callback(sendChunks, this._bytesWriteLocation, this._options.startChunk++, calcChunkThreshold);
                     this._bytesWriteLocation += calcChunkThreshold;
                     break;
                 }

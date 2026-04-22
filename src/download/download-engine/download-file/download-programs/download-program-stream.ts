@@ -3,8 +3,8 @@ import BaseDownloadProgram, {DownloadSlice, ProgramSlice} from "./base-download-
 
 
 export default class DownloadProgramStream extends BaseDownloadProgram {
-    public constructor(savedProgress: SaveProgressInfo, downloadSlice: DownloadSlice) {
-        super(savedProgress, downloadSlice);
+    public constructor(savedProgress: SaveProgressInfo, parallelStreams: number, downloadSlice: DownloadSlice) {
+        super(savedProgress, parallelStreams, downloadSlice);
     }
 
     protected _createOneSlice(): ProgramSlice | null {
@@ -39,5 +39,13 @@ export default class DownloadProgramStream extends BaseDownloadProgram {
         }
 
         return chunksSlices.sort((a, b) => (b.end - b.start) - (a.end - a.start));
+    }
+
+    override async download(): Promise<void> {
+        if (this._parallelStreams === 1) {
+            return await this._downloadSlice(0, this.savedProgress.chunks.length);
+        }
+
+        return await super.download();
     }
 }

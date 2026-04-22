@@ -1,4 +1,4 @@
-import fs from "fs-extra";
+import fs from "fs/promises";
 import hash from "hash.js";
 
 export function hashBuffer(bufferData: Uint8Array) {
