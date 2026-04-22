@@ -66,7 +66,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
                     await fs.unlink(this.options.writeStream.path);
                 } catch { }
                 await reflinkFile(this.options.fullPartURLInternal[0].url, this.options.writeStream.path);
-                this._engine.finished("cloned");
+                this._engine.markAsCloned();
             } catch { }
         };
 

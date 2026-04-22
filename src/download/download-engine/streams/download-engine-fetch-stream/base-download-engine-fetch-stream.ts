@@ -8,6 +8,7 @@ import {sleepPromise} from "../../utils/sleepPromise.js";
 import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
+import {RenewFetchError} from "./errors/RenewFetchError.js";
 
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 
@@ -280,6 +281,14 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
                         callback(...args);
                     });
                 } catch (error: any) {
+                    if (this.paused){
+                        await this.paused;
+
+                        if (error instanceof RenewFetchError){
+                            continue;
+                        }
+                    }
+
                     if (error?.name === "AbortError" && this.aborted) return;
 
                     this.errorCount.value++;

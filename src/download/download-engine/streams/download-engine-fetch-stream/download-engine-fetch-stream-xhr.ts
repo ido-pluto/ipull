@@ -72,6 +72,8 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             let aborted = false;
 
             const clearStreamNotResponding = () => {
+                lastChunkReceived = Date.now();
+                waitingForChunk = false;
                 if (streamNotRespondedInTime) {
                     streamNotRespondedInTime = false;
                     this.emit0("streamNotRespondingOff");
@@ -106,8 +108,6 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             };
 
             xhr.onload = () => {
-                lastChunkReceived = Date.now();
-                waitingForChunk = false;
                 clearStreamNotResponding();
                 clearWatchDog();
 

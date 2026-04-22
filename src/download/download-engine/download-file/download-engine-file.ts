@@ -252,7 +252,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         const streamPromises = new Set<Promise<void>>();
 
-        for (let i = this._progress.part; i < this.file.parts.length && !this.options.skipExisting; i++) {
+        for (let i = this._progress.part; i < this.file.parts.length; i++) {
             if (this._closed) return;
             // If we are starting a new part, we need to reset the progress
             if (i > this._progress.part || !this._activePart.acceptRange) {
@@ -470,11 +470,10 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this.emit0("closed");
     }
 
-    public finished(comment?: string) {
-        if (comment) {
-            this.options.comment = pushComment(comment, this.options.comment);
-        }
-        this._downloadStatus = DownloadStatus.Finished;
+    public markAsCloned() {
+        this.options.comment = pushComment("cloned", this.options.comment);
+        this._progressStatus.downloadFlags!.push(DownloadFlags.Cloned);
+        this._progress.part = this.file.parts.length - 1;
     }
 
     public [Symbol.dispose]() {

@@ -8,6 +8,7 @@ import BaseDownloadEngineFetchStream, {
 } from "./base-download-engine-fetch-stream.js";
 import {EmptyStreamTimeoutError} from "./errors/EmptyStreamTimeoutError.js";
 import InvalidContentLengthError from "./errors/invalid-content-length-error.js";
+import {RenewFetchError} from "./errors/RenewFetchError.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import {browserCheck} from "./utils/browserCheck.js";
 import {parseContentDisposition} from "./utils/content-disposition.js";
@@ -161,8 +162,8 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             if (this.paused) {
                 clearWatchdog();
                 smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
+                reject(new RenewFetchError("Fetch paused"));
                 this._activeController?.abort();
-                this.paused.then(resolve);
                 return;
             }
 

@@ -28,6 +28,7 @@ export enum DownloadStatus {
 
 export enum DownloadFlags {
     Existing = "Existing",
+    Cloned = "Cloned",
     DownloadSequence = "DownloadSequence"
 }
 
