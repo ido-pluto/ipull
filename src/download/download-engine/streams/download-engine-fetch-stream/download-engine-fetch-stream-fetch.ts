@@ -90,6 +90,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
         const {signal, abort, clearAbortTimeout} = DownloadEngineFetchStreamFetch.timeoutAbortController(this.options.headersTimeout!);
 
         try {
+            this.on("aborted", abort);
             const response = await fetch(url, {
                 method: method,
                 headers: {
@@ -137,6 +138,7 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
             };
         } finally {
             clearAbortTimeout();
+            this.off("aborted", abort);
         }
     }
 

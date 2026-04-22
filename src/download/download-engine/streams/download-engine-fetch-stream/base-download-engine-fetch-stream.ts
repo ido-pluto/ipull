@@ -102,6 +102,7 @@ export type WriteCallback = (data: Uint8Array[], position: number, index: number
 const DEFAULT_OPTIONS: BaseDownloadEngineFetchStreamOptions = {
     retryOnServerError: true,
     streamCheckInterval: 10,
+    progressThrottleMs: 10,
     streamWaitAlert: 1000 * 3,
     maxStreamWait: 1000 * 15,
     headersTimeout: 1000 * 30,
