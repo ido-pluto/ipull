@@ -3,7 +3,6 @@ import {DownloadStatus} from "../../download-engine/download-file/progress-statu
 import BaseDownloadEngine from "../../download-engine/engine/base-download-engine.js";
 import DownloadEngineMultiDownload, {DownloadEngineMultiAllowedEngines} from "../../download-engine/engine/download-engine-multi-download.js";
 import {DownloadEngineRemote} from "../../download-engine/engine/DownloadEngineRemote.js";
-import {FormattedStatus} from "../format-transfer-status.js";
 import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js";
 import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./progress-bars/switch-cli-progress-style.js";
