@@ -5,8 +5,7 @@ export type TransferProgressInfo = {
     totalBytes: number,
     speed: number,
     percentage: number,
-    timeLeft: number,
-    ended: boolean
+    timeLeft: number
 };
 
 const MAX_TIME_LEFT = 35 * 24 * 60 * 60 * 1000; // 35 days
@@ -63,8 +62,7 @@ export default class TransferStatistics {
             totalBytes: clamp(total),
             speed,
             percentage,
-            timeLeft: timeLeftFinalNumber,
-            ended: percentage == 100
+            timeLeft: timeLeftFinalNumber
         };
     }
 

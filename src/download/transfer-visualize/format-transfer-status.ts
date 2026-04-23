@@ -1,6 +1,6 @@
 import {DownloadStatus, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 import {TransferProgressInfo} from "./transfer-statistics.js";
-import prettyBytes, {PrettyBytesOptions, formatTrunc} from "./utils/prettyBytesFast.js";
+import prettyBytes, {formatTrunc, PrettyBytesOptions} from "./utils/prettyBytesFast.js";
 import prettyMillisecondsCompact from "./utils/prettyMSFast.js";
 
 export type CliInfoStatus = TransferProgressInfo & {
@@ -33,8 +33,7 @@ const DEFAULT_CLI_INFO_STATUS: CliInfoStatus = {
     transferredBytes: 0,
     totalBytes: 0,
     percentage: 0,
-    timeLeft: 0,
-    ended: false
+    timeLeft: 0
 };
 
 function formatSpeed(speed: number): string {

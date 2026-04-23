@@ -91,7 +91,7 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
     }
 
     public get status() {
-        return this._latestStatus ?? ProgressStatisticsBuilder.oneStatistics(this._engine);
+        return this._latestStatus ??= ProgressStatisticsBuilder.oneStatistics(this._engine);
     }
 
     public get downloadStatues() {
