@@ -26,7 +26,7 @@ export type CliProgressDownloadEngineOptions = {
 class GlobalCLI {
     private _multiDownloadEngine = this._createMultiDownloadEngine();
     private _eventsRegistered = new Set<DownloadEngineMultiAllowedEngines>();
-    private _transferCLI = GlobalCLI._createOptions({});
+    private _transferCLI = GlobalCLI._createOptions({}, this);
     private _cliActive = false;
     private _downloadOptions = new WeakMap<AllowedDownloadEngine, CliProgressDownloadEngineOptions>();
     private _cachedCliEngines: AllowedDownloadEngine[] = [];
@@ -34,11 +34,12 @@ class GlobalCLI {
 
     constructor() {
         this._registerCLIEvents();
+        this._getCLIStatuses = this._getCLIStatuses.bind(this);
     }
 
     async addDownload(engine: AllowedDownloadEngine | Promise<AllowedDownloadEngine>, cliOptions: CliProgressDownloadEngineOptions = {}) {
         if (!this._cliActive && cliOptions.cliProgress) {
-            this._transferCLI = GlobalCLI._createOptions(cliOptions);
+            this._transferCLI = GlobalCLI._createOptions(cliOptions, this);
         }
 
         if (engine instanceof Promise) {
@@ -131,20 +132,12 @@ class GlobalCLI {
             invalidateCache();
         });
 
-        const printProgress = (progress: FormattedStatus, debounce = true) =>
-            this._transferCLI.updateStatues(() => [
-                this._getCLIStatuses(),
-                progress,
-                this._multiDownloadEngine.loadingDownloads
-            ], debounce);
-
         this._multiDownloadEngine.on("progress", (progress) => {
             if (!this._cliActive) return;
-            printProgress(progress);
+            this._transferCLI.updateStatues(progress, this._multiDownloadEngine.loadingDownloads);
         });
 
         this._multiDownloadEngine.on("finished", () => {
-            printProgress(this._multiDownloadEngine.status, false);
             this._multiDownloadEngine = this._createMultiDownloadEngine();
             this._eventsRegistered = new Set();
             this._cachedCliEngines = [];
@@ -188,7 +181,7 @@ class GlobalCLI {
             .map(engine => engine.status);
     }
 
-    private static _createOptions(options: CliProgressDownloadEngineOptions) {
+    private static _createOptions(options: CliProgressDownloadEngineOptions, globalCLI: GlobalCLI) {
         const cliOptions: Partial<TransferCliOptions> = {...options};
         cliOptions.createProgressBar ??= typeof options.cliStyle === "function" ?
             {
@@ -199,7 +192,10 @@ class GlobalCLI {
                 truncateName: options.truncateName,
                 loadingSpinner: options.loadingAnimation
             });
-        return new TransferCli(cliOptions);
+        const cli = new TransferCli(cliOptions);
+        cli.latestProgressesGetter = globalCLI._getCLIStatuses;
+
+        return cli;
     }
 }
 

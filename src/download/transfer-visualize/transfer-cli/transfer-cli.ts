@@ -18,7 +18,7 @@ export type TransferCliOptions = {
 export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
     maxViewDownloads: 10,
     truncateName: true,
-    debounceWait: process.platform === "win32" ? 500 : 45,
+    debounceWait: process.platform === "win32" ? 500 : 35,
     createProgressBar: switchCliProgressStyle("auto", {truncateName: true}),
     loadingAnimation: "dots",
     createMultiProgressBar: BaseMultiProgressBar
@@ -27,14 +27,16 @@ export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
 export default class TransferCli {
     protected options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
-    protected latestProgress: [FormattedStatus[], FormattedStatus, number] = null!;
-    protected latestProgressGetter: (() => [FormattedStatus[], FormattedStatus, number]) | null = null;
     private _cliStopped = true;
     private _multiProgressBar: BaseMultiProgressBar;
     private _lastProgressLong = "";
     private _lastUpdateTime = 0;
     private _shouldExitOnSIGINT = false;
     private _debounceWait: number;
+
+    protected latestAggregatedProgress: FormattedStatus | null = null;
+    protected latestLoadingDownloads: number = 0;
+    public latestProgressesGetter: () => FormattedStatus[] = () => [];
 
     public constructor(options: Partial<TransferCliOptions>) {
         this.options = {...DEFAULT_TRANSFER_CLI_OPTIONS, ...options};
@@ -73,21 +75,22 @@ export default class TransferCli {
         }
     }
 
-    updateStatues(getLatestProgress: () => [FormattedStatus[], FormattedStatus, number], debounce = true) {
-        this.latestProgressGetter = getLatestProgress;
-
-        if (debounce && Date.now() - this._lastUpdateTime < this._debounceWait) {
+    updateStatues(latestAggregatedProgress: FormattedStatus, latestLoadingDownloads: number) {
+        const dramaticChange = this.latestAggregatedProgress?.downloadStatus != latestAggregatedProgress.downloadStatus || this.latestLoadingDownloads != latestLoadingDownloads;
+        
+        if (!dramaticChange && Date.now() - this._lastUpdateTime < this._debounceWait) {
             return;
         }
+
+        this.latestAggregatedProgress = latestAggregatedProgress;
+        this.latestLoadingDownloads = latestLoadingDownloads;
         
         this._lastUpdateTime = Date.now();
         this._updateStatues();
     }
 
     private _updateStatues() {
-        const latestProgress = this.latestProgressGetter?.() ?? this.latestProgress;
-        if (!latestProgress) return;
-        const printLog = this._multiProgressBar.createMultiProgressBar(...latestProgress);
+        const printLog = this._multiProgressBar.createMultiProgressBar(this.latestProgressesGetter(), this.latestAggregatedProgress!, this.latestLoadingDownloads);
         if (printLog && this._lastProgressLong != printLog) {
             this._lastProgressLong = printLog;
             this._logUpdate(printLog);
