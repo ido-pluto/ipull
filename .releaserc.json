@@ -3,6 +3,7 @@
         "main",
         {
             "name": "beta",
+            "range": "5.x",
             "prerelease": true
         }
     ],
