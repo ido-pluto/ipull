@@ -3,6 +3,8 @@ import http from "http";
 
 export const TEST_FILE_SIZE = 8 * 1024 * 1024; // 8MB
 export const TEST_FILE_DATA = Buffer.alloc(TEST_FILE_SIZE, 0x61); // 'a' bytes
+export const SMALL_TEST_FILE_SIZE = 263181;
+export const SMALL_TEST_FILE_DATA = Buffer.alloc(SMALL_TEST_FILE_SIZE, 0x62); // 'b' bytes
 
 export type LocalTestServer = {
     baseURL: string;
@@ -78,6 +80,16 @@ const setupNoRangeRoutes = (app: express.Express) => {
     app.get("/no-range-zero.png", (req, res) => {
         res.setHeader("Content-Length", "0");
         res.status(200).send(TEST_FILE_DATA);
+    });
+
+    app.head("/no-range-zero-small.bin", (req, res) => {
+        res.setHeader("Content-Length", "0");
+        res.status(200).end();
+    });
+
+    app.get("/no-range-zero-small.bin", (req, res) => {
+        res.setHeader("Content-Length", "0");
+        res.status(200).send(SMALL_TEST_FILE_DATA);
     });
 };
 
@@ -191,6 +203,5 @@ export async function startLocalTestServer(): Promise<LocalTestServer> {
         close: async () => new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
     };
 }
-
 
 

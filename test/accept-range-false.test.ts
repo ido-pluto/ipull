@@ -3,7 +3,7 @@ import DownloadEngineFetchStreamFetch from "../src/download/download-engine/stre
 import DownloadEngineFile from "../src/download/download-engine/download-file/download-engine-file.js";
 import DownloadEngineWriteStreamBrowser from "../src/download/download-engine/streams/download-engine-write-stream/download-engine-write-stream-browser.js";
 import {DownloadFile} from "../src/download/download-engine/types.js";
-import {startLocalTestServer, LocalTestServer} from "./utils/local-server.js";
+import {SMALL_TEST_FILE_SIZE, startLocalTestServer, LocalTestServer} from "./utils/local-server.js";
 
 let baseURL: string;
 let server: LocalTestServer;
@@ -69,5 +69,43 @@ describe("Accept-Range False & Non-Standard Servers", () => {
         };
         const downloader = new DownloadEngineFile(file, {writeStream});
         await expect(downloader.download()).resolves.not.toThrow();
+    });
+
+    test("should not report transferredBytes above the final size for small unknown-length files", async ({expect}) => {
+        const fetchStream = new DownloadEngineFetchStreamFetch();
+        const writeStream = new DownloadEngineWriteStreamBrowser(() => { });
+        const file: DownloadFile = {
+            totalSize: 0,
+            localFileName: "small.bin",
+            parts: [
+                {
+                    downloadURL: `${baseURL}/no-range-zero-small.bin`,
+                    originalURL: `${baseURL}/no-range-zero-small.bin`,
+                    acceptRange: false,
+                    remoteFileSize: 0,
+                    downloadSize: 0,
+                    downloadURLUpdateDate: Date.now(),
+                    fetchStream,
+                    parallelStreams: 1,
+                    autoIncreaseParallelStreams: false,
+                    programType: "stream",
+                    range: {start: 0, end: -1}
+                }
+            ]
+        };
+        const progressValues: number[] = [];
+        const downloader = new DownloadEngineFile(file, {
+            writeStream,
+            chunkSize: 5 * 1024 * 1024
+        });
+
+        downloader.on("progress", ({transferredBytes}) => {
+            progressValues.push(transferredBytes);
+        });
+
+        await downloader.download();
+
+        expect(downloader.downloadSize).toBe(SMALL_TEST_FILE_SIZE);
+        expect(Math.max(...progressValues)).toBeLessThanOrEqual(SMALL_TEST_FILE_SIZE);
     });
 });

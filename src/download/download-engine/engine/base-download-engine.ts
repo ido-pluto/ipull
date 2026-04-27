@@ -11,6 +11,7 @@ import {InvalidOptionError} from "./error/InvalidOptionError.js";
 import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.js";
 import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
 import {RangeOutOfPartLengthError} from "./error/RangeOutOfPartLengthError.js";
+import {DownloadStatus} from "../download-file/progress-status-file.js";
 
 const IGNORE_HEAD_STATUS_CODES = [405, 501, 404];
 
@@ -107,21 +108,28 @@ export default class BaseDownloadEngine extends EventEmitter<BaseDownloadEngineE
 
     protected _initEvents() {
         this._engine.on("start", () => {
+            this.status.downloadStatus = DownloadStatus.Active;
             return this.emit0("start");
         });
         this._engine.on("save", (info) => {
             return this.emit1("save", info);
         });
         this._engine.on("finished", () => {
+            this.status.downloadStatus = DownloadStatus.Finished;
             return this.emit0("finished");
         });
         this._engine.on("closed", () => {
+            if (this.status.downloadStatus !== DownloadStatus.Finished) {
+                this.status.downloadStatus = DownloadStatus.Cancelled;
+            }
             return this.emit0("closed");
         });
         this._engine.on("paused", () => {
+            this.status.downloadStatus = DownloadStatus.Paused;
             return this.emit0("paused");
         });
         this._engine.on("resumed", () => {
+            this.status.downloadStatus = DownloadStatus.Active;
             return this.emit0("resumed");
         });
 

@@ -69,6 +69,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
     };
 
     protected _closed = false;
+    protected _closing = false;
     protected _progressStatus: Partial<ProgressStatus>;
     protected _activeStreamContext: {
         [key: number]: {
@@ -245,8 +246,9 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         this._progressStatus.startTime = Date.now();
         this.emit0("start");
-        await this.options.onStartedAsync?.();
         this._sendProgressDownloadPart();
+
+        await this.options.onStartedAsync?.();
 
         const streamPromises = new Set<Promise<void>>();
 
@@ -308,13 +310,11 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this._activeStreamContext = {};
         this._latestProgressDate = 0;
 
-        if (this._closed) return;
+        if (this._closing || this._closed) {
+            return;
+        }
 
-        this._progressStatus.endTime = Date.now();
-        this._downloadStatus = DownloadStatus.Finished;
-        this._sendProgressDownloadPart();
-        this.emit0("finished");
-        await this.options.onFinishAsync?.();
+        await this._closeDownload(DownloadStatus.Finished);
     }
 
     protected async _downloadSlice(startChunk: number, endChunk: number) {
@@ -356,7 +356,7 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         this._progress.chunks[startChunk] = ChunkStatus.IN_PROGRESS;
         const allWrites = new Set<Promise<any>>();
 
-        let lastChunkSize = 0, lastInProgressIndex = startChunk;
+        let lastInProgressIndex = startChunk;
         await fetchState.fetchChunks((chunks, writePosition, index, totalLength) => {
             if (this._closed || this._progress.chunks[index] != ChunkStatus.IN_PROGRESS) {
                 return;
@@ -370,14 +370,19 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
                 });
             }
 
-            // if content length is 0, we do not know how many chunks we should have
+            this._progress.chunks[index] = ChunkStatus.COMPLETE;
+            getContext().streamBytes = 0;
+
             if (this._activePart.downloadSize === 0) {
-                this._progress.chunks.push(ChunkStatus.NOT_STARTED);
+                // On dynamic content length, we need to adjust the last chunk size, it's last chunk if this.options.chunkSize > totalLength
+                if (this.options.chunkSize > totalLength) {
+                    this._activePart.remoteFileSize = fetchState.noRangeFetchSize;
+                    this._activePart.downloadSize = this._activeDownloadedChunkSize - this.options.chunkSize + totalLength;
+                } else {
+                    this._progress.chunks.push(ChunkStatus.NOT_STARTED);
+                }
             }
 
-            this._progress.chunks[index] = ChunkStatus.COMPLETE;
-            lastChunkSize = chunks.reduce((last, current) => last + current.length, 0);
-            getContext().streamBytes = 0;
             void this._saveProgress();
 
             const nextChunk = this._progress.chunks[index + 1];
@@ -393,13 +398,6 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
 
         if (this._progress.chunks[lastInProgressIndex] === ChunkStatus.IN_PROGRESS) {
             this._progress.chunks[lastInProgressIndex] = ChunkStatus.NOT_STARTED;
-        }
-
-        // On dynamic content length, we need to adjust the last chunk size
-        if (this._activePart.downloadSize === 0) {
-            this._activePart.remoteFileSize = fetchState.noRangeFetchSize;
-            this._activePart.downloadSize = this._activeDownloadedChunkSize - this.options.chunkSize + lastChunkSize;
-            this._progress.chunks = this._progress.chunks.filter(c => c === ChunkStatus.COMPLETE);
         }
 
         delete this._activeStreamContext[startChunk];
@@ -437,9 +435,9 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         }
 
         this._downloadStatus = DownloadStatus.Paused;
-        this._activePart.fetchStream.emit0("paused");
         await this.options.onPausedAsync?.();
         this._sendProgressDownloadPart();
+        this._activePart.fetchStream.emit0("paused");
     }
 
     public resume() {
@@ -448,24 +446,38 @@ export default class DownloadEngineFile extends EventEmitter<DownloadEngineFileE
         }
 
         this._downloadStatus = DownloadStatus.Active;
+        this._sendProgressDownloadPart();
         this._activePart.fetchStream.emit0("resumed");
         this.emit0("resumed");
-        this._sendProgressDownloadPart();
     }
 
-    public async close() {
-        if (this._closed) return;
-        if (this._downloadStatus !== DownloadStatus.Finished) {
-            this._progressStatus.endTime = Date.now();
-            this._downloadStatus = DownloadStatus.Cancelled;
-            this._sendProgressDownloadPart();
+    private async _closeDownload(status: DownloadStatus) {
+        if (this._closed || this._closing) return;
+        this._closing = true;
+
+        this._progressStatus.endTime = Date.now();
+        this._downloadStatus = status;
+
+        if (status === DownloadStatus.Finished) {
+            this.emit0("finished");
+            await this.options.onFinishAsync?.();
         }
-        this._closed = true;
+
+        this._sendProgressDownloadPart();
+
         this._activeProgram?.abort();
         await this.options.onCloseAsync?.();
         await this.options.writeStream.close();
         await this._activePart.fetchStream.close();
+
+        this._closed = true;
+        this._closing = false;
+
         this.emit0("closed");
+    }
+
+    public close() {
+        return this._closeDownload(DownloadStatus.Cancelled);
     }
 
     public markAsCloned() {

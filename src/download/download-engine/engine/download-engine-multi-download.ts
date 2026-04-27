@@ -3,7 +3,7 @@ import {FormattedStatus} from "../../transfer-visualize/format-transfer-status.j
 import ProgressStatisticsBuilder from "../../transfer-visualize/progress-statistics-builder.js";
 import BaseDownloadEngine, {BaseDownloadEngineEvents} from "./base-download-engine.js";
 import {concurrency} from "../utils/concurrency.js";
-import {DownloadFlags, DownloadStatus} from "../download-file/progress-status-file.js";
+import {DownloadFlags, DownloadStatus, ProgressStatus} from "../download-file/progress-status-file.js";
 import {DownloadEngineRemote} from "./DownloadEngineRemote.js";
 import {promiseWithResolvers} from "../utils/promiseWithResolvers.js";
 
@@ -19,31 +19,33 @@ type DownloadEngineMultiAllowedEngineCore = BaseDownloadEngine | DownloadEngineR
 export type DownloadEngineMultiAllowedEngines = DownloadEngineMultiAllowedEngineCore & BaseDownloadEngineEventTarget;
 
 type DownloadEngineMultiDownloadEvents<Engine = DownloadEngineMultiAllowedEngines> = BaseDownloadEngineEvents & {
-    childDownloadStarted: (engine: Engine) => void
-    childDownloadClosed: (engine: Engine) => void
-    downloadAdded: (engine: Engine) => void
+    childDownloadStarted: (engine: Engine) => void;
+    childDownloadClosed: (engine: Engine) => void;
+    downloadAdded: (engine: Engine) => void;
+    loadingDownloadIncreased: () => void;
+    loadingDownloadDecreased: () => void;
 };
 
 export type DownloadEngineMultiDownloadOptions = {
-    parallelDownloads?: number
+    parallelDownloads?: number;
     /**
      * Unpack inner downloads statues to the main download statues,
      * useful for showing CLI progress in separate downloads or tracking download progress separately
      */
-    unpackInnerMultiDownloadsStatues?: boolean
+    unpackInnerMultiDownloadsStatues?: boolean;
     /**
      * Finalize download (change .ipull file to original extension) after all downloads are settled
      */
-    finalizeDownloadAfterAllSettled?: boolean
+    finalizeDownloadAfterAllSettled?: boolean;
 
     /**
      * Do not start download automatically
      * @internal
      */
-    naturalDownloadStart?: boolean
+    naturalDownloadStart?: boolean;
 
-    downloadName?: string
-    downloadComment?: string
+    downloadName?: string;
+    downloadComment?: string;
 };
 
 const DEFAULT_OPTIONS = {
@@ -179,20 +181,23 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         const index = this.downloads.length + this._loadingDownloads;
         this._downloadStatues[index] = ProgressStatisticsBuilder.loadingStatusEmptyStatistics();
 
-        this._loadingDownloads++;
-        this._progressStatisticsBuilder._totalDownloadParts++;
-        this._progressStatisticsBuilder._sendLatestProgress();
-
         const isPromise = engine instanceof Promise;
+
         if (isPromise) {
+            this._loadingDownloads++;
+            this.emit0("loadingDownloadIncreased");
+            this._progressStatisticsBuilder._totalDownloadParts++;
+            this._progressStatisticsBuilder._sendLatestProgress();
             this._engineWaitPromises.add(engine);
         }
+
         const awaitEngine = isPromise ? await engine : engine;
         if (isPromise) {
             this._engineWaitPromises.delete(engine);
+            this._progressStatisticsBuilder._totalDownloadParts--;
+            this.emit0("loadingDownloadDecreased");
+            this._loadingDownloads--;
         }
-        this._progressStatisticsBuilder._totalDownloadParts--;
-        this._loadingDownloads--;
 
         this._addEngine(awaitEngine, index);
         this._progressStatisticsBuilder.add(awaitEngine, true);
@@ -210,9 +215,10 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
         }
 
         try {
-            this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
+            this._lastStatus.downloadStatus = this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
             this._downloadStarted = true;
             this.emit0("start");
+            this._progressStatisticsBuilder.emitLastStatus();
 
             const concurrencyCount = this._options.parallelDownloads || DEFAULT_OPTIONS.parallelDownloads;
             let continueIteration = true;
@@ -240,10 +246,11 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
                 }
             }
 
-            this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
-
+            this._lastStatus.downloadStatus = this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Finished;
             this.emit0("finished");
+            this._progressStatisticsBuilder.emitLastStatus();
             await this._finishEnginesDownload();
+
             await this.close();
             this._downloadEndPromise.resolve();
         } catch (error) {
@@ -284,14 +291,20 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
     }
 
     public pause(): void {
-        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Paused;
+        this._lastStatus.downloadStatus = this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Paused;
+        this.emit0("paused");
+        this._progressStatisticsBuilder.emitLastStatus();
+
         this._activeEngines.forEach(engine => {
             if ("pause" in engine) engine.pause();
         });
     }
 
     public resume(): void {
-        this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
+        this._lastStatus.downloadStatus = this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Active;
+        this.emit0("resumed");
+        this._progressStatisticsBuilder.emitLastStatus();
+
         this._activeEngines.forEach(engine => {
             if ("resume" in engine) engine.resume();
         });
@@ -303,6 +316,7 @@ export default class DownloadEngineMultiDownload<Engine extends DownloadEngineMu
 
         if (this._progressStatisticsBuilder.downloadStatus !== DownloadStatus.Finished) {
             this._progressStatisticsBuilder.downloadStatus = DownloadStatus.Cancelled;
+            this._progressStatisticsBuilder.emitLastStatus();
         }
 
         const closePromises = Array.from(this._activeEngines)

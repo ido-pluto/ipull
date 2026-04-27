@@ -76,7 +76,7 @@ export default class DownloadEngineNodejs<T extends DownloadEngineWriteStreamNod
         };
 
         this._engine.options.onCloseAsync = async () => {
-            if (this.status.transferredBytes === this.status.totalBytes && this.options.writeStream.path != this.options.writeStream.finalPath) {
+            if (this.status.downloadStatus === DownloadStatus.Finished && this.options.writeStream.path != this.options.writeStream.finalPath) {
                 await fs.rename(this.options.writeStream.path, this.options.writeStream.finalPath);
                 this.options.writeStream.path = this.options.writeStream.finalPath;
             }

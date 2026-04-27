@@ -25,7 +25,7 @@ export const DEFAULT_TRANSFER_CLI_OPTIONS: TransferCliOptions = {
 };
 
 export default class TransferCli {
-    protected options: TransferCliOptions;
+    public readonly options: TransferCliOptions;
     protected stdoutManager = UpdateManager.getInstance();
     private _cliStopped = true;
     private _multiProgressBar: BaseMultiProgressBar;
@@ -53,7 +53,7 @@ export default class TransferCli {
         if (this._multiProgressBar.printType === "update") {
             this.stdoutManager.hook();
         }
-        
+
         this._shouldExitOnSIGINT = process.listenerCount("SIGINT") === 0;
         process.on("SIGINT", this._processExit);
     }
@@ -75,16 +75,14 @@ export default class TransferCli {
         }
     }
 
-    updateStatues(latestAggregatedProgress: FormattedStatus, latestLoadingDownloads: number) {
-        const dramaticChange = this.latestAggregatedProgress?.downloadStatus != latestAggregatedProgress.downloadStatus || this.latestLoadingDownloads != latestLoadingDownloads;
-        
-        if (!dramaticChange && Date.now() - this._lastUpdateTime < this._debounceWait) {
+    updateStatues(aggregatedProgress: FormattedStatus, latestLoadingDownloads: number, debounced = true) {
+        if (debounced && this.latestLoadingDownloads === latestLoadingDownloads && Date.now() - this._lastUpdateTime < this._debounceWait) {
             return;
         }
 
-        this.latestAggregatedProgress = latestAggregatedProgress;
         this.latestLoadingDownloads = latestLoadingDownloads;
-        
+        this.latestAggregatedProgress = aggregatedProgress;
+
         this._lastUpdateTime = Date.now();
         this._updateStatues();
     }

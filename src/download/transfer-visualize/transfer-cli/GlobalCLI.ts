@@ -1,4 +1,4 @@
-import {SpinnerName} from "cli-spinners";
+import cliSpinners, {SpinnerName} from "cli-spinners";
 import {DownloadStatus} from "../../download-engine/download-file/progress-status-file.js";
 import BaseDownloadEngine from "../../download-engine/engine/base-download-engine.js";
 import DownloadEngineMultiDownload, {DownloadEngineMultiAllowedEngines} from "../../download-engine/engine/download-engine-multi-download.js";
@@ -7,6 +7,8 @@ import {BaseMultiProgressBar} from "./multiProgressBars/BaseMultiProgressBar.js"
 import {CliFormattedStatus} from "./progress-bars/base-transfer-cli-progress-bar.js";
 import switchCliProgressStyle, {AvailableCLIProgressStyle} from "./progress-bars/switch-cli-progress-style.js";
 import TransferCli, {TransferCliOptions} from "./transfer-cli.js";
+import ProgressStatisticsBuilder from "../progress-statistics-builder.js";
+import {FormattedStatus} from "../format-transfer-status.js";
 
 type AllowedDownloadEngine = DownloadEngineMultiDownload | BaseDownloadEngine | DownloadEngineRemote;
 
@@ -23,13 +25,15 @@ export type CliProgressDownloadEngineOptions = {
 };
 
 class GlobalCLI {
+    private readonly _loadingStatuses: FormattedStatus[] = [{...ProgressStatisticsBuilder.loadingStatusEmptyStatistics(), downloadStatus: DownloadStatus.Loading}];
+
     private _multiDownloadEngine = this._createMultiDownloadEngine();
     private _eventsRegistered = new Set<DownloadEngineMultiAllowedEngines>();
     private _transferCLI = GlobalCLI._createOptions({}, this);
     private _cliActive = false;
-    private _downloadOptions = new WeakMap<AllowedDownloadEngine, CliProgressDownloadEngineOptions>();
     private _cachedCliEngines: AllowedDownloadEngine[] = [];
     private _isCliEnginesCacheDirty = true;
+    private _cliLoading = false;
 
     constructor() {
         this._registerCLIEvents();
@@ -37,14 +41,12 @@ class GlobalCLI {
     }
 
     async addDownload(engine: AllowedDownloadEngine | Promise<AllowedDownloadEngine>, cliOptions: CliProgressDownloadEngineOptions = {}) {
-        if (!this._cliActive && cliOptions.cliProgress) {
-            this._transferCLI = GlobalCLI._createOptions(cliOptions, this);
+        if (!cliOptions.cliProgress) {
+            return;
         }
 
-        if (engine instanceof Promise) {
-            engine.then((engine) => this._downloadOptions.set(engine, cliOptions));
-        } else {
-            this._downloadOptions.set(engine, cliOptions);
+        if (!this._cliActive && cliOptions.cliProgress) {
+            this._transferCLI = GlobalCLI._createOptions(cliOptions, this);
         }
 
         await this._multiDownloadEngine.addDownload(engine);
@@ -62,19 +64,13 @@ class GlobalCLI {
     }
 
     private _registerCLIEvents() {
-        const isDownloadActive = (parentEngine: DownloadEngineMultiDownload = this._multiDownloadEngine) => {
-            if (parentEngine.loadingDownloads > 0) {
+        const isDownloadActive = () => {
+            if (this._multiDownloadEngine.loadingDownloads > 0) {
                 return true;
             }
 
-            for (const engine of parentEngine.activeDownloads) {
-                if (engine instanceof DownloadEngineMultiDownload) {
-                    if (isDownloadActive(engine)) {
-                        return true;
-                    }
-                }
-
-                if (engine.status.downloadStatus === DownloadStatus.Active || parentEngine.status.downloadStatus === DownloadStatus.Active && [DownloadStatus.Loading, DownloadStatus.NotStarted].includes(engine.status.downloadStatus)) {
+            for (const engine of this._multiDownloadEngine.activeDownloads) {
+                if (DownloadStatus.Active === engine.status.downloadStatus) {
                     return true;
                 }
             }
@@ -143,20 +139,48 @@ class GlobalCLI {
             this._isCliEnginesCacheDirty = true;
             this._registerCLIEvents();
         });
+
+        this._multiDownloadEngine.on("loadingDownloadIncreased", () => {
+            this._ensureLoadingWithCLI();
+        });
     }
+
+    private async _ensureLoadingWithCLI() {
+        if (this._cliLoading || this._multiDownloadEngine.loadingDownloads > 0 || !this._transferCLI.options.loadingAnimation) return;
+        this._cliLoading = true;
+
+        this._transferCLI.start();
+        this._cliActive = true;
+
+        const spinner = cliSpinners[this._transferCLI.options.loadingAnimation];
+
+        const renderSpinner = () => {
+            if (this._multiDownloadEngine.loadingDownloads === 0 || this._multiDownloadEngine.activeDownloads.length > 0) {
+                clearInterval(interval);
+                this._cliLoading = false;
+
+                if (this._multiDownloadEngine.activeDownloads.length === 0) {
+                    this._transferCLI.stop();
+                    this._cliActive = false;
+                }
+                return;
+            }
+
+            this._transferCLI.updateStatues(this._loadingStatuses[0], 1);
+        };
+
+        const interval = setInterval(renderSpinner, spinner.interval);
+        renderSpinner();
+    }
+
 
     private _collectCLIEngines(multiEngine: DownloadEngineMultiDownload, engines: Set<AllowedDownloadEngine>) {
         for (const engine of multiEngine.downloads) {
-            const isShowEngine = this._downloadOptions.get(engine)?.cliProgress;
             if (engine instanceof DownloadEngineMultiDownload) {
-                if (isShowEngine) {
-                    for (const flatEngine of engine._flatEngines) {
-                        engines.add(flatEngine);
-                    }
-                    continue;
+                for (const flatEngine of engine._flatEngines) {
+                    engines.add(flatEngine);
                 }
-                this._collectCLIEngines(engine, engines);
-            } else if (isShowEngine) {
+            } else {
                 engines.add(engine);
             }
         }
@@ -176,6 +200,10 @@ class GlobalCLI {
     }
 
     private _getCLIStatuses() {
+        if (this._multiDownloadEngine.loadingDownloads > 0 && this._multiDownloadEngine.activeDownloads.length === 0) {
+            return this._loadingStatuses;
+        }
+
         return this._getCLIEngines()
             .map(engine => engine.status);
     }

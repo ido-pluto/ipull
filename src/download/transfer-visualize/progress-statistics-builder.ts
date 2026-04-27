@@ -1,11 +1,10 @@
-import BaseDownloadEngine from "../download-engine/engine/base-download-engine.js";
 import {EventEmitter} from "../../utils/EventEmitter.js";
 import TransferStatistics from "./transfer-statistics.js";
 import {createFormattedStatus, FormattedStatus} from "./format-transfer-status.js";
 import DownloadEngineFile from "../download-engine/download-file/download-engine-file.js";
 import {DownloadStatus, EMPTY_PROGRESS_STATUS, ProgressStatus} from "../download-engine/download-file/progress-status-file.js";
 import DownloadEngineMultiDownload from "../download-engine/engine/download-engine-multi-download.js";
-import {DownloadEngineRemote} from "../download-engine/engine/DownloadEngineRemote.js";
+import {BaseDownloadEngine, DownloadEngineRemote} from "../../browser.js";
 
 export type ProgressStatusWithIndex = FormattedStatus & {
     index: number,
@@ -52,7 +51,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
     public set downloadStatus(status) {
         if (this._downloadStatus === status) return;
 
-        this._downloadStatus = status;
+        this._lastStatus.downloadStatus = this._downloadStatus = status;
         if ([DownloadStatus.Finished, DownloadStatus.Cancelled, DownloadStatus.Error].includes(status)) {
             this._endTime = Date.now();
             this._lastStatus = {
@@ -61,7 +60,9 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
                 endTime: this._endTime
             };
         }
+    }
 
+    public emitLastStatus() {
         this.emit1("progress", this._lastStatus);
     }
 
@@ -78,7 +79,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
         return this._lastStatus;
     }
 
-    public add(engine: AnyEngine, sendProgress = true, addFileName = true) {
+    public add(engine: AnyEngine, sendProgress = false, addFileName = true) {
         if (this._engines.has(engine)) {
             return;
         }
@@ -96,6 +97,10 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             for (const subEngine of engine._flatEngines) {
                 this.add(subEngine, sendProgress, false);
             }
+
+            engine.on("downloadAdded", (subEngine) => {
+                this.add(subEngine, sendProgress, false);
+            });
             return;
         }
 
@@ -133,7 +138,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             this._sendProgress(data, index, downloadPartStart);
         });
 
-        engine.on("finished", () => {
+        engine.on("closed", () => {
             this._commonTransferActionMap[latestStatus.transferAction]--;
             this._calcCommonTransferAction();
 
@@ -141,7 +146,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             this._transferredBytes += engine.downloadSize;
         });
 
-        if (sendProgress) {
+        if (sendProgress && latestStatus.downloadStatus === DownloadStatus.Active) {
             this._sendProgress(latestStatus, index, downloadPartStart);
         }
     }
