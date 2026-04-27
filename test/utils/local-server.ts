@@ -5,19 +5,21 @@ export const TEST_FILE_SIZE = 8 * 1024 * 1024; // 8MB
 export const TEST_FILE_DATA = Buffer.alloc(TEST_FILE_SIZE, 0x61); // 'a' bytes
 export const SMALL_TEST_FILE_SIZE = 263181;
 export const SMALL_TEST_FILE_DATA = Buffer.alloc(SMALL_TEST_FILE_SIZE, 0x62); // 'b' bytes
+export const THROTTLE_TEST_FILE_SIZE = 256 * 1024;
+export const THROTTLE_TEST_FILE_DATA = Buffer.alloc(THROTTLE_TEST_FILE_SIZE, 0x63); // 'c' bytes
 
 export type LocalTestServer = {
     baseURL: string;
     close: () => Promise<void>;
 };
 
-const parseRange = (rangeHeader: string | undefined) => {
+const parseRange = (rangeHeader: string | undefined, fileSize: number) => {
     if (!rangeHeader) return null;
     const match = /bytes=(\d+)-(\d+)?/.exec(rangeHeader);
     if (!match) return null;
 
     const start = Number(match[1]);
-    const end = typeof match[2] === "undefined" ? TEST_FILE_SIZE - 1 : Number(match[2]);
+    const end = typeof match[2] === "undefined" ? fileSize - 1 : Number(match[2]);
     return {start, end};
 };
 
@@ -29,15 +31,16 @@ const setCommonHeaders = (res: express.Response, withRange: boolean, length: num
 };
 
 const handleRangeRequest = (req: express.Request, res: express.Response, data: Buffer) => {
+    const fileSize = data.length;
     const rangeHeader = req.header("range");
     if (!rangeHeader) {
-        setCommonHeaders(res, true, TEST_FILE_SIZE);
+        setCommonHeaders(res, true, fileSize);
         res.status(200).send(data);
         return;
     }
 
-    const range = parseRange(rangeHeader);
-    if (!range || range.start > range.end || range.start < 0 || range.end >= TEST_FILE_SIZE) {
+    const range = parseRange(rangeHeader, fileSize);
+    if (!range || range.start > range.end || range.start < 0 || range.end >= fileSize) {
         res.status(416).end();
         return;
     }
@@ -45,7 +48,7 @@ const handleRangeRequest = (req: express.Request, res: express.Response, data: B
     const chunk = data.slice(range.start, range.end + 1);
     res.status(206);
     res.setHeader("Accept-Ranges", "bytes");
-    res.setHeader("Content-Range", `bytes ${range.start}-${range.end}/${TEST_FILE_SIZE}`);
+    res.setHeader("Content-Range", `bytes ${range.start}-${range.end}/${fileSize}`);
     res.setHeader("Content-Length", String(chunk.length));
     res.send(chunk);
 };
@@ -58,6 +61,15 @@ const setupRangeFileRoutes = (app: express.Express) => {
 
     app.get("/range-file.bin", (req, res) => {
         handleRangeRequest(req, res, TEST_FILE_DATA);
+    });
+
+    app.head("/throttle-file.bin", (req, res) => {
+        setCommonHeaders(res, true, THROTTLE_TEST_FILE_SIZE);
+        res.status(200).end();
+    });
+
+    app.get("/throttle-file.bin", (req, res) => {
+        handleRangeRequest(req, res, THROTTLE_TEST_FILE_DATA);
     });
 };
 
@@ -107,7 +119,7 @@ const setupMismatchRoutes = (app: express.Express) => {
             return;
         }
 
-        const range = parseRange(rangeHeader);
+        const range = parseRange(rangeHeader, TEST_FILE_SIZE);
         if (!range || range.start > range.end || range.start < 0 || range.end >= TEST_FILE_SIZE) {
             res.status(416).end();
             return;
@@ -137,7 +149,7 @@ const setupContentLengthMismatchRoutes = (app: express.Express) => {
             return;
         }
 
-        const range = parseRange(rangeHeader);
+        const range = parseRange(rangeHeader, TEST_FILE_SIZE);
         if (!range || range.start > range.end || range.start < 0 || range.end >= TEST_FILE_SIZE) {
             res.status(416).end();
             return;
@@ -203,5 +215,4 @@ export async function startLocalTestServer(): Promise<LocalTestServer> {
         close: async () => new Promise<void>((resolve, reject) => server.close((err) => (err ? reject(err) : resolve())))
     };
 }
-
 

@@ -9,6 +9,7 @@ import HttpError from "./errors/http-error.js";
 import StatusCodeError from "./errors/status-code-error.js";
 import {retryAsyncStatementSimple} from "./utils/retry-async-statement.js";
 import {RenewFetchError} from "./errors/RenewFetchError.js";
+import ByteRateLimiter from "./utils/byte-rate-limiter.js";
 
 export const MIN_LENGTH_FOR_MORE_INFO_REQUEST = 1024 * 1024 * 3; // 3MB
 
@@ -44,6 +45,10 @@ export type BaseDownloadEngineFetchStreamOptions = {
      */
     acceptRangeIsKnown?: boolean;
     ignoreIfRangeWithQueryParams?: boolean;
+    /**
+     * Maximum transfer speed in bytes per second. Shared by all parallel streams in the same download.
+     */
+    maxDownloadSpeed?: number;
 } & (
         {
             defaultFetchDownloadInfo?: { length: number, acceptRange: boolean; };
@@ -137,10 +142,14 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     private _closed = false;
     private _watchDogCalls = new Set<() => void>();
     private _watchDogInterval?: NodeJS.Timeout;
+    protected _downloadSpeedLimiter?: ByteRateLimiter;
 
     constructor(options: Partial<BaseDownloadEngineFetchStreamOptions> = {}) {
         super();
         this.options = {...DEFAULT_OPTIONS, ...options};
+        if (this.options.maxDownloadSpeed && this.options.maxDownloadSpeed > 0) {
+            this._downloadSpeedLimiter = new ByteRateLimiter(this.options.maxDownloadSpeed);
+        }
         this.watchDog = this.watchDog.bind(this);
         this.initEvents();
     }
@@ -179,6 +188,7 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     protected cloneState<Fetcher extends BaseDownloadEngineFetchStream>(state: FetchSubState, fetchStream: Fetcher): Fetcher {
         fetchStream.state = state;
         fetchStream.errorCount = this.errorCount;
+        fetchStream._downloadSpeedLimiter = this._downloadSpeedLimiter;
         const forwardErrorCount = this.emit.bind(this, "errorCountIncreased");
         const forwardAborted = fetchStream.emit.bind(fetchStream, "aborted");
         const forwardPaused = fetchStream.emit.bind(fetchStream, "paused");
@@ -336,6 +346,10 @@ export default abstract class BaseDownloadEngineFetchStream extends EventEmitter
     }
 
     protected abstract fetchWithoutRetryChunks(callback: WriteCallback): Promise<void> | void;
+
+    public throttleBytes(bytes: number) {
+        return this._downloadSpeedLimiter?.waitFor(bytes);
+    }
 
     public close(): void | Promise<void> {
         if (this._closed) return;

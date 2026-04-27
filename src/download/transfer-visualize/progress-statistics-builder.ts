@@ -18,6 +18,8 @@ export type AnyEngine = DownloadEngineFile | BaseDownloadEngine | DownloadEngine
 export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressBuilderEvents> {
     private _engines = new Set<AnyEngine>();
     private _activeTransfers: { [index: number]: number; } = {};
+    private _activeTransferredBytes = 0;
+    private _closedTransfers = new Set<number>();
     private _totalBytes = 0;
     private _transferredBytes = 0;
     private _latestEngine: AnyEngine | null = null;
@@ -71,8 +73,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
     }
 
     public get transferredBytesWithActiveTransfers() {
-        return this._transferredBytes + Object.values(this._activeTransfers)
-            .reduce((acc, bytes) => acc + bytes, 0);
+        return this._transferredBytes + this._activeTransferredBytes;
     }
 
     public get status() {
@@ -142,8 +143,7 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
             this._commonTransferActionMap[latestStatus.transferAction]--;
             this._calcCommonTransferAction();
 
-            delete this._activeTransfers[index];
-            this._transferredBytes += engine.downloadSize;
+            this._closeTransfer(index, engine.downloadSize);
         });
 
         if (sendProgress && latestStatus.downloadStatus === DownloadStatus.Active) {
@@ -167,12 +167,35 @@ export default class ProgressStatisticsBuilder extends EventEmitter<CliProgressB
 
     private _sendProgress(data: ProgressStatus, index: number, downloadPartStart: number) {
         this._startTime ||= data.startTime;
-        this._activeTransfers[index] = data.transferredBytes;
+        if (!this._closedTransfers.has(index)) {
+            this._setActiveTransfer(index, data.transferredBytes);
+        }
+
         if (downloadPartStart + data.downloadPart > this._activeDownloadPart) {
             this._activeDownloadPart = downloadPartStart + data.downloadPart;
         }
 
         this.emit1("progress", this.createStatus(index, data));
+    }
+
+    private _setActiveTransfer(index: number, transferredBytes: number) {
+        const previousTransferredBytes = this._activeTransfers[index] ?? 0;
+        this._activeTransferredBytes += transferredBytes - previousTransferredBytes;
+
+        if (transferredBytes === 0) {
+            delete this._activeTransfers[index];
+            return;
+        }
+
+        this._activeTransfers[index] = transferredBytes;
+    }
+
+    private _closeTransfer(index: number, transferredBytes: number) {
+        if (this._closedTransfers.has(index)) return;
+
+        this._setActiveTransfer(index, 0);
+        this._transferredBytes += transferredBytes;
+        this._closedTransfers.add(index);
     }
 
     private createStatus(index: number, data?: ProgressStatus) {

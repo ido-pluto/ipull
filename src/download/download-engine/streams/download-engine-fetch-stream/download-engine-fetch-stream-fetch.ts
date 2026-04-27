@@ -202,9 +202,14 @@ export default class DownloadEngineFetchStreamFetch extends BaseDownloadEngineFe
 
                 smartSplit.addChunk(value);
                 this.state.onProgress?.(smartSplit.savedLength);
-
+                
                 if (dynamicContentLengthReached && this._endSize && this.noRangeFetchSize >= this._endSize) {
                     break;
+                }
+
+                const throttlePromise = this.throttleBytes(value.byteLength);
+                if(throttlePromise instanceof Promise) {
+                    await throttlePromise;
                 }
             }
 

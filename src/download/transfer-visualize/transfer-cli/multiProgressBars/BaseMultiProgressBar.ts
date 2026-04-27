@@ -30,14 +30,32 @@ export class BaseMultiProgressBar {
      * Sorts the statuses by importance, active downloads first, then remaining, then finished (by end time - latest first)
      */
     protected recorderStatusByImportance(statuses: FormattedStatus[]) {
-        const activeTasks = statuses.filter(status => status.downloadStatus === DownloadStatus.Active);
-        const remaining = statuses.filter(status => [DownloadStatus.Paused, DownloadStatus.NotStarted].includes(status.downloadStatus));
-        const loading = statuses.filter(status => status.downloadStatus === DownloadStatus.Loading);
-        const finishedTasks = statuses.filter(status => status.downloadStatus === DownloadStatus.Finished)
-            .sort((a, b) => b.endTime - a.endTime);
+        const activeTasks: FormattedStatus[] = [];
+        const remaining: FormattedStatus[] = [];
+        const loading: FormattedStatus[] = [];
+        const finishedTasks: FormattedStatus[] = [];
 
-        const showTotalTasks = activeTasks.concat(remaining)
-            .concat(loading);
+        for (const status of statuses) {
+            switch (status.downloadStatus) {
+                case DownloadStatus.Active:
+                    activeTasks.push(status);
+                    break;
+                case DownloadStatus.Paused:
+                case DownloadStatus.NotStarted:
+                    remaining.push(status);
+                    break;
+                case DownloadStatus.Loading:
+                    loading.push(status);
+                    break;
+                case DownloadStatus.Finished:
+                    finishedTasks.push(status);
+                    break;
+            }
+        }
+
+        finishedTasks.sort((a, b) => b.endTime - a.endTime);
+
+        const showTotalTasks = activeTasks.concat(remaining, loading);
         const showTotalTasksWithFinished = showTotalTasks.concat(finishedTasks);
 
         return {

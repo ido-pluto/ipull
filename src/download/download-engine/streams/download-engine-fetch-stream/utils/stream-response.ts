@@ -13,13 +13,23 @@ type IStreamResponse = {
 
 export default async function streamResponse(stream: IStreamResponse, downloadEngine: BaseDownloadEngineFetchStream, smartSplit: SmartChunkSplit, onProgress?: (leftOverLength: number) => void): Promise<void> {
     const {promise, resolve, reject} = promiseWithResolvers();
-
-    stream.on("data", (chunk) => {
+    let closed = false;
+    stream.on("data", async (chunk) => {
         smartSplit.addChunk(chunk);
         onProgress?.(smartSplit.savedLength);
+
+        const throttlePromise = downloadEngine.throttleBytes(chunk.byteLength);
+        if(!closed && throttlePromise instanceof Promise) {
+            stream.pause();
+            await throttlePromise;
+            if (!closed) {
+                stream.resume();
+            }
+        }
     });
 
-    stream.on("close", () => {
+    stream.on("close", async () => {
+        closed = true;
         smartSplit.closeAndSendLeftoversIfLengthIsUnknown();
         resolve();
     });

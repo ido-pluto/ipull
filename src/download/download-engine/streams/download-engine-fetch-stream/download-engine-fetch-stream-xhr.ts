@@ -181,6 +181,11 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
 
             const chunk = await this.fetchBytes(this.state.activePart.downloadURL, this._startSize, this._endSize, this.state.onProgress);
             callback([chunk], this._startSize, this.state.startChunk++, chunk.length);
+
+            const throttlePromise = this.throttleBytes(chunk.length);
+            if(throttlePromise instanceof Promise) {
+                await throttlePromise;
+            }
         }
     }
 
@@ -202,6 +207,11 @@ export default class DownloadEngineFetchStreamXhr extends BaseDownloadEngineFetc
             const chunk = relevantContent.slice(start, end);
             totalReceivedLength += chunk.byteLength;
             callback([chunk], index * this.state.chunkSize, index++, chunk.length);
+
+            const throttlePromise = this.throttleBytes(chunk.length);
+            if(throttlePromise instanceof Promise) {
+                await throttlePromise;
+            }
         }
     }
 
